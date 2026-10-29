@@ -3,20 +3,11 @@
  * Mendukung Round Robin multi-key (6 API Key) dan otomatis failover jika terkena limit.
  */
 
-export const DEFAULT_GEMINI_KEYS = [
-  "AQ.Ab8RN6Jp8e28akX-sVvvheXNJiJr5dbp0DmomGCu8-rXEgwr9w", // angel1
-  "AQ.Ab8RN6K2-E7IXn5uPs4kvYkwEwR6i72-gAQ2lAJugAE6slHWOA", // angel2
-  "AQ.Ab8RN6Kpd46fCYPr6qWxRtattlDmxKEDdDRuOK7b_DQksL-c_A", // angel3
-  "AQ.Ab8RN6KTvSoVnNd_f5ZjZdgN2jbD6eDq5yxc3z8UJJBJR8HIpw", // angel4
-  "AQ.Ab8RN6K50FVdyRjgWSY1SYCefbJ-KCjvOqhS8l-I32JAtEQOXg", // angel5
-  "AQ.Ab8RN6LgSmL3euU13DFSUavhmjqnqSWi4XdJYaeLevfzVk-HYg", // angel6
-]
-
 export const GEMINI_CONFIG_KEY = "lsm_gemini_config"
 const ROUND_ROBIN_INDEX_KEY = "lsm_gemini_rr_index"
 
 /**
- * Mengambil daftar kunci API yang tersedia
+ * Mengambil daftar kunci API Gemini murni dari environment (.env)
  */
 export function getGeminiKeys() {
   const envKeys = import.meta.env.VITE_GEMINI_API_KEYS
@@ -35,7 +26,7 @@ export function getGeminiKeys() {
     } catch (_) {}
   }
 
-  return DEFAULT_GEMINI_KEYS
+  return []
 }
 
 /**
@@ -154,6 +145,9 @@ function safeParseJson(rawText) {
 }
 export async function generateMateriAi({ prompt, mapel = "Bahasa Inggris", fase = "D", tingkat = ["VIII"] }) {
   const keys = getGeminiKeys()
+  if (!keys || keys.length === 0) {
+    throw new Error("Kunci API Gemini tidak ditemukan. Pastikan VITE_GEMINI_API_KEYS sudah terisi di file .env")
+  }
 
   const systemPrompt = `Anda adalah asisten pakar kurikulum Kurikulum Merdeka (Fase D SMP).
 Buat satu paket modul pembelajaran yang padat, terstruktur, edukatif, dan ramah siswa sesuai permintaan guru.
@@ -253,6 +247,9 @@ PENTING:
  */
 export async function generateKuisAi({ prompt, materiJudul = "", jumlahSoal = 5 }) {
   const keys = getGeminiKeys()
+  if (!keys || keys.length === 0) {
+    throw new Error("Kunci API Gemini tidak ditemukan. Pastikan VITE_GEMINI_API_KEYS sudah terisi di file .env")
+  }
 
   const systemPrompt = `Anda adalah asisten pembuat soal dan evaluasi pembelajaran Kurikulum Merdeka (Fase D SMP).
 Tugas Anda adalah membuat satu set kuis/latihan formatif interaktif lengkap dengan opsi jawaban, kunci jawaban yang tepat, dan pembahasan edukatif.
