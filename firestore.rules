@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    function isGuru() {
+      return signedIn() && (
+        exists(/databases/$(database)/documents/guru/$(request.auth.uid)) ||
+        request.auth.token.firebase.sign_in_provider == 'password'
+      );
+    }
+
+    function isGoogle() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    function isMurid() {
+      return isGoogle() &&
+        exists(/databases/$(database)/documents/akunMurid/$(request.auth.uid));
+    }
+
+    function akun() {
+      return get(/databases/$(database)/documents/akunMurid/$(request.auth.uid)).data;
+    }
+
+    match /guru/{uid} {
+      // Siswa dan semua pengguna login boleh membaca profil guru (nama, mapel, dsb)
+      allow read: if signedIn();
+      // Guru boleh menyimpan atau memperbarui profilnya sendiri
+      allow write: if isGuru();
+    }
+
+    match /sekolah/{id} {
+      allow read: if true;
+      allow write: if isGuru();
+    }
+
+    match /kelas/{id} {
+      // Siswa yang sedang aktivasi dapat membaca daftar kelas untuk memilih kelas
+      allow read: if signedIn();
+      allow write: if isGuru();
+    }
+
+    match /murid/{nisn} {
+      allow read, write: if isGuru();
+      allow get: if isMurid() && akun().nisn == nisn;
+      // Siswa boleh memperbarui nama profilnya sendiri
+      allow update: if isMurid() && akun().nisn == nisn;
+      // pencarian data sendiri berdasarkan email (untuk aktivasi otomatis)
+      allow get, list: if isGoogle() &&
+        request.auth.token.email_verified == true &&
+        resource.data.email == request.auth.token.email;
+    }
+
+    match /akunMurid/{uid} {
+      // Izinkan pengguna terautentikasi membaca/memeriksa kepemilikan akun & validasi NISN unik
+      allow read: if signedIn();
+      allow create: if isGuru() ||
+        (isGoogle() && request.auth.uid == uid &&
+         request.auth.token.email_verified == true &&
+         get(/databases/$(database)/documents/murid/$(request.resource.data.nisn))
+           .data.email == request.auth.token.email);
+      allow update: if isGuru() || (signedIn() && request.auth.uid == uid);
+      allow delete: if isGuru();
+    }
+
+    match /klaim/{uid} {
+      allow create: if isGoogle() && request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['nisn','nama','email','kelasId','status','catatan','createdAt']) &&
+        request.resource.data.status == 'menunggu' &&
+        request.resource.data.nisn.matches('^[0-9]{10}$');
+      // Izinkan pengguna terautentikasi membaca status klaim miliknya dan pengecekan duplikasi NISN
+      allow read: if signedIn();
+      // Murid boleh update permohonan mereka jika sebelumnya ditolak
+      allow update: if isGuru() || 
+        (isGoogle() && request.auth.uid == uid && 
+         resource.data.status == 'ditolak' && 
+         request.resource.data.status == 'menunggu' &&
+         request.resource.data.nisn.matches('^[0-9]{10}$'));
+      allow delete: if isGuru() || (signedIn() && request.auth.uid == uid);
+    }
+
+    match /materi/{id} {
+      allow read: if resource.data.status == 'terbit' || isGuru();
+      allow write: if isGuru();
+    }
+
+    match /kuis/{id} {
+      allow read: if isGuru() || (isMurid() && resource.data.status == 'terbit');
+      allow write: if isGuru();
+    }
+
+    match /percobaan/{id} {
+      allow create: if isMurid() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.nisn == akun().nisn &&
+        request.resource.data.skor is number &&
+        request.resource.data.skor >= 0 && request.resource.data.skor <= 100;
+      allow read: if isGuru() || (isMurid() && resource.data.uid == request.auth.uid);
+      allow update, delete: if isGuru();
+    }
+
+    match /progres/{id} {
+      allow read: if isGuru() || (isMurid() && resource.data.uid == request.auth.uid);
+      allow create, update: if isMurid() &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.nisn == akun().nisn &&
+        id == request.auth.uid + '_' + request.resource.data.materiId;
+      allow delete: if isGuru();
+    }
+
+    match /karya/{id} {
+      // Semua pengguna (termasuk publik) dapat membaca karya mading
+      allow read: if true;
+      // Pengguna yang login (siswa teraktivasi atau guru) dapat memposting karya
+      allow create: if signedIn();
+      // Memberi like & komentar dapat dilakukan oleh pengguna login
+      allow update: if signedIn();
+      // Hanya pembuat karya atau guru yang boleh menghapus
+      allow delete: if isGuru() || (signedIn() && resource.data.penulisUid == request.auth.uid);
+    }
+  }
+}

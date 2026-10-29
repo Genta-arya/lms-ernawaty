@@ -1,0 +1,47 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "murid",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "kelasId", "order": "ASCENDING" },
+        { "fieldPath": "nama", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "percobaan",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "kuisId", "order": "ASCENDING" },
+        { "fieldPath": "selesaiAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "percobaan",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "uid", "order": "ASCENDING" },
+        { "fieldPath": "kuisId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "kuis",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "tingkat", "arrayConfig": "CONTAINS" }
+      ]
+    },
+    {
+      "collectionGroup": "materi",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "tingkat", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "urutan", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
+
