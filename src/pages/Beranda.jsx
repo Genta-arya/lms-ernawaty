@@ -201,7 +201,7 @@ export function Beranda() {
 
               <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
                 Eksplorasi materi pembelajaran mandiri mata pelajaran{" "}
-                <b className="text-slate-800 font-semibold">{guru.mapel || "Bahasa Inggris"}</b>{" "}
+                <b className="text-slate-800 font-semibold">{guru.mapel || "Bahasa Indonesia"}</b>{" "}
                 bersama <b className="text-slate-800 font-semibold">Ibu {guru.nama || "Ernawaty"}</b>. Baca modul pembelajaran terstruktur dan uji pemahamanmu melalui kuis interaktif.
               </p>
 
