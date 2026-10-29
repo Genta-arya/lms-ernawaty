@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { FormEditSkeleton } from "@/components/ui/loading-skeletons"
-import { ArrowLeft, Plus, Trash2, Save, AlertCircle, Copy, HelpCircle } from "lucide-react"
+import { AiKuisGeneratorModal } from "@/components/kuis/AiKuisGeneratorModal"
+import { ArrowLeft, Plus, Trash2, Save, AlertCircle, Copy, HelpCircle, Sparkles, FileQuestion } from "lucide-react"
 
 export function KuisEdit() {
   const { id } = useParams()
@@ -45,6 +46,7 @@ export function KuisEdit() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -204,6 +206,18 @@ export function KuisEdit() {
     }
   }
 
+  function handleAiGenerated(aiData) {
+    if (!aiData) return
+    setFormData((prev) => ({
+      ...prev,
+      judul: aiData.judul || prev.judul,
+      deskripsi: aiData.deskripsi || prev.deskripsi,
+      materiId: aiData.materiId || prev.materiId,
+      nilaiLulus: aiData.nilaiLulus || prev.nilaiLulus,
+      soal: aiData.soal && aiData.soal.length > 0 ? aiData.soal : prev.soal,
+    }))
+  }
+
   if (loading) {
     return <FormEditSkeleton icon={FileQuestion} />
   }
@@ -228,6 +242,16 @@ export function KuisEdit() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsAiModalOpen(true)}
+            className="gap-2 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 text-amber-800 hover:from-amber-100 hover:to-orange-100 font-bold"
+          >
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <span>Generate Soal AI</span>
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <Link to="/guru/kuis">Batal</Link>
           </Button>
@@ -604,6 +628,15 @@ export function KuisEdit() {
           </Card>
         ))}
       </div>
+
+      {/* Modal Generator Kuis AI */}
+      <AiKuisGeneratorModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        materiList={materiList}
+        defaultMateriId={formData.materiId}
+        onGenerated={handleAiGenerated}
+      />
     </div>
   )
 }

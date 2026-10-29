@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { FormEditSkeleton } from "@/components/ui/loading-skeletons"
-import { ArrowLeft, Plus, Trash2, GripVertical, Eye, Edit3, Save, AlertCircle } from "lucide-react"
+import { AiMateriGeneratorModal } from "@/components/materi/AiMateriGeneratorModal"
+import { ArrowLeft, Plus, Trash2, GripVertical, Eye, Edit3, Save, AlertCircle, Sparkles, Wand2, BookOpen } from "lucide-react"
 
 export function MateriEdit() {
   const { id } = useParams()
@@ -42,6 +43,7 @@ export function MateriEdit() {
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false)
 
   useEffect(() => {
     // Otomatis scroll ke atas saat form editor materi dibuka
@@ -61,6 +63,17 @@ export function MateriEdit() {
         } finally {
           setLoading(false)
         }
+      } else {
+        // Jika buat baru, otomatis hitung urutan berikutnya dari materi yang sudah ada
+        try {
+          const { getMateriList } = await import("@/services/materi")
+          const list = await getMateriList(true)
+          const maxUrutan = list.reduce((max, m) => {
+            const u = Number(m.urutan) || 0
+            return u > max ? u : max
+          }, 0)
+          setFormData((prev) => ({ ...prev, urutan: maxUrutan + 1 }))
+        } catch (_) {}
       }
     }
     load()
@@ -151,6 +164,23 @@ export function MateriEdit() {
     }
   }
 
+  function handleAiGenerated(aiData) {
+    if (!aiData) return
+    setFormData((prev) => ({
+      ...prev,
+      judul: aiData.judul || prev.judul,
+      slug: aiData.slug || prev.slug,
+      topik: aiData.topik || prev.topik,
+      mapel: aiData.mapel || prev.mapel,
+      deskripsi: aiData.deskripsi || prev.deskripsi,
+      tingkat: aiData.tingkat || prev.tingkat,
+      // Pertahankan urutan lanjutan yang sudah dihitung, jangan timpa ke 1
+      urutan: prev.urutan || 1,
+      tujuan: aiData.tujuan && aiData.tujuan.length > 0 ? aiData.tujuan : prev.tujuan,
+      bagian: aiData.bagian && aiData.bagian.length > 0 ? aiData.bagian : prev.bagian,
+    }))
+  }
+
   if (loading) {
     return <FormEditSkeleton icon={BookOpen} />
   }
@@ -175,6 +205,16 @@ export function MateriEdit() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsAiModalOpen(true)}
+            className="gap-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 text-blue-700 hover:from-blue-100 hover:to-indigo-100 font-bold"
+          >
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <span>Generate Materi AI</span>
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <Link to="/guru/materi">Batal</Link>
           </Button>
@@ -397,6 +437,14 @@ export function MateriEdit() {
           </Card>
         ))}
       </div>
+
+      {/* Modal Generator Materi AI */}
+      <AiMateriGeneratorModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        onGenerated={handleAiGenerated}
+        initialMapel={formData.mapel || "Bahasa Inggris"}
+      />
     </div>
   )
 }

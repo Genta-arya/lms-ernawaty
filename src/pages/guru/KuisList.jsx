@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
-import { getKuisList, deleteKuis, seedKuisTemplate } from "@/services/kuis"
+import { Link, useNavigate } from "react-router-dom"
+import { getKuisList, deleteKuis, seedKuisTemplate, createKuis } from "@/services/kuis"
 import { getMateriList } from "@/services/materi"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { TableRowsLoading } from "@/components/ui/loading-skeletons"
+import { AiKuisGeneratorModal } from "@/components/kuis/AiKuisGeneratorModal"
 import {
   Table,
   TableHeader,
@@ -14,13 +15,15 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table"
-import { Plus, FileQuestion, Sparkles, Edit, Trash2, BarChart2 } from "lucide-react"
+import { Plus, FileQuestion, Sparkles, Edit, Trash2, BarChart2, Wand2 } from "lucide-react"
 
 export function KuisList() {
+  const navigate = useNavigate()
   const [kuisList, setKuisList] = useState([])
   const [materiList, setMateriList] = useState([])
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false)
 
   async function loadData() {
     try {
@@ -84,14 +87,24 @@ export function KuisList() {
 
         <div className="flex flex-wrap items-center gap-2">
           <Button
+            type="button"
+            size="sm"
+            onClick={() => setIsAiModalOpen(true)}
+            className="gap-2 bg-gradient-to-r from-amber-600 via-orange-600 to-indigo-700 hover:from-amber-700 hover:to-orange-800 text-white font-bold shadow-xs"
+          >
+            <Sparkles className="w-4 h-4 text-amber-200" />
+            <span>Generate Kuis AI</span>
+          </Button>
+
+          <Button
             variant="outline"
             size="sm"
             onClick={handleSeedTemplate}
             disabled={seeding}
             className="gap-2 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 text-amber-800 hover:bg-amber-100"
           >
-            <Sparkles className="w-4 h-4 text-amber-600" />
-            {seeding ? "Membuat..." : "Buat dari Template Kuis Rekon"}
+            <FileQuestion className="w-4 h-4 text-amber-600" />
+            {seeding ? "Membuat..." : "Template Kuis Rekon"}
           </Button>
 
           <Button asChild size="sm" className="gap-2">
@@ -192,6 +205,27 @@ export function KuisList() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Modal Generator Kuis AI */}
+      <AiKuisGeneratorModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        materiList={materiList}
+        onGenerated={async (aiData) => {
+          try {
+            setLoading(true)
+            const docRef = await createKuis(aiData)
+            const newId = docRef.id
+            navigate(`/guru/kuis/${newId}/edit`)
+          } catch (err) {
+            console.error("Gagal simpan kuis AI:", err)
+            alert(err.message || "Gagal menyimpan kuis yang digenerate AI.")
+            await loadData()
+          } finally {
+            setLoading(false)
+          }
+        }}
+      />
     </div>
   )
 }

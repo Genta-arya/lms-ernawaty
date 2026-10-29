@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
-import { getMateriList, deleteMateri, seedMateriTemplate } from "@/services/materi"
+import { Link, useNavigate } from "react-router-dom"
+import { getMateriList, deleteMateri, seedMateriTemplate, createMateri } from "@/services/materi"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { TableRowsLoading } from "@/components/ui/loading-skeletons"
+import { AiMateriGeneratorModal } from "@/components/materi/AiMateriGeneratorModal"
 import {
   Table,
   TableHeader,
@@ -13,12 +14,14 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table"
-import { Plus, BookOpen, Sparkles, Edit, Trash2, ExternalLink } from "lucide-react"
+import { Plus, BookOpen, Sparkles, Edit, Trash2, ExternalLink, Wand2 } from "lucide-react"
 
 export function MateriList() {
+  const navigate = useNavigate()
   const [materiList, setMateriList] = useState([])
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false)
 
   async function loadData() {
     try {
@@ -77,14 +80,24 @@ export function MateriList() {
 
         <div className="flex flex-wrap items-center gap-2">
           <Button
+            type="button"
+            size="sm"
+            onClick={() => setIsAiModalOpen(true)}
+            className="gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold shadow-xs"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>Generate Materi AI</span>
+          </Button>
+
+          <Button
             variant="outline"
             size="sm"
             onClick={handleSeedTemplate}
             disabled={seeding}
             className="gap-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-primary/30 text-primary hover:bg-primary/10"
           >
-            <Sparkles className="w-4 h-4 text-primary" />
-            {seeding ? "Membuat..." : "Buat dari Template Teks Rekon"}
+            <BookOpen className="w-4 h-4 text-primary" />
+            {seeding ? "Membuat..." : "Template Teks Rekon"}
           </Button>
 
           <Button asChild size="sm" className="gap-2">
@@ -190,6 +203,39 @@ export function MateriList() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Modal Generator Materi AI */}
+      <AiMateriGeneratorModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        onGenerated={async (aiData) => {
+          try {
+            setLoading(true)
+            // Hitung urutan berikutnya agar berlanjut dari materi terakhir yang ada
+            const maxUrutan = materiList.reduce((max, m) => {
+              const u = Number(m.urutan) || 0
+              return u > max ? u : max
+            }, 0)
+            const nextUrutan = maxUrutan + 1
+
+            const materiPayload = {
+              ...aiData,
+              urutan: nextUrutan,
+            }
+
+            const docRef = await createMateri(materiPayload)
+            const newId = docRef.id
+            navigate(`/guru/materi/${newId}/edit`)
+          } catch (err) {
+            console.error("Gagal simpan materi AI:", err)
+            alert(err.message || "Gagal menyimpan materi yang digenerate AI.")
+            await loadData()
+          } finally {
+            setLoading(false)
+          }
+        }}
+        initialMapel="Bahasa Inggris"
+      />
     </div>
   )
 }
