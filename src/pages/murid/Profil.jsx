@@ -10,6 +10,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   User,
   GraduationCap,
   ShieldCheck,
@@ -29,6 +35,7 @@ import {
   Camera,
   Loader2,
   Trash2,
+  ZoomIn,
 } from "lucide-react"
 
 export function Profil() {
@@ -45,6 +52,7 @@ export function Profil() {
 
   // State Upload Foto Cloudinary
   const [uploadingFoto, setUploadingFoto] = useState(false)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
 
   // State Statistik Belajar
   const [totalMateriSelesai, setTotalMateriSelesai] = useState(0)
@@ -155,6 +163,20 @@ export function Profil() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Validasi tipe & ukuran di sisi klien sebelum proses
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+    if (!validTypes.includes(file.type.toLowerCase())) {
+      setErrorMsg("File tidak valid. Harap pilih gambar dengan format JPG, PNG, atau WEBP.")
+      if (fileInputRef.current) fileInputRef.current.value = ""
+      return
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setErrorMsg("Ukuran file terlalu besar! Maksimal ukuran foto adalah 2MB.")
+      if (fileInputRef.current) fileInputRef.current.value = ""
+      return
+    }
+
     setUploadingFoto(true)
     setErrorMsg("")
     setSuccessMsg("")
@@ -225,15 +247,28 @@ export function Profil() {
         <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
-          {/* Avatar Besar dengan Upload Cloudinary */}
+          {/* Avatar Besar dengan Upload Cloudinary & Preview Zoom */}
           <div className="relative group shrink-0">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white/20 backdrop-blur-md border-2 border-white/30 text-white font-black text-3xl sm:text-4xl flex items-center justify-center shadow-lg overflow-hidden relative">
+            <div
+              onClick={() => {
+                if (fotoUrl) setShowPreviewModal(true)
+              }}
+              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white/20 backdrop-blur-md border-2 border-white/30 text-white font-black text-3xl sm:text-4xl flex items-center justify-center shadow-lg overflow-hidden relative select-none ${
+                fotoUrl ? "cursor-pointer hover:opacity-95 hover:scale-102 transition-all" : ""
+              }`}
+              title={fotoUrl ? "Klik untuk melihat foto profil ukuran penuh" : "Avatar Siswa"}
+            >
               {fotoUrl ? (
-                <img
-                  src={fotoUrl}
-                  alt={displayName}
-                  className="w-full h-full object-cover"
-                />
+                <>
+                  <img
+                    src={fotoUrl}
+                    alt={displayName}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                    <ZoomIn className="w-5 h-5 text-white drop-shadow-md" />
+                  </div>
+                </>
               ) : (
                 <span>{initial}</span>
               )}
@@ -516,6 +551,57 @@ export function Profil() {
           <span>Keluar dari Akun Siswa</span>
         </Button>
       </div>
+
+      {/* 5. MODAL PREVIEW FOTO PROFIL */}
+      <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
+        <DialogContent className="max-w-sm sm:max-w-md p-0 overflow-hidden rounded-3xl border border-slate-200 bg-white">
+          <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+            <div className="space-y-0.5">
+              <DialogTitle className="text-sm sm:text-base font-extrabold text-slate-900">
+                Foto Profil Siswa
+              </DialogTitle>
+              <p className="text-xs text-slate-500 font-medium">
+                {displayName} &bull; {kelasNama}
+              </p>
+            </div>
+          </DialogHeader>
+
+          <div className="p-4 sm:p-6 flex flex-col items-center justify-center bg-slate-950/5">
+            <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-3xl overflow-hidden shadow-xl border-4 border-white bg-slate-100 relative">
+              <img
+                src={fotoUrl}
+                alt={displayName}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+
+          <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowPreviewModal(false)
+                handleOpenCropWidget()
+              }}
+              className="rounded-xl text-xs font-bold gap-1.5"
+            >
+              <Camera className="w-3.5 h-3.5 text-blue-600" />
+              <span>Ganti / Potong Ulang</span>
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setShowPreviewModal(false)}
+              className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4"
+            >
+              Tutup
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -326,7 +326,7 @@ export function KuisKerjakan() {
   }
 
   return (
-    <div className="container max-w-2xl py-6 space-y-6">
+    <div className=" space-y-6">
       {/* Tombol Kembali / Keluar Kuis */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" asChild className="gap-2 text-slate-600 hover:text-slate-900">

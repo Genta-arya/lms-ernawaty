@@ -60,7 +60,7 @@ export async function openCloudinaryCropWidget({ onSuccess, onError, onClose }) 
       multiple: false,
       resourceType: "image",
       clientAllowedFormats: ["png", "jpeg", "jpg", "webp"],
-      maxFileSize: 10000000, // 10MB
+      maxFileSize: 2097152, // 2MB (2 * 1024 * 1024 bytes)
       cropping: true,
       croppingAspectRatio: 1, // 1:1 square untuk foto profil
       croppingDefaultSelectionRatio: 0.9,
@@ -124,8 +124,25 @@ export async function openCloudinaryCropWidget({ onSuccess, onError, onClose }) 
       }
 
       if (result && result.event === "success") {
-        const secureUrl = result.info.secure_url
-        if (onSuccess) onSuccess(secureUrl, result.info)
+        const info = result.info
+        let croppedUrl = info.secure_url
+
+        // Cloudinary Upload Widget menyimpan area crop sebagai koordinat (custom coordinates).
+        // Agar yang tersimpan dan tampil adalah HASIL CROP bukan foto asli yang uncropped:
+        // Kita terapkan transformasi c_crop,g_custom pada URL pengiriman Cloudinary.
+        if (info.coordinates && info.coordinates.custom && info.coordinates.custom.length > 0) {
+          const [cropX, cropY, cropW, cropH] = info.coordinates.custom[0]
+          // Gunakan koordinat spesifik c_crop,x_...,y_...,w_...,h_... agar 100% presisi sesuai pilihan user
+          croppedUrl = info.secure_url.replace(
+            "/upload/",
+            `/upload/c_crop,x_${cropX},y_${cropY},w_${cropW},h_${cropH}/`
+          )
+        } else {
+          // Fallback: gunakan gravity custom otomatis
+          croppedUrl = info.secure_url.replace("/upload/", "/upload/c_crop,g_custom/")
+        }
+
+        if (onSuccess) onSuccess(croppedUrl, info)
       } else if (result && result.event === "close") {
         if (onClose) onClose()
       }
@@ -198,8 +215,16 @@ export async function uploadToCloudinary(file) {
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim() || "ephsphyt"
   const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET?.trim() || "lmsernawaty"
 
-  if (!file.type.startsWith("image/")) {
-    throw new Error("File harus berupa gambar (format JPG, PNG, atau WEBP).")
+  // 1. Validasi tipe file harus berupa gambar
+  const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+  if (!file || !file.type || !validTypes.includes(file.type.toLowerCase())) {
+    throw new Error("File tidak valid. Hanya file gambar (JPG, PNG, atau WEBP) yang diizinkan.")
+  }
+
+  // 2. Validasi ukuran maksimal 2MB (2 * 1024 * 1024 bytes)
+  const MAX_SIZE = 2 * 1024 * 1024
+  if (file.size > MAX_SIZE) {
+    throw new Error("Ukuran file terlalu besar! Maksimal ukuran gambar adalah 2MB.")
   }
 
   const compressedBlob = await compressImage(file, 600, 600, 0.85)
