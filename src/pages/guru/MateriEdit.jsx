@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
 import { getMateriById, createMateri, updateMateri } from "@/services/materi"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { FormEditSkeleton } from "@/components/ui/loading-skeletons"
 import { AiMateriGeneratorModal } from "@/components/materi/AiMateriGeneratorModal"
-import { ArrowLeft, Plus, Trash2, GripVertical, Eye, Edit3, Save, AlertCircle, Sparkles, Wand2, BookOpen } from "lucide-react"
+import { RichTextEditor } from "@/components/materi/RichTextEditor"
+import { ArrowLeft, Plus, Trash2, Save, AlertCircle, Sparkles, BookOpen } from "lucide-react"
 
 export function MateriEdit() {
   const { id } = useParams()
@@ -32,10 +30,10 @@ export function MateriEdit() {
     bagian: [
       {
         id: "b1",
-        judul: "Pengantar",
+        judul: "1. Pengantar Materi",
         jenis: "pengantar",
         urutan: 1,
-        konten: "## Tulis materi di sini...",
+        konten: "Tulis isi materi pengantar di sini seperti di Microsoft Word...",
       },
     ],
   })
@@ -110,7 +108,7 @@ export function MateriEdit() {
       judul: `Bagian Baru ${formData.bagian.length + 1}`,
       jenis: "struktur",
       urutan: formData.bagian.length + 1,
-      konten: "## Isi bagian materi...",
+      konten: "",
     }
     setFormData({ ...formData, bagian: [...formData.bagian, newBagian] })
   }
@@ -174,7 +172,6 @@ export function MateriEdit() {
       mapel: aiData.mapel || prev.mapel,
       deskripsi: aiData.deskripsi || prev.deskripsi,
       tingkat: aiData.tingkat || prev.tingkat,
-      // Pertahankan urutan lanjutan yang sudah dihitung, jangan timpa ke 1
       urutan: prev.urutan || 1,
       tujuan: aiData.tujuan && aiData.tujuan.length > 0 ? aiData.tujuan : prev.tujuan,
       bagian: aiData.bagian && aiData.bagian.length > 0 ? aiData.bagian : prev.bagian,
@@ -186,16 +183,16 @@ export function MateriEdit() {
   }
 
   return (
-    <div className="space-y-6 pb-16">
-      <div className="flex items-center justify-between gap-4">
+    <div className="space-y-6 pb-16 max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" asChild className="shrink-0">
             <Link to="/guru/materi">
               <ArrowLeft className="w-4 h-4" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
               {isNew ? "Buat Materi Baru" : "Edit Materi"}
             </h1>
             <p className="text-xs text-muted-foreground">
@@ -204,21 +201,21 @@ export function MateriEdit() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => setIsAiModalOpen(true)}
-            className="gap-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 text-blue-700 hover:from-blue-100 hover:to-indigo-100 font-bold"
+            className="gap-1.5 sm:gap-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 text-blue-700 hover:from-blue-100 hover:to-indigo-100 font-bold shrink-0 text-xs"
           >
             <Sparkles className="w-4 h-4 text-amber-500" />
             <span>Generate Materi AI</span>
           </Button>
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" asChild className="shrink-0 text-xs">
             <Link to="/guru/materi">Batal</Link>
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={saving} className="gap-2">
+          <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5 sm:gap-2 shrink-0 text-xs">
             <Save className="w-4 h-4" />
             {saving ? "Menyimpan..." : "Simpan Materi"}
           </Button>
@@ -331,18 +328,19 @@ export function MateriEdit() {
         <CardContent className="space-y-2 text-xs">
           {formData.tujuan?.map((tuj, idx) => (
             <div key={idx} className="flex items-center gap-2">
-              <span className="font-bold text-muted-foreground w-6 text-center">{idx + 1}.</span>
+              <span className="font-bold text-muted-foreground w-6 text-center shrink-0">{idx + 1}.</span>
               <Input
                 value={tuj}
                 placeholder="Contoh: Menjelaskan tujuan komunikasi teks rekon..."
                 onChange={(e) => handleUpdateTujuan(idx, e.target.value)}
+                className="min-w-0"
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 onClick={() => handleRemoveTujuan(idx)}
-                className="hover:text-destructive"
+                className="hover:text-destructive shrink-0"
               >
                 <Trash2 className="w-4 h-4 text-muted-foreground" />
               </Button>
@@ -354,7 +352,12 @@ export function MateriEdit() {
       {/* Bagian-Bagian Materi (BagianEditor) */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold tracking-tight">Bagian-Bagian Materi</h2>
+          <div>
+            <h2 className="text-lg font-bold tracking-tight">Bagian-Bagian Materi</h2>
+            <p className="text-xs text-muted-foreground">
+              Susun bab atau sub-bagian materi secara bertahap dan terstruktur.
+            </p>
+          </div>
           <Button type="button" size="sm" onClick={handleAddBagian} className="gap-2">
             <Plus className="w-4 h-4" />
             Tambah Bagian Materi
@@ -362,22 +365,23 @@ export function MateriEdit() {
         </div>
 
         {formData.bagian?.map((bag, idx) => (
-          <Card key={bag.id || idx} className="border-l-4 border-l-primary">
-            <CardHeader className="flex flex-row items-center justify-between py-3">
-              <div className="flex items-center gap-3">
-                <span className="bg-primary/10 text-primary font-bold px-2 py-0.5 rounded text-xs">
+          <Card key={bag.id || idx} className="border-l-4 border-l-primary overflow-hidden shadow-xs">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 bg-slate-50/50 border-b border-slate-100">
+              <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                <span className="bg-primary/10 text-primary font-bold px-2.5 py-0.5 rounded-lg text-xs shrink-0">
                   Bagian {idx + 1}
                 </span>
                 <Input
-                  className="font-bold text-sm h-8 w-64"
+                  className="font-bold text-sm h-8 flex-1 sm:w-72 bg-white"
                   value={bag.judul}
+                  placeholder="Judul Bagian..."
                   onChange={(e) => handleUpdateBagian(idx, "judul", e.target.value)}
                 />
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
                 <select
-                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  className="h-8 rounded-md border border-input bg-white px-2.5 text-xs flex-1 sm:flex-initial font-medium text-slate-700"
                   value={bag.jenis}
                   onChange={(e) => handleUpdateBagian(idx, "jenis", e.target.value)}
                 >
@@ -395,44 +399,20 @@ export function MateriEdit() {
                   size="icon"
                   disabled={formData.bagian.length <= 1}
                   onClick={() => handleRemoveBagian(idx)}
-                  className="hover:text-destructive"
+                  className="hover:text-destructive shrink-0"
+                  title="Hapus Bagian Ini"
                 >
                   <Trash2 className="w-4 h-4 text-muted-foreground" />
                 </Button>
               </div>
             </CardHeader>
 
-            <CardContent className="pt-2">
-              <Tabs defaultValue="tulis" className="w-full">
-                <TabsList className="mb-2 h-8">
-                  <TabsTrigger value="tulis" className="text-xs gap-1.5 h-7">
-                    <Edit3 className="w-3.5 h-3.5" />
-                    Tulis Markdown
-                  </TabsTrigger>
-                  <TabsTrigger value="pratinjau" className="text-xs gap-1.5 h-7">
-                    <Eye className="w-3.5 h-3.5" />
-                    Pratinjau
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="tulis">
-                  <Textarea
-                    rows={12}
-                    className="font-mono text-xs leading-relaxed"
-                    value={bag.konten}
-                    onChange={(e) => handleUpdateBagian(idx, "konten", e.target.value)}
-                    placeholder="Mendukung heading (##), tabel, list, tebal (**kata**), kutipan (>)..."
-                  />
-                </TabsContent>
-
-                <TabsContent value="pratinjau">
-                  <div className="p-4 border rounded-md bg-muted/20 min-h-[180px] prose prose-slate max-w-none text-xs prose-headings:font-bold prose-table:border prose-th:p-2 prose-td:p-2">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {bag.konten}
-                    </ReactMarkdown>
-                  </div>
-                </TabsContent>
-              </Tabs>
+            <CardContent className="p-3 sm:p-4">
+              <RichTextEditor
+                value={bag.konten}
+                onChange={(val) => handleUpdateBagian(idx, "konten", val)}
+                placeholder="Tulis materi di sini seperti di Microsoft Word..."
+              />
             </CardContent>
           </Card>
         ))}

@@ -223,16 +223,16 @@ export function KuisEdit() {
   }
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex items-center justify-between gap-4">
+    <div className="space-y-6 pb-20 max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" asChild className="shrink-0">
             <Link to="/guru/kuis">
               <ArrowLeft className="w-4 h-4" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
               {isNew ? "Buat Kuis Baru" : "Edit Kuis"}
             </h1>
             <p className="text-xs text-muted-foreground">
@@ -241,21 +241,21 @@ export function KuisEdit() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => setIsAiModalOpen(true)}
-            className="gap-2 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 text-amber-800 hover:from-amber-100 hover:to-orange-100 font-bold"
+            className="gap-1.5 sm:gap-2 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 text-amber-800 hover:from-amber-100 hover:to-orange-100 font-bold shrink-0 text-xs"
           >
             <Sparkles className="w-4 h-4 text-amber-500" />
             <span>Generate Soal AI</span>
           </Button>
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" asChild className="shrink-0 text-xs">
             <Link to="/guru/kuis">Batal</Link>
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={saving} className="gap-2">
+          <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5 sm:gap-2 shrink-0 text-xs">
             <Save className="w-4 h-4" />
             {saving ? "Menyimpan..." : "Simpan Kuis"}
           </Button>
@@ -384,13 +384,13 @@ export function KuisEdit() {
             <Badge variant="outline">{formData.soal?.length || 0} Butir Soal</Badge>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 w-full sm:w-auto scrollbar-none">
             <Button
               type="button"
               size="sm"
               variant="outline"
               onClick={() => handleAddSoal("pilihan_ganda")}
-              className="text-xs gap-1"
+              className="text-xs gap-1 shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
               + Pilihan Ganda
@@ -400,7 +400,7 @@ export function KuisEdit() {
               size="sm"
               variant="outline"
               onClick={() => handleAddSoal("benar_salah")}
-              className="text-xs gap-1"
+              className="text-xs gap-1 shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
               + Benar / Salah
@@ -410,7 +410,7 @@ export function KuisEdit() {
               size="sm"
               variant="outline"
               onClick={() => handleAddSoal("isian")}
-              className="text-xs gap-1"
+              className="text-xs gap-1 shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
               + Isian Singkat

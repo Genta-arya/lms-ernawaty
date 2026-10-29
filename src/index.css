@@ -109,3 +109,115 @@
   }
 }
 
+/* ==========================================================================
+   Visual Rich Text Editor Content Styles (Overrides Tailwind Preflight Reset)
+   ========================================================================== */
+.rich-editor-content {
+  color: #1e293b;
+  font-family: inherit;
+}
+
+.rich-editor-content h1 {
+  font-size: 1.6rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
+  line-height: 1.3 !important;
+}
+
+.rich-editor-content h2 {
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
+  padding-bottom: 0.25rem !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  line-height: 1.35 !important;
+}
+
+.rich-editor-content h3 {
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  margin-top: 1rem !important;
+  margin-bottom: 0.35rem !important;
+  line-height: 1.4 !important;
+}
+
+.rich-editor-content p {
+  font-size: 0.875rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+  line-height: 1.65 !important;
+}
+
+.rich-editor-content ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.rich-editor-content ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.rich-editor-content li {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0.25rem !important;
+  font-size: 0.875rem !important;
+}
+
+.rich-editor-content blockquote {
+  border-left: 4px solid #3b82f6 !important;
+  background-color: #eff6ff !important;
+  padding: 0.625rem 1rem !important;
+  margin: 0.75rem 0 !important;
+  border-radius: 0 0.5rem 0.5rem 0 !important;
+  font-style: italic !important;
+  color: #334155 !important;
+}
+
+.rich-editor-content table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 1rem 0 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.rich-editor-content th {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  padding: 0.5rem 0.75rem !important;
+  font-weight: 700 !important;
+  text-align: left !important;
+  font-size: 0.75rem !important;
+  color: #0f172a !important;
+}
+
+.rich-editor-content td {
+  border: 1px solid #cbd5e1 !important;
+  padding: 0.5rem 0.75rem !important;
+  font-size: 0.75rem !important;
+  color: #334155 !important;
+}
+
+.rich-editor-content u {
+  text-decoration: underline !important;
+}
+
+.rich-editor-content strong,
+.rich-editor-content b {
+  font-weight: 700 !important;
+}
+
+.rich-editor-content em,
+.rich-editor-content i {
+  font-style: italic !important;
+}
+

@@ -220,29 +220,15 @@ export function MateriDetail() {
                   </h2>
                 </div>
 
-                {/* Markdown Container Responsif & Rapi */}
-                <div className="prose prose-slate max-w-none text-sm sm:text-base leading-relaxed break-words overflow-x-auto
-                  prose-headings:font-bold prose-headings:tracking-tight prose-headings:break-words
-                  prose-p:leading-relaxed prose-p:break-words
-                  prose-a:text-primary prose-a:break-all
-                  prose-blockquote:border-l-4 prose-blockquote:border-primary/60 prose-blockquote:bg-slate-50 prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:rounded-r-lg prose-blockquote:italic
-                  prose-table:w-full prose-table:border-collapse prose-table:my-4
-                  prose-th:bg-slate-100 prose-th:p-2.5 prose-th:border prose-th:border-slate-200 prose-th:text-xs sm:prose-th:text-sm prose-th:font-semibold
-                  prose-td:p-2.5 prose-td:border prose-td:border-slate-200 prose-td:text-xs sm:prose-td:text-sm
-                  prose-pre:bg-slate-900 prose-pre:text-slate-100 prose-pre:p-4 prose-pre:rounded-xl prose-pre:overflow-x-auto prose-pre:max-w-full
-                  prose-code:text-primary prose-code:bg-primary/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:font-mono prose-code:before:content-none prose-code:after:content-none
-                  prose-img:rounded-xl prose-img:shadow-md prose-img:max-w-full prose-img:h-auto"
-                >
+                <div className="prose prose-slate rich-editor-content max-w-none text-sm sm:text-base leading-relaxed break-words overflow-x-auto">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      // Bungkus tabel agar dapat discroll horizontal di HP jika kolom banyak
                       table: ({ node, ...props }) => (
                         <div className="w-full overflow-x-auto my-4 rounded-xl border border-slate-200 shadow-xs">
                           <table className="w-full text-left text-xs sm:text-sm divide-y divide-slate-200" {...props} />
                         </div>
                       ),
-                      // Pengendalian preformatted/code blocks panjang
                       pre: ({ node, ...props }) => (
                         <pre className="overflow-x-auto p-4 rounded-xl bg-slate-900 text-slate-100 text-xs sm:text-sm leading-relaxed" {...props} />
                       ),
