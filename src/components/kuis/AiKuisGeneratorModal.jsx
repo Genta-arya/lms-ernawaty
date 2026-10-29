@@ -103,9 +103,9 @@ export function AiKuisGeneratorModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !loading && onClose()}>
-      <DialogContent className="max-w-xl p-0 overflow-hidden rounded-3xl border border-slate-200 bg-white">
-        {/* Header Modal */}
-        <DialogHeader className="p-5 sm:p-6 bg-gradient-to-r from-amber-600 via-orange-600 to-indigo-700 text-white">
+      <DialogContent className="max-w-xl p-0 overflow-hidden rounded-3xl border border-slate-200 bg-white max-h-[92vh] flex flex-col">
+        {/* Header Modal (Fixed Top) */}
+        <DialogHeader className="p-5 sm:p-6 bg-gradient-to-r from-amber-600 via-orange-600 to-indigo-700 text-white shrink-0">
           <div className="flex items-center justify-between">
             <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-100 bg-white/15 px-2.5 py-0.5 rounded-full backdrop-blur">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
@@ -124,8 +124,8 @@ export function AiKuisGeneratorModal({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Content Body */}
-        <div className="p-5 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+        {/* Content Body (Scrollable Area) */}
+        <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 overscroll-contain">
           {error && (
             <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2 animate-in fade-in">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -202,8 +202,8 @@ export function AiKuisGeneratorModal({
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3">
+        {/* Footer Actions (Fixed Bottom) */}
+        <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0">
           <Button
             type="button"
             variant="ghost"
