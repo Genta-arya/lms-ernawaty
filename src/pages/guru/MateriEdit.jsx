@@ -9,7 +9,17 @@ import { Badge } from "@/components/ui/badge"
 import { FormEditSkeleton } from "@/components/ui/loading-skeletons"
 import { AiMateriGeneratorModal } from "@/components/materi/AiMateriGeneratorModal"
 import { RichTextEditor } from "@/components/materi/RichTextEditor"
-import { ArrowLeft, Plus, Trash2, Save, AlertCircle, Sparkles, BookOpen } from "lucide-react"
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Save,
+  AlertCircle,
+  Sparkles,
+  BookOpen,
+  Link as LinkIcon,
+  ExternalLink,
+} from "lucide-react"
 
 export function MateriEdit() {
   const { id } = useParams()
@@ -27,6 +37,9 @@ export function MateriEdit() {
     deskripsi: "",
     tujuan: [""],
     tingkat: ["VIII"],
+    linkMateri: [
+      // { judul: "", url: "", jenis: "drive" }
+    ],
     bagian: [
       {
         id: "b1",
@@ -92,6 +105,26 @@ export function MateriEdit() {
     setFormData({ ...formData, tujuan: next })
   }
 
+  // Pengelolaan Link Eksternal / Materi Pendukung
+  function handleAddLinkMateri() {
+    const current = formData.linkMateri || []
+    setFormData({
+      ...formData,
+      linkMateri: [...current, { judul: "", url: "", jenis: "drive" }],
+    })
+  }
+
+  function handleUpdateLinkMateri(index, field, val) {
+    const next = [...(formData.linkMateri || [])]
+    next[index] = { ...next[index], [field]: val }
+    setFormData({ ...formData, linkMateri: next })
+  }
+
+  function handleRemoveLinkMateri(index) {
+    const next = (formData.linkMateri || []).filter((_, i) => i !== index)
+    setFormData({ ...formData, linkMateri: next })
+  }
+
   function toggleTingkat(ting) {
     let next = [...(formData.tingkat || [])]
     if (next.includes(ting)) {
@@ -142,10 +175,20 @@ export function MateriEdit() {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)+/g, "")
 
+    // Bersihkan link materi yang kosong
+    const cleanLinkMateri = (formData.linkMateri || [])
+      .filter((l) => l.url && l.url.trim() !== "")
+      .map((l) => ({
+        judul: (l.judul || "").trim() || "Tautan Materi Pendukung",
+        url: l.url.trim(),
+        jenis: l.jenis || "drive",
+      }))
+
     const cleanData = {
       ...formData,
       slug: cleanSlug,
       tujuan: formData.tujuan.filter((t) => t.trim() !== ""),
+      linkMateri: cleanLinkMateri,
     }
 
     try {
@@ -346,6 +389,105 @@ export function MateriEdit() {
               </Button>
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      {/* Tautan Materi Pendukung (Google Drive / Canva / PDF / YouTube / Web) */}
+      <Card className="rounded-2xl border border-blue-200/80 bg-gradient-to-b from-blue-50/30 to-white shadow-2xs">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3">
+          <div>
+            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-900">
+              <LinkIcon className="w-4 h-4 text-blue-600" />
+              <span>Tautan Materi Pembelajaran & Referensi (Opsional)</span>
+            </CardTitle>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Sisipkan link Google Drive (modul/slide PPT/PDF), Canva, video YouTube, atau artikel referensi bagi siswa.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleAddLinkMateri}
+            className="h-8 text-xs font-bold gap-1.5 border-blue-200 bg-white hover:bg-blue-50 text-blue-700 shrink-0 self-start sm:self-auto rounded-xl"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Tambah Tautan Materi</span>
+          </Button>
+        </CardHeader>
+
+        <CardContent className="space-y-3 text-xs">
+          {!formData.linkMateri || formData.linkMateri.length === 0 ? (
+            <div className="py-6 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+              <LinkIcon className="w-6 h-6 text-slate-300 mx-auto mb-1.5" />
+              <p className="text-xs font-medium text-slate-500">Belum ada tautan materi yang disisipkan.</p>
+              <p className="text-[11px] text-slate-400">Klik tombol di atas untuk menambahkan link Google Drive, Canva, atau PDF.</p>
+            </div>
+          ) : (
+            formData.linkMateri.map((item, idx) => (
+              <div
+                key={idx}
+                className="p-3 bg-white border border-slate-200/90 rounded-xl shadow-2xs space-y-2.5"
+              >
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="w-full sm:w-44 shrink-0">
+                    <select
+                      className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700"
+                      value={item.jenis || "drive"}
+                      onChange={(e) => handleUpdateLinkMateri(idx, "jenis", e.target.value)}
+                    >
+                      <option value="drive">📁 Google Drive / Dokumen</option>
+                      <option value="canva">🎨 Desain Canva</option>
+                      <option value="pdf">📄 Modul PDF</option>
+                      <option value="video">🎥 Video YouTube / Media</option>
+                      <option value="web">🌐 Tautan Web / Artikel</option>
+                    </select>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <Input
+                      placeholder="Judul Tautan (contoh: Slide Presentasi Materi Teks Rekon)"
+                      value={item.judul}
+                      onChange={(e) => handleUpdateLinkMateri(idx, "judul", e.target.value)}
+                      className="h-9 text-xs rounded-lg"
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveLinkMateri(idx)}
+                    className="hover:text-rose-600 hover:bg-rose-50 text-slate-400 shrink-0 h-9 w-9 self-end sm:self-auto rounded-lg"
+                    title="Hapus tautan ini"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="url"
+                    placeholder="https://drive.google.com/... atau https://canva.com/..."
+                    value={item.url}
+                    onChange={(e) => handleUpdateLinkMateri(idx, "url", e.target.value)}
+                    className="h-9 text-xs rounded-lg font-mono flex-1 min-w-0 bg-slate-50/50"
+                  />
+                  {item.url && (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 font-bold hover:bg-blue-100 flex items-center gap-1 shrink-0 text-[11px] transition-colors"
+                    >
+                      <span>Uji Link</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 

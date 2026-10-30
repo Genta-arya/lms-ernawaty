@@ -304,7 +304,7 @@ export function KuisKerjakan() {
               asChild
               className="text-xs text-slate-500 hover:text-slate-800"
             >
-              <Link to="/murid">Kembali ke Portal Murid</Link>
+              <Link to="/murid">Kembali</Link>
             </Button>
           )}
         </div>
@@ -319,7 +319,7 @@ export function KuisKerjakan() {
         <h2 className="text-lg font-bold">Tidak Dapat Membuka Kuis</h2>
         <p className="text-xs text-muted-foreground mt-1 mb-6">{error || "Kuis tidak memiliki butir soal."}</p>
         <Button asChild>
-          <Link to="/murid">Kembali ke Portal Murid</Link>
+          <Link to="/murid">Kembali</Link>
         </Button>
       </div>
     )
@@ -332,7 +332,7 @@ export function KuisKerjakan() {
         <Button variant="ghost" size="sm" asChild className="gap-2 text-slate-600 hover:text-slate-900">
           <Link to="/murid">
             <ArrowLeft className="w-4 h-4" />
-            Kembali ke Portal Murid
+            Kembali
           </Link>
         </Button>
       </div>

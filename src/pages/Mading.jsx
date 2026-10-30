@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
+import { useToast } from "@/context/ToastContext"
 import {
   getKaryaList,
   createKarya,
@@ -160,6 +161,7 @@ function resolveKelasBadge(rawKelas, kelasMap = {}, fallback = "") {
 
 export function Mading() {
   const { currentUser, role, profileData } = useAuth()
+  const { toast, confirmAction } = useToast()
   const [karyaList, setKaryaList] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -188,10 +190,10 @@ export function Mading() {
     role === "guru"
       ? "Guru Pengampu"
       : resolveKelasBadge(
-          profileData?.kelasNama,
-          kelasMap,
-          profileData?.kelasId ? kelasMap[profileData.kelasId] : ""
-        )
+        profileData?.kelasNama,
+        kelasMap,
+        profileData?.kelasId ? kelasMap[profileData.kelasId] : ""
+      )
 
   async function loadData() {
     try {
@@ -233,6 +235,7 @@ export function Mading() {
     const textToCopy = `"${karya.judul}"\n\n${karya.isi}\n\n— Karya: ${karya.penulisNama} (${karya.penulisKelas || "SMPN 3 Ketapang"})\nPojok Kreasi Literasi LSM Mandiri SMPN 3 Ketapang`
     navigator.clipboard.writeText(textToCopy).then(() => {
       setCopiedKaryaId(karya.id)
+      toast.success("Teks Disalin", "Karya literasi berhasil disalin ke papan klip.")
       setTimeout(() => setCopiedKaryaId(null), 2000)
     })
   }
@@ -240,11 +243,11 @@ export function Mading() {
   async function handleSubmitKarya(e) {
     e.preventDefault()
     if (!currentUser) {
-      alert("Silakan masuk terlebih dahulu untuk menerbitkan karya!")
+      toast.info("Perlu Masuk Akun", "Silakan masuk terlebih dahulu untuk menerbitkan karya!")
       return
     }
     if (!judul.trim() || !isi.trim()) {
-      alert("Harap lengkapi judul dan isi karya Anda.")
+      toast.warning("Data Belum Lengkap", "Harap lengkapi judul dan isi karya Anda.")
       return
     }
 
@@ -265,9 +268,9 @@ export function Mading() {
       setIsi("")
       setShowForm(false)
       await loadData()
-      alert("Karya berhasil diterbitkan ke Pojok Kreasi!")
+      toast.success("Karya Diterbitkan!", "Karyamu telah berhasil dipajang di Pojok Kreasi.")
     } catch (err) {
-      alert(err.message || "Gagal menerbitkan karya.")
+      toast.error("Gagal Menerbitkan", err.message || "Gagal menerbitkan karya.")
     } finally {
       setSubmitting(false)
     }
@@ -275,7 +278,7 @@ export function Mading() {
 
   async function handleLike(karyaId) {
     if (!currentUser) {
-      alert("Masuk terlebih dahulu untuk memberikan apresiasi suka!")
+      toast.info("Perlu Masuk Akun", "Masuk terlebih dahulu untuk memberikan apresiasi suka!")
       return
     }
 
@@ -339,7 +342,7 @@ export function Mading() {
 
   async function handleLikeComment(karyaId, commentId) {
     if (!currentUser) {
-      alert("Masuk terlebih dahulu untuk menyukai komentar!")
+      toast.info("Perlu Masuk Akun", "Masuk terlebih dahulu untuk menyukai komentar!")
       return
     }
 
@@ -375,24 +378,40 @@ export function Mading() {
     }
   }
 
-  async function handleDeleteComment(karyaId, commentId) {
-    if (!confirm("Hapus komentar ini?")) return
-    try {
-      await deleteKomentarKarya(karyaId, commentId)
-      await loadData()
-    } catch (err) {
-      alert(err.message || "Gagal menghapus komentar.")
-    }
+  function handleDeleteComment(karyaId, commentId) {
+    confirmAction({
+      title: "Hapus Komentar",
+      message: "Apakah Anda yakin ingin menghapus komentar ini dari karya?",
+      confirmText: "Ya, Hapus",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await deleteKomentarKarya(karyaId, commentId)
+          toast.success("Komentar Dihapus", "Komentar berhasil dihapus.")
+          await loadData()
+        } catch (err) {
+          toast.error("Gagal Menghapus", err.message || "Gagal menghapus komentar.")
+        }
+      },
+    })
   }
 
-  async function handleDelete(karyaId) {
-    if (!confirm("Hapus karya ini dari Pojok Kreasi?")) return
-    try {
-      await deleteKarya(karyaId)
-      await loadData()
-    } catch (err) {
-      alert(err.message || "Gagal menghapus karya.")
-    }
+  function handleDelete(karyaId) {
+    confirmAction({
+      title: "Hapus Karya Mading",
+      message: "Apakah Anda yakin ingin menghapus karya ini? Seluruh likes dan komentar pada karya ini juga akan dihapus.",
+      confirmText: "Ya, Hapus",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await deleteKarya(karyaId)
+          toast.success("Karya Dihapus", "Karya telah dihapus dari Pojok Kreasi.")
+          await loadData()
+        } catch (err) {
+          toast.error("Gagal Menghapus", err.message || "Gagal menghapus karya.")
+        }
+      },
+    })
   }
 
   const filteredList = karyaList.filter((k) => {
@@ -401,7 +420,7 @@ export function Mading() {
   })
 
   return (
-    <div className="space-y-4 sm:space-y-5 max-w-3xl mx-auto pb-20">
+    <div className="space-y-4 sm:space-y-5 max-w-3xl p-4 mx-auto pb-20">
       {/* Tombol Back / Kembali ke Dashboard */}
       <div className="flex items-center justify-between">
         <Button
@@ -410,11 +429,9 @@ export function Mading() {
           asChild
           className="gap-2 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 -ml-2"
         >
-          <Link to={role === "guru" ? "/guru" : role === "murid" ? "/murid" : "/"}>
+          <Link to={role === "guru" ? "/guru" : "/murid"}>
             <ArrowLeft className="w-4 h-4" />
-            <span className="text-xs sm:text-sm">
-              Kembali ke {role === "guru" ? "Dashboard Guru" : role === "murid" ? "Materi" : "Beranda"}
-            </span>
+            <span className="text-xs sm:text-sm">Kembali</span>
           </Link>
         </Button>
       </div>

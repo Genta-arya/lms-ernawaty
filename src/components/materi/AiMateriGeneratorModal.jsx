@@ -125,9 +125,20 @@ export function AiMateriGeneratorModal({ isOpen, onClose, onGenerated, initialMa
         {/* Content Body (Scrollable Area) */}
         <div className="p-4 sm:p-6 space-y-3.5 sm:space-y-4 overflow-y-auto flex-1 overscroll-contain">
           {error && (
-            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <div className="flex-1 font-medium">{error}</div>
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in">
+              <div className="flex items-start gap-2 min-w-0">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div className="flex-1 font-medium leading-relaxed">{error}</div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleGenerate}
+                disabled={loading}
+                className="shrink-0 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-xl h-7 px-3 w-full sm:w-auto"
+              >
+                Coba Lagi
+              </Button>
             </div>
           )}
 

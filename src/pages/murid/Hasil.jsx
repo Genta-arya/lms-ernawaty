@@ -117,7 +117,7 @@ export function Hasil() {
             </Button>
             <Button variant="outline" size="sm" asChild>
               <Link to="/murid">
-                Kembali ke Dashboard
+                Kembali
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </Link>
             </Button>

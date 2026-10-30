@@ -120,5 +120,30 @@ service cloud.firestore {
       // Hanya pembuat karya atau guru yang boleh menghapus
       allow delete: if isGuru() || (signedIn() && resource.data.penulisUid == request.auth.uid);
     }
+
+    match /pengumuman/{id} {
+      // Semua siswa dan guru dapat membaca pengumuman
+      allow read: if true;
+      // Hanya guru yang boleh membuat, mengedit, dan menghapus pengumuman
+      allow write: if isGuru();
+    }
+
+    match /tugas/{id} {
+      // Siswa dan guru dapat membaca tugas
+      allow read: if isGuru() || (signedIn() && resource.data.status == 'terbit');
+      // Hanya guru yang boleh membuat, mengedit, dan menghapus tugas
+      allow write: if isGuru();
+    }
+
+    match /pengumpulanTugas/{id} {
+      // Guru dapat membaca semua, siswa dapat membaca pengumpulan miliknya
+      allow read: if isGuru() || (signedIn() && (
+        resource == null || resource.data.uid == request.auth.uid
+      ));
+      // Siswa dapat mengumpulkan tugasnya sendiri, guru dapat menilai
+      allow create: if isGuru() || (signedIn() && request.resource.data.uid == request.auth.uid);
+      allow update: if isGuru() || (signedIn() && request.resource.data.uid == request.auth.uid);
+      allow delete: if isGuru();
+    }
   }
 }

@@ -1,6 +1,7 @@
 import React from "react"
 import { Routes, Route, Navigate } from "react-router-dom"
 import { AuthProvider } from "@/context/AuthContext"
+import { ToastProvider } from "@/context/ToastContext"
 import { ProtectedRoute } from "@/components/common/ProtectedRoute"
 
 // Layouts
@@ -29,18 +30,26 @@ import { KuisList as GuruKuisList } from "@/pages/guru/KuisList"
 import { KuisEdit as GuruKuisEdit } from "@/pages/guru/KuisEdit"
 import { KuisHasil as GuruKuisHasil } from "@/pages/guru/KuisHasil"
 import { Progres as GuruProgres } from "@/pages/guru/Progres"
+import { TugasList as GuruTugasList } from "@/pages/guru/TugasList"
+import { TugasEdit as GuruTugasEdit } from "@/pages/guru/TugasEdit"
+import { TugasNilai as GuruTugasNilai } from "@/pages/guru/TugasNilai"
+import { Pengumuman as GuruPengumuman } from "@/pages/guru/Pengumuman"
 
 // Murid Pages
 import { Dashboard as MuridDashboard } from "@/pages/murid/Dashboard"
+import { MateriBelajar as MuridMateriBelajar } from "@/pages/murid/MateriBelajar"
 import { KuisKerjakan as MuridKuisKerjakan } from "@/pages/murid/KuisKerjakan"
 import { Hasil as MuridHasil } from "@/pages/murid/Hasil"
 import { Riwayat as MuridRiwayat } from "@/pages/murid/Riwayat"
 import { Profil as MuridProfil } from "@/pages/murid/Profil"
+import { TugasList as MuridTugasList } from "@/pages/murid/TugasList"
+import { TugasDetail as MuridTugasDetail } from "@/pages/murid/TugasDetail"
 
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
+      <ToastProvider>
+        <Routes>
         {/* Rute Publik */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Beranda />} />
@@ -89,6 +98,11 @@ export default function App() {
           <Route path="kuis/:id/edit" element={<GuruKuisEdit />} />
           <Route path="kuis/:id/hasil" element={<GuruKuisHasil />} />
           <Route path="progres" element={<GuruProgres />} />
+          <Route path="tugas" element={<GuruTugasList />} />
+          <Route path="tugas/baru" element={<GuruTugasEdit />} />
+          <Route path="tugas/:id/edit" element={<GuruTugasEdit />} />
+          <Route path="tugas/:id/nilai" element={<GuruTugasNilai />} />
+          <Route path="pengumuman" element={<GuruPengumuman />} />
         </Route>
 
         {/* Rute Murid (Protected: murid) */}
@@ -101,7 +115,10 @@ export default function App() {
           }
         >
           <Route index element={<MuridDashboard />} />
+          <Route path="materi" element={<MuridMateriBelajar />} />
           <Route path="mading" element={<Mading />} />
+          <Route path="tugas" element={<MuridTugasList />} />
+          <Route path="tugas/:id" element={<MuridTugasDetail />} />
           <Route path="kuis/:id" element={<MuridKuisKerjakan />} />
           <Route path="hasil/:percobaanId" element={<MuridHasil />} />
           <Route path="riwayat" element={<MuridRiwayat />} />
@@ -111,6 +128,7 @@ export default function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </ToastProvider>
     </AuthProvider>
   )
 }

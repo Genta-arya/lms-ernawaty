@@ -19,7 +19,13 @@ import {
 } from "lucide-react"
 import { markdownToHtml, htmlToMarkdown } from "@/lib/editorUtils"
 
-export function RichTextEditor({ value = "", onChange, placeholder = "Tulis isi materi di sini seperti di Microsoft Word..." }) {
+export function RichTextEditor({
+  value = "",
+  onChange,
+  placeholder = "Tulis isi materi di sini seperti di Microsoft Word...",
+  minHeight = "240px",
+  className = "",
+}) {
   const editorRef = useRef(null)
   const [mode, setMode] = useState("visual") // 'visual' | 'markdown'
   const [internalMarkdown, setInternalMarkdown] = useState(value)
@@ -227,7 +233,7 @@ export function RichTextEditor({ value = "", onChange, placeholder = "Tulis isi 
   }
 
   return (
-    <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-xs focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+    <div className={`border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-xs focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all ${className}`}>
       {/* Toolbar Visual Word-Style */}
       <div className="bg-slate-50/90 border-b border-slate-200 p-2 flex flex-wrap items-center justify-between gap-1.5 text-slate-700">
         {/* Grup Tombol Formatting Teks */}
@@ -430,7 +436,10 @@ export function RichTextEditor({ value = "", onChange, placeholder = "Tulis isi 
       </div>
 
       {/* Editor Content Area: Kedua mode tetap ada di DOM agar referensi dan teks tidak ter-reset */}
-      <div className={mode === "visual" ? "p-4 sm:p-6 min-h-[300px] bg-white cursor-text" : "hidden"}>
+      <div
+        className={mode === "visual" ? "p-4 sm:p-5 bg-white cursor-text" : "hidden"}
+        style={{ minHeight }}
+      >
         <div
           ref={editorRef}
           contentEditable
@@ -439,16 +448,18 @@ export function RichTextEditor({ value = "", onChange, placeholder = "Tulis isi 
           onMouseUp={detectActiveBlock}
           onBlur={handleVisualInput}
           suppressContentEditableWarning
-          className="rich-editor-content focus:outline-none min-h-[260px] text-sm leading-relaxed"
+          className="rich-editor-content focus:outline-none text-sm leading-relaxed"
+          style={{ minHeight: `calc(${minHeight} - 20px)` }}
         />
       </div>
 
       <div className={mode === "markdown" ? "p-3 bg-slate-900" : "hidden"}>
         <textarea
-          rows={12}
+          rows={8}
           value={internalMarkdown}
           onChange={handleMarkdownChange}
           placeholder={placeholder}
+          style={{ minHeight }}
           className="w-full bg-slate-900 text-slate-100 font-mono text-xs leading-relaxed p-3 focus:outline-none resize-y rounded-xl"
         />
       </div>

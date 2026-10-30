@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { getKuisList, deleteKuis, seedKuisTemplate, createKuis } from "@/services/kuis"
 import { getMateriList } from "@/services/materi"
+import { useToast } from "@/context/ToastContext"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -19,6 +20,7 @@ import { Plus, FileQuestion, Sparkles, Edit, Trash2, BarChart2, Wand2 } from "lu
 
 export function KuisList() {
   const navigate = useNavigate()
+  const { toast, confirmAction } = useToast()
   const [kuisList, setKuisList] = useState([])
   const [materiList, setMateriList] = useState([])
   const [loading, setLoading] = useState(true)
@@ -47,32 +49,46 @@ export function KuisList() {
   const materiMap = new Map()
   materiList.forEach((m) => materiMap.set(m.id, m.judul))
 
-  async function handleSeedTemplate() {
-    if (confirm("Buat kuis latihan Teks Rekon dari template bawaan?")) {
-      setSeeding(true)
-      try {
-        const count = await seedKuisTemplate()
-        await loadData()
-        alert(`Berhasil menambahkan ${count} kuis Teks Rekon baru dari template!`)
-      } catch (err) {
-        alert(err.message || "Gagal membuat kuis dari template.")
-      } finally {
-        setSeeding(false)
+  function handleSeedTemplate() {
+    confirmAction({
+      title: "Gunakan Template Kuis",
+      message: "Buat kuis latihan Teks Rekon dari paket template bawaan sistem?",
+      confirmText: "Buat Kuis",
+      cancelText: "Batal",
+      variant: "primary",
+      onConfirm: async () => {
+        setSeeding(true)
+        try {
+          const count = await seedKuisTemplate()
+          await loadData()
+          toast.success("Template Kuis Ditambahkan", `Berhasil menambahkan ${count} kuis Teks Rekon baru dari template!`)
+        } catch (err) {
+          toast.error("Gagal Membuat Kuis", err.message || "Gagal membuat kuis dari template.")
+        } finally {
+          setSeeding(false)
+        }
       }
-    }
+    })
   }
 
-  async function handleDelete(k) {
-    if (confirm(`Hapus kuis "${k.judul}"? Riwayat pengerjaan murid pada kuis ini akan ikut terhapus.`)) {
-      try {
-        await deleteKuis(k.id)
-        await loadData()
-        alert(`Kuis "${k.judul}" berhasil dihapus.`)
-      } catch (err) {
-        console.error("Gagal menghapus:", err)
-        alert(err.message || "Gagal menghapus kuis.")
+  function handleDelete(k) {
+    confirmAction({
+      title: "Hapus Kuis",
+      message: `Hapus kuis "${k.judul}"? Riwayat pengerjaan murid pada kuis ini akan ikut terhapus permanen.`,
+      confirmText: "Ya, Hapus",
+      cancelText: "Batal",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await deleteKuis(k.id)
+          await loadData()
+          toast.success("Kuis Dihapus", `Kuis "${k.judul}" berhasil dihapus.`)
+        } catch (err) {
+          console.error("Gagal menghapus:", err)
+          toast.error("Gagal Menghapus", err.message || "Gagal menghapus kuis.")
+        }
       }
-    }
+    })
   }
 
   return (

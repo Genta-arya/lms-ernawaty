@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
+import { UserAvatar } from "@/components/common/UserAvatar"
 import { updateMuridNama, updateMuridFotoUrl } from "@/services/murid"
 import { uploadToCloudinary, openCloudinaryCropWidget } from "@/services/cloudinary"
 import { getProgresMurid } from "@/services/progres"
@@ -236,7 +237,7 @@ export function Profil() {
         <Button variant="ghost" size="sm" asChild className="gap-2 text-slate-600 hover:text-slate-900">
           <Link to="/murid">
             <ArrowLeft className="w-4 h-4" />
-            Kembali ke Materi
+            Kembali
           </Link>
         </Button>
       </div>
@@ -258,19 +259,18 @@ export function Profil() {
               }`}
               title={fotoUrl ? "Klik untuk melihat foto profil ukuran penuh" : "Avatar Siswa"}
             >
-              {fotoUrl ? (
-                <>
-                  <img
-                    src={fotoUrl}
-                    alt={displayName}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                    <ZoomIn className="w-5 h-5 text-white drop-shadow-md" />
-                  </div>
-                </>
-              ) : (
-                <span>{initial}</span>
+              <UserAvatar
+                fotoUrl={fotoUrl}
+                nama={displayName}
+                size="xl"
+                className="w-full h-full rounded-none"
+                fallbackClassName="bg-white/20 backdrop-blur text-white text-3xl sm:text-4xl"
+              />
+
+              {fotoUrl && (
+                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                  <ZoomIn className="w-5 h-5 text-white drop-shadow-md" />
+                </div>
               )}
 
               {/* Overlay saat mengunggah */}

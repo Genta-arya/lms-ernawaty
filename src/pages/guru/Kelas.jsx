@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { getKelasList, createKelas, updateKelas, deleteKelas } from "@/services/kelas"
+import { useToast } from "@/context/ToastContext"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +25,7 @@ import {
 import { Plus, GraduationCap, Edit, Trash2, Users, AlertCircle, ArrowRight } from "lucide-react"
 
 export function Kelas() {
+  const { toast, confirmAction } = useToast()
   const [kelasList, setKelasList] = useState([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -83,27 +85,38 @@ export function Kelas() {
     try {
       if (editingKelas) {
         await updateKelas(editingKelas.id, formData)
+        toast.success("Berhasil Disimpan", `Data kelas ${formData.nama} berhasil diperbarui.`)
       } else {
         await createKelas(formData)
+        toast.success("Kelas Ditambahkan", `Kelas baru ${formData.nama} berhasil dibuat.`)
       }
       setDialogOpen(false)
       await loadData()
     } catch (err) {
       setError(err.message || "Gagal menyimpan kelas.")
+      toast.error("Gagal Menyimpan", err.message || "Terjadi kesalahan saat menyimpan data kelas.")
     } finally {
       setSaving(false)
     }
   }
 
-  async function handleDelete(kelas) {
-    if (confirm(`Apakah Anda yakin ingin menghapus kelas ${kelas.nama}?`)) {
-      try {
-        await deleteKelas(kelas.id)
-        await loadData()
-      } catch (err) {
-        alert(err.message || "Gagal menghapus kelas.")
+  function handleDelete(kelas) {
+    confirmAction({
+      title: "Hapus Kelas",
+      message: `Apakah Anda yakin ingin menghapus kelas ${kelas.nama}? Murid yang terdaftar mungkin perlu disesuaikan.`,
+      confirmText: "Ya, Hapus",
+      cancelText: "Batal",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await deleteKelas(kelas.id)
+          toast.success("Kelas Dihapus", `Kelas ${kelas.nama} berhasil dihapus.`)
+          await loadData()
+        } catch (err) {
+          toast.error("Gagal Menghapus", err.message || "Gagal menghapus kelas.")
+        }
       }
-    }
+    })
   }
 
   return (

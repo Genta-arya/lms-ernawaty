@@ -1,6 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { subscribeKlaimCount } from "@/services/klaim";
+import { subscribeTugasPerluNilaiCount } from "@/services/tugas";
+import { NotificationMenu } from "@/components/layout/NotificationMenu";
+import { MuridNotificationMenu } from "@/components/layout/MuridNotificationMenu";
 import { Button } from "@/components/ui/button";
 import { LogOut, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,6 +14,23 @@ export function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
+  const [pendingKlaimCount, setPendingKlaimCount] = useState(0);
+  const [pendingTugasCount, setPendingTugasCount] = useState(0);
+
+  // Realtime subscription aktivasi siswa & tugas perlu dinilai untuk guru
+  useEffect(() => {
+    if (role !== "guru") return;
+    const unsubKlaim = subscribeKlaimCount((count) => {
+      setPendingKlaimCount(count);
+    });
+    const unsubTugas = subscribeTugasPerluNilaiCount((count) => {
+      setPendingTugasCount(count);
+    });
+    return () => {
+      unsubKlaim();
+      unsubTugas();
+    };
+  }, [role]);
 
   async function handleLogout() {
     await logout();
@@ -54,20 +75,19 @@ export function Navbar() {
           {/* SISI TENGAH: Navigasi Desktop (Hanya muncul jika sudah login) */}
           {currentUser && (
             <nav className="hidden md:flex items-center justify-center gap-1 lg:gap-2 text-xs font-semibold">
-              <Link
-                to="/"
-                className={cn(
-                  "px-3.5 py-1.5 rounded-full transition-all",
-                  pathname === "/"
-                    ? "bg-blue-50 text-blue-600 font-bold"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
-                )}
-              >
-                Beranda
-              </Link>
-
               {role === "guru" && (
                 <>
+                  <Link
+                    to="/"
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full transition-all",
+                      pathname === "/"
+                        ? "bg-blue-50 text-blue-600 font-bold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
+                    )}
+                  >
+                    Beranda
+                  </Link>
                   <Link
                     to="/guru"
                     className={cn(
@@ -77,7 +97,50 @@ export function Navbar() {
                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
                     )}
                   >
-                    Dashboard Guru
+                    Dashboard
+                  </Link>
+                  <Link
+                    to="/guru/permintaan"
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full transition-all relative flex items-center gap-1.5",
+                      pathname.startsWith("/guru/permintaan")
+                        ? "bg-blue-50 text-blue-600 font-bold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
+                    )}
+                  >
+                    <span>Aktivasi</span>
+                    {pendingKlaimCount > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-black animate-pulse">
+                        {pendingKlaimCount}
+                      </span>
+                    )}
+                  </Link>
+                  <Link
+                    to="/guru/tugas"
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full transition-all flex items-center gap-1.5",
+                      pathname.startsWith("/guru/tugas")
+                        ? "bg-blue-50 text-blue-600 font-bold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
+                    )}
+                  >
+                    <span>Tugas</span>
+                    {pendingTugasCount > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-indigo-600 text-white text-[10px] font-black animate-pulse shadow-xs">
+                        {pendingTugasCount}
+                      </span>
+                    )}
+                  </Link>
+                  <Link
+                    to="/guru/pengumuman"
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full transition-all",
+                      pathname.startsWith("/guru/pengumuman")
+                        ? "bg-blue-50 text-blue-600 font-bold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
+                    )}
+                  >
+                    Pengumuman
                   </Link>
                   <Link
                     to="/guru/profil"
@@ -90,20 +153,19 @@ export function Navbar() {
                   >
                     Profil
                   </Link>
+                  <Link
+                    to="/guru/mading"
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full transition-all",
+                      pathname.includes("/mading")
+                        ? "bg-blue-50 text-blue-600 font-bold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
+                    )}
+                  >
+                    Kreasi
+                  </Link>
                 </>
               )}
-
-              <Link
-                to={role === "guru" ? "/guru/mading" : "/murid/mading"}
-                className={cn(
-                  "px-3.5 py-1.5 rounded-full transition-all",
-                  pathname.includes("/mading")
-                    ? "bg-blue-50 text-blue-600 font-bold"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
-                )}
-              >
-                Kreasi
-              </Link>
 
               {role === "murid" && (
                 <>
@@ -111,14 +173,45 @@ export function Navbar() {
                     to="/murid"
                     className={cn(
                       "px-3.5 py-1.5 rounded-full transition-all",
-                      pathname === "/murid" ||
-                        pathname.startsWith("/murid/kuis") ||
-                        pathname.startsWith("/murid/hasil")
+                      pathname === "/murid"
+                        ? "bg-blue-50 text-blue-600 font-bold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
+                    )}
+                  >
+                    Beranda
+                  </Link>
+                  <Link
+                    to="/murid/materi"
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full transition-all",
+                      pathname.startsWith("/murid/materi") || pathname.startsWith("/materi")
                         ? "bg-blue-50 text-blue-600 font-bold"
                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
                     )}
                   >
                     Materi
+                  </Link>
+                  <Link
+                    to="/murid/tugas"
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full transition-all",
+                      pathname.startsWith("/murid/tugas")
+                        ? "bg-blue-50 text-blue-600 font-bold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
+                    )}
+                  >
+                    Tugas
+                  </Link>
+                  <Link
+                    to="/murid/mading"
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full transition-all",
+                      pathname.includes("/mading")
+                        ? "bg-blue-50 text-blue-600 font-bold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
+                    )}
+                  >
+                    Kreasi
                   </Link>
                   <Link
                     to="/murid/riwayat"
@@ -129,7 +222,7 @@ export function Navbar() {
                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
                     )}
                   >
-                    Riwayat Kuis
+                    Riwayat
                   </Link>
                   <Link
                     to="/murid/profil"
@@ -147,15 +240,28 @@ export function Navbar() {
             </nav>
           )}
 
-          {/* SISI KANAN: Tombol Logout / Masuk Portal */}
-          <div className="flex items-center justify-end gap-2 shrink-0">
+          {/* SISI KANAN: Notifikasi & Tombol Logout / Masuk Portal */}
+          <div className="flex items-center justify-end gap-2.5 shrink-0">
+            {/* Notifikasi Guru */}
+            {currentUser && role === "guru" && (
+              <NotificationMenu />
+            )}
+
+            {/* Notifikasi Murid untuk Tugas & Pembaharuan Nilai */}
+            {currentUser && role === "murid" && (
+              <MuridNotificationMenu />
+            )}
+
             {currentUser ? (
               <button
                 type="button"
                 onClick={handleLogout}
                 title="Keluar dari Akun"
                 aria-label="Keluar"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-colors text-xs font-semibold"
+                className={cn(
+                  "items-center gap-1.5 px-3 py-1.5 rounded-full text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-colors text-xs font-semibold",
+                  role === "murid" ? "hidden md:flex" : "flex"
+                )}
               >
                 <LogOut className="w-4 h-4 stroke-[2]" />
                 <span className="hidden sm:inline">Keluar</span>

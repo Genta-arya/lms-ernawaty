@@ -3,6 +3,7 @@ import { getLeaderboardHarian } from "@/services/percobaan"
 import { getMuridList } from "@/services/murid"
 import { getKelasList } from "@/services/kelas"
 import { formatNamaKelas } from "@/lib/utils"
+import { UserAvatar } from "@/components/common/UserAvatar"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Trophy, Medal, Flame, Clock, Sparkles, UserCheck } from "lucide-react"
@@ -146,13 +147,12 @@ export function LeaderboardHarian({ kuisId = null, materiId = null, title = "Pap
                     </div>
 
                     {/* Avatar Foto Siswa */}
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-blue-600 text-white font-bold text-xs flex items-center justify-center border-2 border-white shadow-2xs shrink-0">
-                      {item.foto ? (
-                        <img src={item.foto} alt={item.nama} className="w-full h-full object-cover" />
-                      ) : (
-                        <span>{item.nama?.charAt(0).toUpperCase() || "S"}</span>
-                      )}
-                    </div>
+                    <UserAvatar
+                      fotoUrl={item.foto}
+                      nama={item.nama}
+                      size="sm"
+                      className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 border-white shadow-2xs shrink-0"
+                    />
 
                     <div className="min-w-0">
                       <div className="text-xs sm:text-sm font-black text-slate-900 truncate">

@@ -22,6 +22,12 @@ import {
   ListChecks,
   ArrowUp,
   Lock,
+  Link as LinkIcon,
+  ExternalLink,
+  FileText,
+  Video,
+  Globe,
+  FolderOpen,
 } from "lucide-react"
 
 export function MateriDetail() {
@@ -34,8 +40,8 @@ export function MateriDetail() {
   const [savingProgress, setSavingProgress] = useState(false)
   const [showScrollTop, setShowScrollTop] = useState(false)
 
-  // Tujuan tombol kembali: jika murid/login ke /murid, jika guru ke /guru/materi, lainnya ke /
-  const backTarget = role === "guru" ? "/guru/materi" : role === "murid" ? "/murid" : "/murid"
+  // Tujuan tombol kembali: jika murid/login ke /murid, jika guru ke /guru/materi, lainnya ke /murid
+  const backTarget = role === "guru" ? "/guru/materi" : "/murid"
 
   useEffect(() => {
     // Otomatis scroll ke paling atas saat halaman pertama kali dirender
@@ -108,7 +114,10 @@ export function MateriDetail() {
           Materi mungkin belum diterbitkan atau tautan yang Anda buka tidak valid.
         </p>
         <Button asChild>
-          <Link to={backTarget}>Kembali ke Portal Murid</Link>
+          <Link to={backTarget}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Kembali
+          </Link>
         </Button>
       </div>
     )
@@ -144,7 +153,7 @@ export function MateriDetail() {
           <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-2xl h-11 px-6 shadow-md shadow-blue-500/20">
             <Link to={backTarget}>
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Kembali ke Materi Kelas {studentTingkat}
+              Kembali
             </Link>
           </Button>
         </div>
@@ -154,12 +163,12 @@ export function MateriDetail() {
 
   return (
     <div className="container max-w-5xl py-6 md:py-8 overflow-hidden">
-      {/* Tombol Kembali ke Dashboard Murid */}
+      {/* Tombol Kembali ke Beranda Murid */}
       <div className="mb-6">
         <Button variant="ghost" size="sm" asChild className="gap-2 text-slate-600 hover:text-slate-900">
           <Link to={backTarget}>
             <ArrowLeft className="w-4 h-4" />
-            Kembali ke Portal Murid
+            Kembali
           </Link>
         </Button>
       </div>
@@ -203,6 +212,70 @@ export function MateriDetail() {
                     <li key={idx} className="break-words">{tuj}</li>
                   ))}
                 </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Tautan Materi Pembelajaran & Referensi Eksternal */}
+          {materi.linkMateri && materi.linkMateri.length > 0 && (
+            <Card className="border border-blue-200/90 bg-gradient-to-br from-blue-50/60 via-white to-indigo-50/30 rounded-2xl overflow-hidden shadow-2xs">
+              <CardHeader className="pb-3 border-b border-blue-100/80">
+                <CardTitle className="text-sm font-extrabold flex items-center gap-2 text-blue-950">
+                  <LinkIcon className="w-4 h-4 text-blue-600" />
+                  <span>Berkas & Tautan Materi Pendukung:</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {materi.linkMateri.map((item, idx) => {
+                    const isDrive = item.jenis === "drive"
+                    const isCanva = item.jenis === "canva"
+                    const isPdf = item.jenis === "pdf"
+                    const isVideo = item.jenis === "video"
+
+                    return (
+                      <a
+                        key={idx}
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group p-3 rounded-xl bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all flex items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                            {isDrive ? (
+                              <FolderOpen className="w-4 h-4" />
+                            ) : isPdf ? (
+                              <FileText className="w-4 h-4" />
+                            ) : isVideo ? (
+                              <Video className="w-4 h-4" />
+                            ) : (
+                              <Globe className="w-4 h-4" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-xs text-slate-800 group-hover:text-blue-700 transition-colors truncate">
+                              {item.judul || "Buka Berkas Materi"}
+                            </div>
+                            <div className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                              {isDrive
+                                ? "Google Drive / Dokumen"
+                                : isCanva
+                                ? "Desain Canva"
+                                : isPdf
+                                ? "Dokumen PDF"
+                                : isVideo
+                                ? "Video Pembelajaran"
+                                : "Tautan Eksternal"}
+                            </div>
+                          </div>
+                        </div>
+
+                        <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 shrink-0 transition-colors" />
+                      </a>
+                    )
+                  })}
+                </div>
               </CardContent>
             </Card>
           )}

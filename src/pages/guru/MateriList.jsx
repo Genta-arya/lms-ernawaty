@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
+import { useToast } from "@/context/ToastContext"
 import { getMateriList, deleteMateri, seedMateriTemplate, createMateri } from "@/services/materi"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,6 +19,7 @@ import { Plus, BookOpen, Sparkles, Edit, Trash2, ExternalLink, Wand2 } from "luc
 
 export function MateriList() {
   const navigate = useNavigate()
+  const { toast, confirmAction } = useToast()
   const [materiList, setMateriList] = useState([])
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
@@ -40,32 +42,44 @@ export function MateriList() {
     loadData()
   }, [])
 
-  async function handleSeedTemplate() {
-    if (confirm("Buat materi pembelajaran Teks Rekon (Recount Text) dari template bawaan?")) {
-      setSeeding(true)
-      try {
-        const count = await seedMateriTemplate()
-        await loadData()
-        alert(`Berhasil menambahkan ${count} materi Teks Rekon baru dari template!`)
-      } catch (err) {
-        alert(err.message || "Gagal membuat materi dari template.")
-      } finally {
-        setSeeding(false)
-      }
-    }
+  function handleSeedTemplate() {
+    confirmAction({
+      title: "Buat Materi dari Template",
+      message: "Buat materi pembelajaran Teks Rekon (Recount Text) dari template bawaan? Sistem akan membuat materi lengkap siap pakai.",
+      confirmText: "Ya, Buat Template",
+      variant: "primary",
+      onConfirm: async () => {
+        setSeeding(true)
+        try {
+          const count = await seedMateriTemplate()
+          await loadData()
+          toast.success("Template Berhasil Dibuat", `Berhasil menambahkan ${count} materi Teks Rekon baru dari template!`)
+        } catch (err) {
+          toast.error("Gagal Membuat Template", err.message || "Gagal membuat materi dari template.")
+        } finally {
+          setSeeding(false)
+        }
+      },
+    })
   }
 
-  async function handleDelete(m) {
-    if (confirm(`Apakah Anda yakin ingin menghapus materi "${m.judul}"?`)) {
-      try {
-        await deleteMateri(m.id)
-        await loadData()
-        alert(`Materi "${m.judul}" berhasil dihapus.`)
-      } catch (err) {
-        console.error("Gagal menghapus:", err)
-        alert(err.message || "Gagal menghapus materi. Pastikan izin database aktif.")
-      }
-    }
+  function handleDelete(m) {
+    confirmAction({
+      title: "Hapus Materi Pembelajaran",
+      message: `Apakah Anda yakin ingin menghapus materi "${m.judul}"? Data kuis yang terhubung ke materi ini mungkin terpengaruh.`,
+      confirmText: "Ya, Hapus",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await deleteMateri(m.id)
+          await loadData()
+          toast.success("Materi Dihapus", `Materi "${m.judul}" berhasil dihapus.`)
+        } catch (err) {
+          console.error("Gagal menghapus:", err)
+          toast.error("Gagal Menghapus", err.message || "Gagal menghapus materi. Pastikan izin database aktif.")
+        }
+      },
+    })
   }
 
   return (

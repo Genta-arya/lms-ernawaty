@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react"
 import { getMuridList, createMurid, updateMurid, deleteMurid, batchImportMurid, unlinkAkunMurid } from "@/services/murid"
 import { getKelasList } from "@/services/kelas"
+import { useToast } from "@/context/ToastContext"
 import { parseMuridCsv, exportToCsv } from "@/lib/csv"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -37,6 +38,7 @@ import {
 } from "lucide-react"
 
 export function Murid() {
+  const { toast, confirmAction } = useToast()
   const [muridList, setMuridList] = useState([])
   const [kelasList, setKelasList] = useState([])
   const [loading, setLoading] = useState(true)
@@ -131,28 +133,38 @@ export function Murid() {
           kelasId: formData.kelasId,
           email: formData.email,
         })
+        toast.success("Berhasil Disimpan", `Data siswa ${formData.nama} berhasil diperbarui.`)
       } else {
         await createMurid(formData)
+        toast.success("Siswa Ditambahkan", `Siswa baru ${formData.nama} berhasil ditambahkan.`)
       }
       setDialogOpen(false)
       await loadData()
     } catch (err) {
       setError(err.message || "Gagal menyimpan data murid.")
+      toast.error("Gagal Menyimpan", err.message || "Gagal menyimpan data murid.")
     } finally {
       setSaving(false)
     }
   }
 
-  async function handleDelete(m) {
-    const deleteRiwayat = confirm(`Hapus murid ${m.nama}? Tekan OK untuk menghapus murid beserta seluruh riwayat pengerjaan kuisnya.`)
-    if (deleteRiwayat) {
-      try {
-        await deleteMurid(m.nisn, true)
-        await loadData()
-      } catch (err) {
-        alert(err.message || "Gagal menghapus murid.")
+  function handleDelete(m) {
+    confirmAction({
+      title: "Hapus Data Siswa",
+      message: `Hapus murid "${m.nama}"? Data murid beserta seluruh riwayat pengerjaan kuisnya akan dihapus permanen.`,
+      confirmText: "Ya, Hapus Murid",
+      cancelText: "Batal",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          await deleteMurid(m.nisn, true)
+          toast.success("Murid Dihapus", `Data murid ${m.nama} telah berhasil dihapus.`)
+          await loadData()
+        } catch (err) {
+          toast.error("Gagal Menghapus", err.message || "Gagal menghapus murid.")
+        }
       }
-    }
+    })
   }
 
   // Handle CSV Import
@@ -191,7 +203,7 @@ export function Murid() {
       })
       setImportDialogOpen(true)
     } catch (err) {
-      alert("Format file CSV tidak valid.")
+      toast.error("Format Tidak Valid", "Format file CSV tidak valid atau struktur kolom salah.")
     } finally {
       e.target.value = ""
     }
@@ -201,13 +213,14 @@ export function Murid() {
     if (!importPreview?.validRows?.length) return
     setImporting(true)
     try {
+      const totalCount = importPreview.validRows.length
       await batchImportMurid(importPreview.validRows)
       setImportDialogOpen(false)
       setImportPreview(null)
       await loadData()
-      alert(`Berhasil mengimpor ${importPreview.validRows.length} data murid!`)
+      toast.success("Impor Berhasil", `Berhasil mengimpor ${totalCount} data murid ke sistem!`)
     } catch (err) {
-      alert(err.message || "Gagal mengimpor murid.")
+      toast.error("Gagal Impor", err.message || "Terjadi kesalahan saat mengimpor data murid.")
     } finally {
       setImporting(false)
     }
@@ -448,21 +461,24 @@ export function Murid() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={async () => {
-                      if (
-                        confirm(
-                          `Putuskan tautan akun Google untuk siswa "${editingMurid.nama}"?\n\nSiswa akan dapat masuk dengan akun Google baru atau email baru yang Anda tentukan.`
-                        )
-                      ) {
-                        try {
-                          await unlinkAkunMurid(editingMurid.nisn)
-                          setEditingMurid({ ...editingMurid, isLinked: false, akunMurid: null })
-                          alert("Tautan akun Google lama berhasil diputuskan. Siswa sekarang dapat masuk dengan akun Google baru.")
-                          await loadData()
-                        } catch (err) {
-                          alert("Gagal memutuskan tautan: " + err.message)
+                    onClick={() => {
+                      confirmAction({
+                        title: "Putuskan Tautan Akun",
+                        message: `Putuskan tautan akun Google untuk siswa "${editingMurid.nama}"? Siswa akan dapat masuk dengan akun Google baru atau email baru.`,
+                        confirmText: "Putuskan Tautan",
+                        cancelText: "Batal",
+                        variant: "danger",
+                        onConfirm: async () => {
+                          try {
+                            await unlinkAkunMurid(editingMurid.nisn)
+                            setEditingMurid({ ...editingMurid, isLinked: false, akunMurid: null })
+                            toast.success("Tautan Diputuskan", "Tautan akun Google lama berhasil diputuskan. Siswa sekarang dapat masuk dengan akun baru.")
+                            await loadData()
+                          } catch (err) {
+                            toast.error("Gagal Memutuskan Tautan", err.message || "Terjadi kesalahan saat memutuskan tautan akun.")
+                          }
                         }
-                      }
+                      })
                     }}
                     className="h-8 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 gap-1.5 w-full sm:w-auto"
                   >

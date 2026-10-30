@@ -80,7 +80,7 @@ export function Masuk() {
       } else {
         setError(
           err.message ||
-            "Gagal masuk dengan akun Google. Silakan coba kembali.",
+          "Gagal masuk dengan akun Google. Silakan coba kembali.",
         );
       }
     } finally {
@@ -133,7 +133,7 @@ export function Masuk() {
               alt=""
             />
           </div>
-        
+
           <CardDescription className="text-xs text-muted-foreground">
             SMP Negeri 3 Ketapang - Kurikulum Merdeka
           </CardDescription>
@@ -147,11 +147,10 @@ export function Masuk() {
                 setError("");
                 setMsg("");
               }}
-              className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === "murid"
+              className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${activeTab === "murid"
                   ? "bg-white text-primary shadow-xs font-bold"
                   : "text-slate-600 hover:text-slate-900"
-              }`}
+                }`}
             >
               <GraduationCap className="w-4 h-4" />
               Siswa
@@ -163,11 +162,10 @@ export function Masuk() {
                 setError("");
                 setMsg("");
               }}
-              className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === "guru"
+              className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${activeTab === "guru"
                   ? "bg-white text-primary shadow-xs font-bold"
                   : "text-slate-600 hover:text-slate-900"
-              }`}
+                }`}
             >
               <School className="w-4 h-4" />
               Guru
@@ -214,7 +212,7 @@ export function Masuk() {
           {activeTab === "murid" && (
             <div className="space-y-4 pt-1">
               <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-600 leading-relaxed">
-               
+
                 Gunakan akun Google aktif Anda. Jika pertama kali masuk, Anda
                 akan diarahkan untuk memilih kelas dan mengisi NISN.
               </div>

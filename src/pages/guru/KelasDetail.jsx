@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useParams, Link } from "react-router-dom"
 import { getKelasById } from "@/services/kelas"
 import { getMuridList, createMurid } from "@/services/murid"
+import { useToast } from "@/context/ToastContext"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +20,7 @@ import { ArrowLeft, Plus, CheckCircle2, Clock, Users, AlertCircle } from "lucide
 
 export function KelasDetail() {
   const { id } = useParams()
+  const { toast } = useToast()
   const [kelas, setKelas] = useState(null)
   const [muridList, setMuridList] = useState([])
   const [loading, setLoading] = useState(true)
@@ -61,12 +63,14 @@ export function KelasDetail() {
         kelasId: id,
         email: email || null,
       })
+      toast.success("Siswa Ditambahkan", `${nama} berhasil didaftarkan ke kelas ini.`)
       setNisn("")
       setNama("")
       setEmail("")
       await loadData()
     } catch (err) {
       setError(err.message || "Gagal menambahkan murid.")
+      toast.error("Gagal Menambahkan", err.message || "Gagal menambahkan murid ke kelas.")
     } finally {
       setSavingMurid(false)
     }

@@ -4,10 +4,13 @@ import { getKelasList } from "@/services/kelas"
 import { getMuridList } from "@/services/murid"
 import { getMateriList } from "@/services/materi"
 import { getKuisList } from "@/services/kuis"
-import { getKlaimList } from "@/services/klaim"
+import { getKlaimList, subscribeKlaimCount } from "@/services/klaim"
+import { getTugasList, subscribeTugasPerluNilaiCount } from "@/services/tugas"
+import { getPengumumanList, subscribePengumumanList } from "@/services/pengumuman"
 import { useAuth } from "@/context/AuthContext"
 import { Badge } from "@/components/ui/badge"
 import { DashboardGuruSkeleton } from "@/components/ui/loading-skeletons"
+import { cn } from "@/lib/utils"
 import {
   GraduationCap,
   Users,
@@ -24,6 +27,8 @@ import {
   Clock,
   Eye,
   Feather,
+  ClipboardList,
+  Megaphone,
 } from "lucide-react"
 
 export function Dashboard() {
@@ -35,6 +40,9 @@ export function Dashboard() {
     materiDraft: 0,
     kuisCount: 0,
     permintaanCount: 0,
+    tugasCount: 0,
+    tugasPerluNilaiCount: 0,
+    pengumumanCount: 0,
   })
   const [loading, setLoading] = useState(true)
 
@@ -43,25 +51,30 @@ export function Dashboard() {
 
     async function loadStats() {
       try {
-        const [kelas, murid, materi, kuis, klaim] = await Promise.all([
+        const [kelas, murid, materi, kuis, klaim, tugas, pengumuman] = await Promise.all([
           getKelasList(),
           getMuridList(),
           getMateriList(true),
           getKuisList(true),
           getKlaimList(),
+          getTugasList(true),
+          getPengumumanList(true),
         ])
 
         const terbit = materi.filter((m) => m.status === "terbit").length
         const draft = materi.filter((m) => m.status === "draft").length
 
-        setStats({
+        setStats((prev) => ({
+          ...prev,
           kelasCount: kelas.length,
           muridCount: murid.length,
           materiTerbit: terbit,
           materiDraft: draft,
           kuisCount: kuis.length,
           permintaanCount: klaim.length,
-        })
+          tugasCount: tugas.length,
+          pengumumanCount: pengumuman.filter((p) => p.status === "aktif").length,
+        }))
       } catch (err) {
         console.error("Gagal memuat ringkasan dashboard:", err)
       } finally {
@@ -69,6 +82,36 @@ export function Dashboard() {
       }
     }
     loadStats()
+
+    // Langganan pembaruan pengumuman secara realtime
+    const unsubPengumuman = subscribePengumumanList((list) => {
+      setStats((prev) => ({
+        ...prev,
+        pengumumanCount: list.filter((p) => p.status === "aktif").length,
+      }))
+    }, true)
+
+    // Langganan pembaruan notifikasi aktivasi siswa secara realtime
+    const unsubKlaim = subscribeKlaimCount((count) => {
+      setStats((prev) => ({
+        ...prev,
+        permintaanCount: count,
+      }))
+    })
+
+    // Langganan pembaruan tugas belum dinilai secara realtime
+    const unsubTugas = subscribeTugasPerluNilaiCount((count) => {
+      setStats((prev) => ({
+        ...prev,
+        tugasPerluNilaiCount: count,
+      }))
+    })
+
+    return () => {
+      if (typeof unsubPengumuman === "function") unsubPengumuman()
+      if (typeof unsubKlaim === "function") unsubKlaim()
+      if (typeof unsubTugas === "function") unsubTugas()
+    }
   }, [])
 
   if (loading) {
@@ -220,7 +263,67 @@ export function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {/* Monitoring 1: Progres Membaca Materi */}
+          {/* Monitoring 1: Penugasan Siswa */}
+          <Link
+            to="/guru/tugas"
+            className={cn(
+              "p-4 rounded-2xl bg-white border shadow-xs hover:shadow-md transition-all flex items-center justify-between group active:scale-98 relative overflow-hidden",
+              stats.tugasPerluNilaiCount > 0
+                ? "border-indigo-300 ring-2 ring-indigo-500/10"
+                : "border-slate-200/90 hover:border-blue-300"
+            )}
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform relative">
+                <ClipboardList className="w-5 h-5" />
+                {stats.tugasPerluNilaiCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-indigo-600 text-white text-[10px] font-black flex items-center justify-center ring-2 ring-white animate-pulse shadow-xs">
+                    {stats.tugasPerluNilaiCount}
+                  </span>
+                )}
+              </div>
+              <div className="space-y-0.5">
+                <div className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                  <span>Kelola Penugasan Siswa</span>
+                  {stats.tugasPerluNilaiCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-black animate-pulse flex items-center gap-1 shadow-2xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                      {stats.tugasPerluNilaiCount} Baru Diunggah
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-slate-500">
+                  {stats.tugasPerluNilaiCount > 0
+                    ? `${stats.tugasPerluNilaiCount} kiriman tugas siswa belum dinilai`
+                    : `${stats.tugasCount} tugas aktif • Semua kiriman telah dievaluasi`}
+                </div>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+          </Link>
+
+          {/* Monitoring 2: Pusat Pengumuman */}
+          <Link
+            to="/guru/pengumuman"
+            className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md hover:border-amber-300 transition-all flex items-center justify-between group active:scale-98"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
+                <Megaphone className="w-5 h-5" />
+              </div>
+              <div className="space-y-0.5">
+                <div className="font-extrabold text-sm text-slate-900">
+                  Pusat Pengumuman Guru
+                </div>
+                <div className="text-xs text-slate-500">
+                  {stats.pengumumanCount} info tayang &bull; Publikasikan instruksi atau info kelas
+                </div>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
+          </Link>
+
+          {/* Monitoring 3: Progres Membaca Materi */}
           <Link
             to="/guru/progres"
             className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md hover:border-purple-300 transition-all flex items-center justify-between group active:scale-98"
@@ -265,15 +368,27 @@ export function Dashboard() {
           {/* Monitoring 3: Verifikasi Aktivasi Akun Siswa */}
           <Link
             to="/guru/permintaan"
-            className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md hover:border-rose-300 transition-all flex items-center justify-between group active:scale-98"
+            className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md hover:border-rose-300 transition-all flex items-center justify-between group active:scale-98 relative overflow-hidden"
           >
             <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
+              <div className="relative w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0 group-hover:scale-105 transition-transform">
                 <Inbox className="w-5 h-5" />
+                {stats.permintaanCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-xs ring-2 ring-white animate-bounce">
+                    {stats.permintaanCount}
+                  </span>
+                )}
               </div>
               <div className="space-y-0.5">
-                <div className="font-extrabold text-sm text-slate-900">
-                  Verifikasi Aktivasi Siswa
+                <div className="flex items-center gap-2">
+                  <div className="font-extrabold text-sm text-slate-900">
+                    Verifikasi Aktivasi Siswa
+                  </div>
+                  {stats.permintaanCount > 0 && (
+                    <Badge className="bg-rose-100 text-rose-800 border-none text-[10px] font-black px-2 py-0">
+                      Baru: {stats.permintaanCount}
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-xs text-slate-500">
                   {stats.permintaanCount > 0

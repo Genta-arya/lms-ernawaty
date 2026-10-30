@@ -91,12 +91,9 @@ export function Beranda() {
       ? normalizeTingkatRomawi(profileData?.tingkat || profileData?.kelasNama)
       : null
 
-  // Otomatis arahkan tab filter ke tingkat kelas murid saat login
-  useEffect(() => {
-    if (studentTingkat) {
-      setSelectedTingkat(studentTingkat)
-    }
-  }, [studentTingkat])
+  // Otomatis arahkan tab filter ke tingkat kelas murid saat login jika belum dipilih
+  // Catatan: Biarkan default "SEMUA" agar pengunjung / siswa dapat melihat katalog lengkap
+  // tanpa tersembunyi karena ketidakcocokan filter tingkat awal
 
   useEffect(() => {
     // Scroll otomatis ke paling atas saat pertama dibuka
@@ -124,6 +121,8 @@ export function Beranda() {
 
         if (materiRes.status === "fulfilled" && materiRes.value) {
           setMateriList(materiRes.value)
+        } else if (materiRes.status === "rejected") {
+          console.error("Gagal load materi di Beranda:", materiRes.reason)
         }
         if (sekRes.status === "fulfilled" && sekRes.value) {
           setSekolah(sekRes.value)
@@ -149,8 +148,10 @@ export function Beranda() {
     }
     loadData()
 
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+    return () => {
+      window.removeEventListener("scroll", handleScroll)
+    }
+  }, [studentTingkat])
 
   // Auto rotate carousel setiap 5 detik jika ada lebih dari 1 karya
   useEffect(() => {
@@ -165,15 +166,18 @@ export function Beranda() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  // Filter materi: Murid hanya melihat materi sesuai tingkatnya saat "SEMUA"
+  // Filter materi: Tampilkan materi sesuai tingkat yang dipilih
   const filteredMateri = materiList.filter((m) => {
     if (selectedTingkat === "SEMUA") {
-      if (studentTingkat) {
-        return isMateriCocokTingkat(m.tingkat, studentTingkat)
-      }
       return true
     }
-    return m.tingkat && m.tingkat.includes(selectedTingkat)
+    // Cek apakah array tingkat pada materi mengandung tingkat yang dipilih
+    if (!m.tingkat || !Array.isArray(m.tingkat) || m.tingkat.length === 0) {
+      return true
+    }
+    return m.tingkat.some(
+      (t) => normalizeTingkatRomawi(t) === normalizeTingkatRomawi(selectedTingkat)
+    )
   })
 
   return (
@@ -647,30 +651,19 @@ export function Beranda() {
 
           {/* Filter Tingkat Modern */}
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-            {["SEMUA", "VII", "VIII", "IX"].map((t) => {
-              const isLockedForStudent =
-                studentTingkat && t !== "SEMUA" && t !== studentTingkat
-
-              return (
-                <button
-                  key={t}
-                  onClick={() => setSelectedTingkat(t)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
-                    selectedTingkat === t
-                      ? "bg-white text-blue-600 shadow-xs font-bold"
-                      : isLockedForStudent
-                      ? "text-slate-400 hover:text-slate-600"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  {isLockedForStudent && <Lock className="w-3 h-3 text-slate-400" />}
-                  <span>{t === "SEMUA" ? (studentTingkat ? `Kelas ${studentTingkat} (Semua)` : "Semua Kelas") : `Kelas ${t}`}</span>
-                  {studentTingkat && t === studentTingkat && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                  )}
-                </button>
-              )
-            })}
+            {["SEMUA", "VII", "VIII", "IX"].map((t) => (
+              <button
+                key={t}
+                onClick={() => setSelectedTingkat(t)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                  selectedTingkat === t
+                    ? "bg-white text-blue-600 shadow-xs font-bold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <span>{t === "SEMUA" ? "Semua Kelas" : `Kelas ${t}`}</span>
+              </button>
+            ))}
           </div>
         </div>
 

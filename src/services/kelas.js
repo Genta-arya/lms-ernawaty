@@ -17,30 +17,16 @@ export async function getKelasList() {
   try {
     const colRef = collection(db, "kelas")
     const snap = await getDocs(colRef)
-    const list = []
-    for (const docSnap of snap.docs) {
-      const data = docSnap.data()
-      // Hitung jumlah murid di kelas ini
-      let jumlahMurid = 0
-      try {
-        const muridQuery = query(collection(db, "murid"), where("kelasId", "==", docSnap.id))
-        const countSnap = await getCountFromServer(muridQuery)
-        jumlahMurid = countSnap.data().count
-      } catch {
-        jumlahMurid = 0
-      }
-
-      list.push({
-        id: docSnap.id,
-        ...data,
-        jumlahMurid,
-      })
-    }
+    const list = snap.docs.map((d) => ({
+      id: d.id,
+      ...d.data(),
+      jumlahMurid: 0,
+    }))
 
     // Urutkan berdasarkan tingkat lalu nama kelas
     return list.sort((a, b) => {
-      if (a.tingkat !== b.tingkat) return a.tingkat - b.tingkat
-      return a.nama.localeCompare(b.nama)
+      if (a.tingkat !== b.tingkat) return (a.tingkat || 0) - (b.tingkat || 0)
+      return (a.nama || "").localeCompare(b.nama || "")
     })
   } catch (err) {
     // Jika user belum login dan firestore rules membatasi, fallback return array kosong tanpa error

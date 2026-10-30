@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
 import { getKuisById, createKuis, updateKuis } from "@/services/kuis"
 import { getMateriList } from "@/services/materi"
+import { useToast } from "@/context/ToastContext"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,6 +16,7 @@ export function KuisEdit() {
   const { id } = useParams()
   const isNew = !id || id === "baru"
   const navigate = useNavigate()
+  const { toast } = useToast()
 
   const [materiList, setMateriList] = useState([])
   const [formData, setFormData] = useState({
@@ -133,7 +135,7 @@ export function KuisEdit() {
     const s = formData.soal[soalIndex]
     const currentOpsi = s.opsi || []
     if (currentOpsi.length <= 2) {
-      alert("Soal pilihan ganda minimal harus memiliki 2 pilihan jawaban!")
+      toast.warning("Batas Minimal", "Soal pilihan ganda minimal harus memiliki 2 pilihan jawaban!")
       return
     }
 
@@ -172,12 +174,14 @@ export function KuisEdit() {
 
     if (!formData.judul.trim()) {
       setError("Judul kuis wajib diisi.")
+      toast.error("Validasi Gagal", "Judul kuis wajib diisi.")
       setSaving(false)
       return
     }
 
     if (formData.status === "terbit" && (!formData.soal || formData.soal.length === 0)) {
       setError("Kuis terbit minimal harus memiliki 1 butir soal.")
+      toast.error("Validasi Gagal", "Kuis terbit minimal harus memiliki 1 butir soal.")
       setSaving(false)
       return
     }
@@ -195,12 +199,15 @@ export function KuisEdit() {
     try {
       if (isNew) {
         await createKuis(cleanData)
+        toast.success("Kuis Dibuat", `Kuis "${cleanData.judul}" berhasil ditambahkan.`)
       } else {
         await updateKuis(id, cleanData)
+        toast.success("Kuis Disimpan", `Perubahan kuis "${cleanData.judul}" berhasil disimpan.`)
       }
       navigate("/guru/kuis")
     } catch (err) {
       setError(err.message || "Gagal menyimpan kuis.")
+      toast.error("Gagal Menyimpan", err.message || "Terjadi kesalahan saat menyimpan kuis.")
     } finally {
       setSaving(false)
     }

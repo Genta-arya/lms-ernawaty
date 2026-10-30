@@ -9,6 +9,7 @@ import {
   query,
   where,
   serverTimestamp,
+  onSnapshot,
 } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
@@ -171,6 +172,25 @@ export async function getKlaimList() {
   }
 
   return list
+}
+
+/**
+ * Berlangganan jumlah klaim/aktivasi murid yang berstatus 'menunggu' secara realtime
+ * @param {Function} callback - Menerima count integer (jumlah permohonan menunggu)
+ * @returns {Function} Unsubscribe function
+ */
+export function subscribeKlaimCount(callback) {
+  const q = query(collection(db, "klaim"), where("status", "==", "menunggu"))
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.size)
+    },
+    (err) => {
+      console.warn("Gagal realtime subscribe klaim count:", err)
+      callback(0)
+    }
+  )
 }
 
 /**

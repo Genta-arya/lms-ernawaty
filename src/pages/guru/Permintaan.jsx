@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { getKlaimList, approveKlaim, rejectKlaim } from "@/services/klaim"
+import { useToast } from "@/context/ToastContext"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +33,7 @@ import {
 } from "lucide-react"
 
 export function Permintaan() {
+  const { toast } = useToast()
   const [klaimList, setKlaimList] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -59,8 +61,9 @@ export function Permintaan() {
 
   async function handleApprove(claim) {
     if (claim.isNisnTerhubungAkunLain) {
-      alert(
-        `PERINGATAN: NISN ${claim.nisn} sudah aktif digunakan oleh akun murid lain!\n\nSetiap siswa wajib memiliki NISN unik. Anda tidak dapat menyetujui dua akun untuk satu NISN yang sama. Silakan tolak permohonan ini atau cabut akun lama terlebih dahulu.`
+      toast.warning(
+        "NISN Sudah Digunakan",
+        `NISN ${claim.nisn} sudah aktif digunakan akun lain. Cabut akun lama terlebih dahulu atau tolak permohonan ini.`
       )
       return
     }
@@ -69,9 +72,12 @@ export function Permintaan() {
     try {
       await approveKlaim(claim)
       await loadData()
-      alert(`Permintaan aktivasi untuk ${claim.nama} berhasil disetujui! Siswa telah dimasukkan ke daftar murid resmi.`)
+      toast.success(
+        "Aktivasi Disetujui",
+        `Permintaan aktivasi untuk ${claim.nama} berhasil disetujui! Siswa telah dimasukkan ke daftar murid.`
+      )
     } catch (err) {
-      alert(err.message || "Gagal menyetujui klaim.")
+      toast.error("Gagal Menyetujui", err.message || "Gagal menyetujui klaim.")
     } finally {
       setProcessing(false)
     }
@@ -90,9 +96,9 @@ export function Permintaan() {
       await rejectKlaim(selectedKlaim.uid, alasanTolak)
       setRejectDialogOpen(false)
       await loadData()
-      alert(`Permintaan dari ${selectedKlaim.nama} telah ditolak.`)
+      toast.info("Permintaan Ditolak", `Permintaan dari ${selectedKlaim.nama} telah ditolak.`)
     } catch (err) {
-      alert(err.message || "Gagal menolak klaim.")
+      toast.error("Gagal Menolak", err.message || "Gagal menolak klaim.")
     } finally {
       setProcessing(false)
     }

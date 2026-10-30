@@ -7,7 +7,15 @@ export function cn(...inputs) {
 
 export function formatDate(timestamp) {
   if (!timestamp) return "-"
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+  let date
+  if (timestamp.toDate) {
+    date = timestamp.toDate()
+  } else if (timestamp.seconds) {
+    date = new Date(timestamp.seconds * 1000)
+  } else {
+    date = new Date(timestamp)
+  }
+  if (isNaN(date.getTime())) return "-"
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
     month: "short",

@@ -46,11 +46,12 @@ export function getNextApiKey() {
   return { key: selectedKey, index: currentIndex, total: keys.length }
 }
 
-// Model utama: prioritaskan gemini-3.5-flash dan gemini-3.5-flash-lite yang stabil
+// Model urutan prioritas: gemini-2.5-flash & gemini-2.0-flash yang sangat stabil di API resmi Google AI Studio
 export const GEMINI_MODELS = [
-  "gemini-3.5-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.8-flash",
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-2.5-pro",
 ]
 
 /**
@@ -78,9 +79,6 @@ async function callGeminiApi(apiKey, modelName, systemPrompt, userPrompt) {
       generationConfig: {
         maxOutputTokens: 8192,
         responseMimeType: "application/json",
-        thinkingConfig: {
-          thinkingBudget: 0,
-        },
       },
     }),
   })
@@ -107,6 +105,60 @@ async function callGeminiApi(apiKey, modelName, systemPrompt, userPrompt) {
   }
 
   return text
+}
+
+/**
+ * Menerjemahkan pesan error teknis menjadi bahasa Indonesia yang ramah, jelas, dan mudah dipahami guru.
+ */
+export function formatAiFriendlyError(rawError) {
+  if (!rawError) {
+    return "Maaf Ibu/Bapak Guru, server AI sedang sibuk. Silakan klik tombol 'Coba Lagi' dalam beberapa detik."
+  }
+
+  const msg = typeof rawError === "string" ? rawError : rawError.message || String(rawError)
+  const lower = msg.toLowerCase()
+
+  if (
+    lower.includes("503") ||
+    lower.includes("high demand") ||
+    lower.includes("unavailable") ||
+    lower.includes("overloaded")
+  ) {
+    return "Server Google Gemini sedang mengalami antrian padat (ramai pengguna). Mohon Ibu/Bapak Guru menunggu 3-5 detik lalu klik 'Coba Lagi'."
+  }
+
+  if (
+    lower.includes("quota") ||
+    lower.includes("rate limit") ||
+    lower.includes("429") ||
+    lower.includes("resource_exhausted")
+  ) {
+    return "Batas frekuensi permintaan AI telah tercapai untuk sementara waktu. Mohon tunggu sekitar 10 detik lalu silakan coba lagi."
+  }
+
+  if (
+    lower.includes("api_key") ||
+    lower.includes("key not valid") ||
+    lower.includes("invalid api key") ||
+    lower.includes("expired")
+  ) {
+    return "Kunci API Gemini tidak valid atau telah kedaluwarsa. Silakan periksa pengaturan kunci API Anda atau coba lagi."
+  }
+
+  if (
+    lower.includes("failed to fetch") ||
+    lower.includes("network") ||
+    lower.includes("internet") ||
+    lower.includes("offline")
+  ) {
+    return "Koneksi internet terputus atau lambat saat menghubungi AI. Pastikan perangkat Anda terhubung ke internet lalu klik 'Coba Lagi'."
+  }
+
+  if (lower.includes("json") || lower.includes("parse") || lower.includes("format")) {
+    return "AI sempat terpotong saat menyusun format materi/soal. Silakan klik tombol 'Coba Lagi' untuk menyusun ulang otomatis."
+  }
+
+  return "Maaf Ibu/Bapak Guru, terjadi kendala saat membuat materi otomatis. Silakan periksa koneksi Anda dan coba klik lagi."
 }
 
 /**
@@ -140,7 +192,7 @@ function safeParseJson(rawText) {
       } catch (_) {}
     }
 
-    throw new Error("Gagal membaca hasil JSON dari AI. Silakan coba lagi.")
+    throw new Error("AI sempat terpotong saat menyusun format. Silakan klik tombol Coba Lagi.")
   }
 }
 export async function generateMateriAi({ prompt, mapel = "Bahasa Inggris", fase = "D", tingkat = ["VIII"] }) {
@@ -237,8 +289,8 @@ PENTING:
     }
   }
 
-  // Jika semua 6 kunci dan model gagal
-  throw new Error(lastError?.message || "Server Google Gemini sedang mengalami lonjakan antrian (High Demand). Silakan klik sekali lagi dalam beberapa detik.")
+  // Jika semua kunci dan model gagal
+  throw new Error(formatAiFriendlyError(lastError))
 }
 
 /**
@@ -324,5 +376,5 @@ ${materiJudul ? `Terkait materi: "${materiJudul}"\n` : ""}Permintaan guru:
     }
   }
 
-  throw new Error(lastError?.message || "Server Google Gemini sedang mengalami lonjakan antrian. Silakan coba klik sekali lagi.")
+  throw new Error(formatAiFriendlyError(lastError))
 }

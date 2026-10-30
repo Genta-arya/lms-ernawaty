@@ -1,13 +1,16 @@
-import React from "react"
+import React, { useState, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
+import { UserAvatar } from "@/components/common/UserAvatar"
+import { subscribeKlaimCount } from "@/services/klaim"
 import {
-  LayoutDashboard,
   BookOpen,
   Home,
   History,
   Feather,
+  LayoutDashboard,
   Inbox,
+  User,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -15,40 +18,35 @@ export function BottomNav() {
   const { currentUser, role, profileData } = useAuth()
   const location = useLocation()
   const pathname = location.pathname
+  const [pendingKlaimCount, setPendingKlaimCount] = useState(0)
+
+  // Realtime subscription aktivasi siswa untuk guru
+  useEffect(() => {
+    if (role !== "guru") return
+    const unsubKlaim = subscribeKlaimCount((count) => {
+      setPendingKlaimCount(count)
+    })
+    return () => unsubKlaim()
+  }, [role])
 
   if (!currentUser) return null
 
-  // Data Avatar & Inisial Pengguna
-  const userFoto = profileData?.fotoUrl || currentUser?.photoURL || null
-  const userNama = profileData?.nama || currentUser?.displayName || currentUser?.email || "U"
-  const userInitial = userNama.charAt(0).toUpperCase()
-
-  // 1. Menu Mobile untuk Murid (Materi di TENGAH, Profil pakai Avatar/Inisial)
+  // 5 Item Menu untuk Murid
   const muridItems = [
-    { label: "Beranda", href: "/", icon: Home },
+    { label: "Beranda", href: "/murid", icon: Home },
     { label: "Kreasi", href: "/murid/mading", icon: Feather },
-    {
-      label: "Materi",
-      href: "/murid",
-      icon: BookOpen,
-      isCenter: true,
-    },
+    { label: "Materi", href: "/murid/materi", icon: BookOpen },
     { label: "Riwayat", href: "/murid/riwayat", icon: History },
-    { label: "Profil", href: "/murid/profil", isProfile: true },
+    { label: "Profil", href: "/murid/profil", icon: User, isProfile: true },
   ]
 
-  // 2. Menu Mobile untuk Guru (Dashboard di TENGAH, Profil pakai Avatar/Inisial)
+  // 5 Item Menu untuk Guru
   const guruItems = [
     { label: "Beranda", href: "/", icon: Home },
     { label: "Karya", href: "/guru/mading", icon: Feather },
-    {
-      label: "Dashboard",
-      href: "/guru",
-      icon: LayoutDashboard,
-      isCenter: true,
-    },
+    { label: "Dashboard", href: "/guru", icon: LayoutDashboard },
     { label: "Aktivasi", href: "/guru/permintaan", icon: Inbox },
-    { label: "Profil", href: "/guru/profil", isProfile: true },
+    { label: "Profil", href: "/guru/profil", icon: User, isProfile: true },
   ]
 
   const items = role === "guru" ? guruItems : role === "murid" ? muridItems : []
@@ -57,175 +55,117 @@ export function BottomNav() {
   function isTabActive(item) {
     const href = item.href
     if (href === "/") return pathname === "/"
-    if (href === "/guru") return pathname === "/guru" || pathname === "/guru/"
-    if (href === "/murid") {
+    if (href === "/guru") {
       return (
-        pathname === "/murid" ||
-        pathname.startsWith("/murid/kuis") ||
-        pathname.startsWith("/murid/hasil") ||
-        pathname.startsWith("/materi")
+        pathname === "/guru" ||
+        pathname === "/guru/" ||
+        pathname.startsWith("/guru/tugas") ||
+        pathname.startsWith("/guru/pengumuman")
       )
+    }
+    if (href === "/murid") {
+      return pathname === "/murid"
+    }
+    if (href === "/murid/materi") {
+      return pathname.startsWith("/murid/materi") || pathname.startsWith("/materi")
     }
     return pathname.startsWith(href)
   }
 
+  let activeIndex = items.findIndex((item) => isTabActive(item))
+  if (activeIndex === -1) activeIndex = 0
+
+  const userFoto = profileData?.fotoUrl || currentUser?.photoURL || null
+  const userNama = profileData?.nama || currentUser?.displayName || currentUser?.email || "U"
+
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
-      {/* Wrapper Bar Navigasi dengan Frosted Glass */}
-      <nav
-        aria-label="Navigasi Bawah Mobile"
-        className="pointer-events-auto bg-white/95 backdrop-blur-xl border-t border-slate-200/90 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] px-2 h-16 sm:h-[68px] flex items-center justify-around max-w-lg mx-auto relative safe-bottom"
-      >
-        {items.map((item) => {
-          const Icon = item.icon
-          const active = isTabActive(item)
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 pointer-events-none pb-safe">
+      <div className="max-w-md mx-auto pointer-events-auto px-4 pb-3">
+        {/* ── BAR GLASSMORPHISM APPLE iOS MURNI ── */}
+        <nav
+          aria-label="Navigasi Bawah iOS"
+          className="relative bg-white/80 backdrop-blur-2xl rounded-full border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] p-1.5 flex items-center justify-between"
+        >
+          {/* ── PILL SELEKTOR ABU-ABU LEMBUT (SLIDING SOFT PILL) ── */}
+          <div
+            className="absolute top-1.5 bottom-1.5 rounded-full bg-slate-900/[0.06] transition-all duration-300 ease-out z-0 pointer-events-none"
+            style={{
+              width: "calc((100% - 12px) / 5)",
+              left: `calc(6px + ${activeIndex} * ((100% - 12px) / 5))`,
+            }}
+          />
 
-          // ── 1. ITEM TENGAH HERO (MATERI) ──
-          if (item.isCenter) {
+          {/* 5 ITEM MENU */}
+          {items.map((item, index) => {
+            const Icon = item.icon
+            const active = index === activeIndex
+
             return (
               <Link
                 key={item.href}
                 to={item.href}
-                className="group relative -top-4 sm:-top-5 flex flex-col items-center justify-center shrink-0 focus:outline-none"
+                className="relative z-10 flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-full focus:outline-none transition-all duration-200 group active:scale-95"
               >
-                {/* Floating Outer Squircle dengan Gradient Biru-Indigo & Ambient Glow */}
-                <div
-                  className={cn(
-                    "w-14 h-14 rounded-2xl flex items-center justify-center border-4 border-white shadow-xl transition-all duration-300 active:scale-90",
-                    active
-                      ? "bg-gradient-to-tr from-blue-600 via-indigo-600 to-indigo-700 text-white shadow-blue-500/40 scale-105 ring-4 ring-blue-500/20"
-                      : "bg-gradient-to-tr from-blue-500 via-blue-600 to-indigo-600 text-white shadow-blue-500/25 group-hover:scale-105"
-                  )}
-                >
-                  <Icon
-                    className={cn(
-                      "w-6 h-6 transition-transform duration-200",
-                      active ? "stroke-[2.4] scale-105" : "stroke-[2.1]"
-                    )}
-                  />
-                </div>
-
-                {/* Label Teks Menu Tengah */}
-               
-
-                {/* Dot Indikator Aktif */}
-                {active && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1 animate-pulse" />
-                )}
-              </Link>
-            )
-          }
-
-          // ── 2. ITEM PROFIL DENGAN AVATAR / INISIAL ──
-          if (item.isProfile) {
-            return (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "flex flex-col items-center justify-center py-1 px-2.5 rounded-2xl transition-all duration-200 min-w-[56px] focus:outline-none group",
-                  active
-                    ? "text-blue-600 font-bold"
-                    : "text-slate-400 hover:text-slate-600 font-medium"
-                )}
-              >
-                {/* Avatar Bulat atau Inisial */}
-                <div
-                  className={cn(
-                    "w-7 h-7 rounded-full flex items-center justify-center overflow-hidden transition-all duration-200 border-2",
-                    active
-                      ? "border-blue-600 ring-2 ring-blue-500/30 scale-105 shadow-xs"
-                      : "border-slate-300 group-hover:border-slate-400"
-                  )}
-                >
-                  {userFoto ? (
-                    <img
-                      src={userFoto}
-                      alt={userNama}
-                      className="w-full h-full object-cover"
+                {/* Ikon / Avatar */}
+                <div className="relative flex items-center justify-center">
+                  {item.isProfile ? (
+                    <UserAvatar
+                      fotoUrl={userFoto}
+                      nama={userNama}
+                      size="xs"
+                      className={cn(
+                        "w-5 h-5 rounded-full transition-all duration-200",
+                        active
+                          ? "ring-2 ring-blue-600 scale-105"
+                          : "opacity-60 group-hover:opacity-100"
+                      )}
+                      fallbackClassName={
+                        active
+                          ? "bg-blue-600 text-white font-black"
+                          : "bg-slate-300 text-slate-700"
+                      }
                     />
                   ) : (
-                    <div
+                    <Icon
                       className={cn(
-                        "w-full h-full flex items-center justify-center text-[10px] font-black leading-none transition-colors",
+                        "w-5 h-5 transition-all duration-200",
                         active
-                          ? "bg-gradient-to-tr from-blue-600 to-indigo-600 text-white"
-                          : "bg-slate-200 text-slate-700 group-hover:bg-slate-300"
+                          ? "text-blue-600 stroke-[2.4] scale-105"
+                          : "text-slate-500 group-hover:text-slate-800 stroke-[1.8] opacity-70 group-hover:opacity-100"
                       )}
-                    >
-                      {userInitial}
-                    </div>
+                    />
+                  )}
+
+                  {/* Dot Badge Notifikasi Realtime untuk Guru */}
+                  {item.href === "/guru/permintaan" && pendingKlaimCount > 0 && !active && (
+                    <span className="absolute -top-0.5 -right-1 w-2 h-2 bg-blue-600 rounded-full ring-2 ring-white" />
                   )}
                 </div>
 
+                {/* Label Teks Minimalis Apple */}
                 <span
                   className={cn(
-                    "text-[10px] mt-0.5 tracking-tight transition-colors leading-none",
-                    active ? "text-blue-600 font-bold" : "text-slate-400 font-medium"
+                    "text-[10px] mt-0.5 tracking-tight transition-all duration-200 leading-none",
+                    active
+                      ? "text-blue-600 font-extrabold"
+                      : "text-slate-500 font-medium opacity-70 group-hover:opacity-100"
                   )}
                 >
                   {item.label}
                 </span>
 
-                {/* Dot Indikator Aktif */}
+                {/* Dot Indikator Halus di Bawah Tab Aktif */}
                 <span
                   className={cn(
-                    "w-1 h-1 rounded-full mt-1 transition-all",
-                    active ? "bg-blue-600 opacity-100" : "bg-transparent opacity-0"
+                    "w-1 h-1 rounded-full mt-0.5 transition-all duration-200",
+                    active ? "bg-blue-600 opacity-100 scale-100" : "bg-transparent opacity-0 scale-50"
                   )}
                 />
               </Link>
             )
-          }
-
-          // ── 3. ITEM BIASA (BERANDA, KREASI, RIWAYAT, AKTIVASI) ──
-          return (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={cn(
-                "flex flex-col items-center justify-center py-1 px-2.5 rounded-2xl transition-all duration-200 min-w-[56px] focus:outline-none group",
-                active
-                  ? "text-blue-600 font-bold"
-                  : "text-slate-400 hover:text-slate-600 font-medium"
-              )}
-            >
-              <div
-                className={cn(
-                  "p-1.5 rounded-xl transition-all duration-200",
-                  active
-                    ? "bg-blue-50 text-blue-600 scale-105 shadow-xs"
-                    : "bg-transparent text-slate-400 group-hover:text-slate-600"
-                )}
-              >
-                <Icon
-                  className={cn(
-                    "w-5 h-5",
-                    active ? "stroke-[2.5]" : "stroke-[1.8]"
-                  )}
-                />
-              </div>
-
-              <span
-                className={cn(
-                  "text-[10px] mt-0.5 tracking-tight transition-colors leading-none",
-                  active ? "text-blue-600 font-bold" : "text-slate-400 font-medium"
-                )}
-              >
-                {item.label}
-              </span>
-
-              {/* Dot Indikator Aktif */}
-              <span
-                className={cn(
-                  "w-1 h-1 rounded-full mt-1 transition-all",
-                  active ? "bg-blue-600 opacity-100" : "bg-transparent opacity-0"
-                )}
-              />
-            </Link>
-          )
-        })}
-      </nav>
+          })}
+        </nav>
+      </div>
     </div>
   )
 }
