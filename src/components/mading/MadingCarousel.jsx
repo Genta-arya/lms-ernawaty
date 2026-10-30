@@ -68,7 +68,7 @@ export function MadingCarousel({ karyaList = [] }) {
           Jadilah siswa pertama yang mengunggah karya di Pojok Kreasi!
         </p>
         <Link
-          to="/mading"
+          to="/murid/mading"
           className="inline-flex items-center justify-center mt-3 text-xs bg-rose-600 hover:bg-rose-700 text-white rounded-xl h-8 px-4 font-bold"
         >
           Unggah Karya Sekarang
@@ -155,7 +155,7 @@ export function MadingCarousel({ karyaList = [] }) {
             </span>
 
             <Link
-              to="/mading"
+              to="/murid/mading"
               className="text-xs font-black text-rose-600 hover:text-rose-700 ml-1 flex items-center gap-0.5"
             >
               <span>Buka</span>

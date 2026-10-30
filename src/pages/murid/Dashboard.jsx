@@ -452,7 +452,7 @@ export function Dashboard() {
               asChild
               className="text-xs text-rose-600 font-bold hover:text-rose-700 h-7 px-2"
             >
-              <Link to="/mading">
+              <Link to="/murid/mading">
                 <span>Buka Mading</span>
                 <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
               </Link>
