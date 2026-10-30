@@ -420,7 +420,7 @@ export function Mading() {
   })
 
   return (
-    <div className="space-y-4 sm:space-y-5 max-w-3xl p-4 mx-auto pb-20">
+    <div className="space-y-4 sm:space-y-5 max-w-3xl  mx-auto pb-20">
       {/* Tombol Back / Kembali ke Dashboard */}
       <div className="flex items-center justify-between">
         <Button
