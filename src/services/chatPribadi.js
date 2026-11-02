@@ -104,7 +104,7 @@ export async function sendPesanPribadi({
   const pNisn = pengirimNisn || (typeof pengirimId === "string" && !pengirimId.includes("-") && pengirimId.length <= 15 ? pengirimId : null)
   const rNisn = penerimaNisn || (typeof penerimaId === "string" && !penerimaId.includes("-") && penerimaId.length <= 15 ? penerimaId : null)
 
-  return await addDoc(collection(db, "chatPribadi"), {
+  const docRef = await addDoc(collection(db, "chatPribadi"), {
     chatId,
     participants: [String(pengirimId), String(penerimaId)],
     pengirimId: String(pengirimId),
@@ -117,6 +117,25 @@ export async function sendPesanPribadi({
     dibaca: false, // Default belum dibaca
     createdAt: serverTimestamp(),
   })
+
+  // Trigger push notification ke perangkat target di background
+  try {
+    fetch("/api/send-push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetUserId: String(penerimaId),
+        targetNisn: rNisn ? String(rNisn) : null,
+        title: `Pesan baru dari ${pengirimNama || "Teman"}`,
+        body: cleanPesan,
+        link: `/murid/kelas?chatWith=${encodeURIComponent(String(pengirimId))}&chatName=${encodeURIComponent(String(pengirimNama || "Teman"))}`,
+        senderName: pengirimNama || "Teman",
+        fotoUrl: pengirimFotoUrl || null,
+      }),
+    }).catch(() => {})
+  } catch (_) {}
+
+  return docRef
 }
 
 /**
