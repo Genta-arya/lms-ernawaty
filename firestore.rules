@@ -165,7 +165,9 @@ service cloud.firestore {
         request.resource.data.pesan is string &&
         request.resource.data.pesan.size() > 0 &&
         request.resource.data.pesan.size() <= 1000;
-      allow update, delete: if isGuru() || (signedIn() && resource.data.pengirimId == request.auth.uid);
+      // Pengirim boleh mengupdate/menghapus pesan, atau penerima boleh mengupdate status read (dibaca: true)
+      allow update: if signedIn();
+      allow delete: if isGuru() || (signedIn() && resource.data.pengirimId == request.auth.uid);
     }
 
     match /typingKelas/{id} {

@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   setDoc,
+  updateDoc,
   deleteDoc,
   addDoc,
   query,
@@ -24,29 +25,47 @@ function getStoredReadIds() {
 }
 
 /**
- * Menandai daftar pesan (array dari pesan chat) sebagai sudah dibaca
+ * Menandai daftar pesan chat pribadi sebagai sudah dibaca
+ * 1. Simpan id ke LocalStorage
+ * 2. Update status `dibaca: true` di dokumen Firestore secara realtime
  */
-export function markPesanPribadiAsRead(messages = []) {
+export async function markPesanPribadiAsRead(messages = [], myIdentifiers = []) {
   if (!messages || messages.length === 0) return
-  try {
-    const current = getStoredReadIds()
-    let changed = false
-    messages.forEach((m) => {
-      if (m?.id) {
-        const notifId = `chat_pribadi_${m.id}`
-        if (!current.includes(notifId)) {
-          current.push(notifId)
-          changed = true
-        }
-      }
-    })
 
-    if (changed) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(current))
-      window.dispatchEvent(new Event("storage"))
+  const myIds = (myIdentifiers || []).filter(Boolean).map(String)
+  const current = getStoredReadIds()
+  let changed = false
+  const updatePromises = []
+
+  messages.forEach((m) => {
+    if (!m?.id) return
+    const notifId = `chat_pribadi_${m.id}`
+    if (!current.includes(notifId)) {
+      current.push(notifId)
+      changed = true
     }
-  } catch (e) {
-    console.warn("Gagal update status baca chat:", e)
+
+    // Jika pesan ini ditujukan untuk saya dan belum ditandai dibaca di Firestore
+    const isForMe =
+      myIds.length === 0 ||
+      myIds.includes(String(m.penerimaId)) ||
+      myIds.includes(String(m.penerimaNisn))
+
+    if (isForMe && m.dibaca !== true) {
+      const msgRef = doc(db, "chatPribadi", m.id)
+      updatePromises.push(
+        updateDoc(msgRef, { dibaca: true }).catch(() => {})
+      )
+    }
+  })
+
+  if (changed) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(current))
+    window.dispatchEvent(new Event("storage"))
+  }
+
+  if (updatePromises.length > 0) {
+    await Promise.all(updatePromises).catch(() => {})
   }
 }
 
@@ -95,6 +114,7 @@ export async function sendPesanPribadi({
     pengirimNama: pengirimNama || "Siswa",
     pengirimFotoUrl: pengirimFotoUrl || null,
     pesan: cleanPesan,
+    dibaca: false, // Default belum dibaca
     createdAt: serverTimestamp(),
   })
 }
@@ -173,10 +193,13 @@ export function subscribeUnreadPribadiCounts(myIdentifiers = [], callback) {
     const unreadMap = {}
 
     snap.docs.forEach((d) => {
+      const data = d.data()
       const notifId = `chat_pribadi_${d.id}`
-      // Hanya cek apakah id pesan individual ini sudah ditandai baca
-      if (!readIds.includes(notifId)) {
-        const data = d.data()
+
+      // Cek apakah pesan sudah ditandai baca (di firestore atau local storage)
+      const isRead = data.dibaca === true || readIds.includes(notifId)
+
+      if (!isRead) {
         const senderId = String(data.pengirimNisn || data.pengirimId || "")
         const senderUid = String(data.pengirimId || "")
         const senderNisn = String(data.pengirimNisn || "")
@@ -207,9 +230,8 @@ export function subscribeUnreadPribadiCounts(myIdentifiers = [], callback) {
     }
   )
 
-  // Tangani event storage jika di tab lain atau modal dibuka
   const storageListener = () => {
-    // Force re-evaluate jika ada event storage
+    // Sinkronkan ulang saat ada event storage
   }
   window.addEventListener("storage", storageListener)
 

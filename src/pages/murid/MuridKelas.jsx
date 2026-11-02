@@ -42,6 +42,19 @@ export function MuridKelas() {
   const [presencesMap, setPresencesMap] = useState({})
   const [unreadMap, setUnreadMap] = useState({})
 
+  // Buka chat dan hilangkan badge unread secara instan
+  const openChatWithTarget = (target) => {
+    setChatTargetMurid(target)
+    if (target?.nisn || target?.uid) {
+      setUnreadMap((prev) => {
+        const next = { ...prev }
+        if (target.nisn) delete next[String(target.nisn)]
+        if (target.uid) delete next[String(target.uid)]
+        return next
+      })
+    }
+  }
+
   // Berlangganan presence semua siswa dan unread badge pesan pribadi
   useEffect(() => {
     const unsubPresence = subscribeAllPresences((pMap) => {
@@ -78,9 +91,9 @@ export function MuridKelas() {
         (t) => String(t.nisn) === String(chatWith) || String(t.uid) === String(chatWith)
       )
       if (matched) {
-        setChatTargetMurid(matched)
+        openChatWithTarget(matched)
       } else {
-        setChatTargetMurid({
+        openChatWithTarget({
           nisn: chatWith.length <= 15 ? chatWith : null,
           uid: chatWith,
           nama: chatName ? decodeURIComponent(chatName) : "Teman",
@@ -334,12 +347,17 @@ export function MuridKelas() {
 
                         {/* Badge Unread Chat jika ada pesan belum terbaca dari teman ini */}
                         {unreadCount > 0 && (
-                          <span
-                            className="min-w-5 h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center shrink-0 shadow-xs animate-bounce"
-                            title={`${unreadCount} pesan baru belum dibaca`}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openChatWithTarget(murid)
+                            }}
+                            className="min-w-5 h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center shrink-0 shadow-xs animate-bounce hover:scale-110 active:scale-95 transition-transform"
+                            title={`${unreadCount} pesan baru belum dibaca - klik untuk buka chat`}
                           >
                             {unreadCount > 9 ? "9+" : unreadCount}
-                          </span>
+                          </button>
                         )}
                       </div>
 
@@ -537,7 +555,7 @@ export function MuridKelas() {
                   onClick={() => {
                     const target = selectedMurid
                     setSelectedMurid(null)
-                    setChatTargetMurid(target)
+                    openChatWithTarget(target)
                   }}
                   className="flex-1 text-xs font-bold rounded-xl h-10 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
                 >

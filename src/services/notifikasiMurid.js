@@ -228,7 +228,7 @@ export function subscribeMuridNotifications({ uid, studentNisn, studentTingkat, 
       if (isMe) return
 
       const notifId = `chat_pribadi_${msg.id}`
-      const isRead = readIds.includes(notifId)
+      const isRead = msg.dibaca === true || readIds.includes(notifId)
 
       let timeMillis = Date.now()
       if (msg.createdAt?.toMillis) timeMillis = msg.createdAt.toMillis()

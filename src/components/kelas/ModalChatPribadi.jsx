@@ -16,6 +16,8 @@ import {
   MessageCircle,
   Send,
   X,
+  Check,
+  CheckCheck,
 } from "lucide-react"
 
 export function ModalChatPribadi({ targetMurid, onClose }) {
@@ -39,15 +41,17 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
   // Realtime subscription ke pesan chat pribadi & tandai sudah dibaca
   useEffect(() => {
     if (!chatId) return
+    const myIdentifiers = [myId, myNisn, currentUser?.uid].filter(Boolean).map(String)
+
     const unsubscribe = subscribePesanPribadi(chatId, (msgs) => {
       setMessages(msgs)
-      // Tandai semua pesan yang masuk di obrolan ini sebagai sudah dibaca
+      // Tandai semua pesan yang masuk di obrolan ini sebagai sudah dibaca secara realtime
       if (msgs && msgs.length > 0) {
-        markPesanPribadiAsRead(msgs)
+        markPesanPribadiAsRead(msgs, myIdentifiers)
       }
     })
     return () => unsubscribe()
-  }, [chatId])
+  }, [chatId, myId, myNisn, currentUser?.uid])
 
   // Realtime subscription status lawan bicara mengetik
   useEffect(() => {
@@ -235,11 +239,23 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
                       <p className="whitespace-pre-wrap">{msg.pesan}</p>
 
                       <div
-                        className={`text-[9px] mt-1 flex items-center justify-end ${
+                        className={`text-[9px] mt-1 flex items-center justify-end gap-1 ${
                           isMe ? "text-blue-100" : "text-slate-400"
                         }`}
                       >
                         <span>{formatWaktu(msg.createdAt)}</span>
+                        {isMe && (
+                          <span
+                            title={msg.dibaca ? "Sudah dibaca" : "Terkirim"}
+                            className="inline-flex items-center ml-0.5"
+                          >
+                            {msg.dibaca ? (
+                              <CheckCheck className="w-3.5 h-3.5 text-sky-200 stroke-[2.5]" />
+                            ) : (
+                              <CheckCheck className="w-3.5 h-3.5 text-blue-200/70 stroke-[1.8]" />
+                            )}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
