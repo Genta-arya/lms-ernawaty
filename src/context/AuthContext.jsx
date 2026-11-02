@@ -11,6 +11,7 @@ import {
 import { doc, getDoc } from "firebase/firestore"
 import { auth, db, googleProvider } from "@/lib/firebase"
 import { checkAutoActivation } from "@/services/klaim"
+import { startUserPresence } from "@/services/presence"
 
 const AuthContext = createContext(null)
 

@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils"
 import React, { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/context/AuthContext"
 import {
@@ -7,6 +8,7 @@ import {
   setTypingStatusPribadi,
   subscribeTypingPribadi,
 } from "@/services/chatPribadi"
+import { subscribeSinglePresence } from "@/services/presence"
 import { UserAvatar } from "@/components/common/UserAvatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +23,7 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
   const [inputPesan, setInputPesan] = useState("")
   const [sending, setSending] = useState(false)
   const [typingPartnerName, setTypingPartnerName] = useState(null)
+  const [partnerPresence, setPartnerPresence] = useState({ isOnline: false, lastSeenText: "Memeriksa status..." })
   const messagesEndRef = useRef(null)
   const typingTimeoutRef = useRef(null)
 
@@ -49,6 +52,16 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
     })
     return () => unsubscribe()
   }, [chatId, myId])
+
+  // Realtime subscription status kehadiran / online lawan bicara
+  useEffect(() => {
+    const targetPresenceKey = targetMurid?.uid || targetMurid?.nisn
+    if (!targetPresenceKey) return
+    const unsubscribe = subscribeSinglePresence(targetPresenceKey, (status) => {
+      setPartnerPresence(status)
+    })
+    return () => unsubscribe()
+  }, [targetMurid?.uid, targetMurid?.nisn])
 
   // Scroll otomatis ke bawah
   useEffect(() => {
@@ -133,10 +146,30 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
                 <h3 className="font-extrabold text-slate-900 text-sm sm:text-base truncate">
                   {targetMurid?.nama}
                 </h3>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Online" />
+                <span
+                  className={cn(
+                    "w-2 h-2 rounded-full shrink-0 transition-colors",
+                    partnerPresence.isOnline ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
+                  )}
+                  title={partnerPresence.isOnline ? "Online" : "Offline"}
+                />
               </div>
-              <p className="text-[11px] text-slate-500 truncate">
-                Obrolan Pribadi {targetMurid?.nisn && !targetMurid?.nisn.includes("-") && !targetMurid?.nisn.startsWith("http") ? `• NISN: ${targetMurid.nisn}` : ""}
+              <p className="text-[11px] truncate flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    "font-medium",
+                    partnerPresence.isOnline ? "text-emerald-600 font-bold" : "text-slate-500"
+                  )}
+                >
+                  {typingPartnerName ? (
+                    <span className="text-blue-600 font-bold animate-pulse">sedang mengetik...</span>
+                  ) : (
+                    partnerPresence.lastSeenText
+                  )}
+                </span>
+                {targetMurid?.nisn && !targetMurid?.nisn.includes("-") && !targetMurid?.nisn.startsWith("http") && (
+                  <span className="text-slate-400">• NISN: {targetMurid.nisn}</span>
+                )}
               </p>
             </div>
           </div>

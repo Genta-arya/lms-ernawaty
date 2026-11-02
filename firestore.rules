@@ -175,5 +175,9 @@ service cloud.firestore {
     match /typingPribadi/{id} {
       allow read, write: if signedIn();
     }
+
+    match /userPresence/{id} {
+      allow read, write: if signedIn();
+    }
   }
 }
