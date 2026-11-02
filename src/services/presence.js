@@ -1,4 +1,4 @@
-import { doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore"
+import { collection, doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
 const HEARTBEAT_INTERVAL = 30000 // Kirim sinyal online setiap 30 detik
@@ -61,6 +61,30 @@ export function startUserPresence(userId, userName, role = "murid", nisn = null)
     window.removeEventListener("beforeunload", handleBeforeUnload)
     updateStatus(false).catch(() => {})
   }
+}
+
+/**
+ * Berlangganan status online / terakhir online untuk banyak pengguna (seluruh dokumen di userPresence)
+ */
+export function subscribeAllPresences(callback) {
+  const colRef = collection(db, "userPresence")
+  return onSnapshot(
+    colRef,
+    (snap) => {
+      const presenceMap = {}
+      snap.docs.forEach((d) => {
+        const data = d.data()
+        const parsed = parsePresenceStatus(data)
+        if (data.userId) presenceMap[String(data.userId)] = parsed
+        if (data.nisn) presenceMap[String(data.nisn)] = parsed
+      })
+      callback(presenceMap)
+    },
+    (err) => {
+      console.warn("Realtime presences error:", err)
+      callback({})
+    }
+  )
 }
 
 /**

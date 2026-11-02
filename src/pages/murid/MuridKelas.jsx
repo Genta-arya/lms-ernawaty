@@ -3,6 +3,8 @@ import { Link, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
 import { getDetailKelasDanTeman } from "@/services/kelas"
 import { ChatKelasRealtime } from "@/components/kelas/ChatKelasRealtime"
+import { subscribeAllPresences } from "@/services/presence"
+import { subscribeUnreadPribadiCounts } from "@/services/chatPribadi"
 import { ModalChatPribadi } from "@/components/kelas/ModalChatPribadi"
 import { UserAvatar } from "@/components/common/UserAvatar"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
@@ -37,6 +39,29 @@ export function MuridKelas() {
   const [activeTab, setActiveTab] = useState(initialTab) // "semua" | "skor-kuis" | "nilai-tugas" | "chat"
   const [selectedMurid, setSelectedMurid] = useState(null)
   const [chatTargetMurid, setChatTargetMurid] = useState(null)
+  const [presencesMap, setPresencesMap] = useState({})
+  const [unreadMap, setUnreadMap] = useState({})
+
+  // Berlangganan presence semua siswa dan unread badge pesan pribadi
+  useEffect(() => {
+    const unsubPresence = subscribeAllPresences((pMap) => {
+      setPresencesMap(pMap)
+    })
+
+    const myIdentifiers = [
+      currentUser?.uid ? String(currentUser.uid) : null,
+      profileData?.nisn ? String(profileData.nisn) : null,
+    ].filter(Boolean)
+
+    const unsubUnread = subscribeUnreadPribadiCounts(myIdentifiers, (uMap) => {
+      setUnreadMap(uMap)
+    })
+
+    return () => {
+      unsubPresence()
+      unsubUnread()
+    }
+  }, [currentUser?.uid, profileData?.nisn])
 
   // Sinkronkan tab aktif jika parameter query berubah (misal diklik dari menu notifikasi)
   useEffect(() => {
@@ -266,27 +291,62 @@ export function MuridKelas() {
                       </div>
                     )}
 
-                    <UserAvatar
-                      fotoUrl={murid.fotoUrl}
-                      nama={murid.nama}
-                      size="sm"
-                      className="w-10 h-10 rounded-2xl ring-2 ring-slate-100 shrink-0"
-                    />
+                    <div className="relative shrink-0">
+                      <UserAvatar
+                        fotoUrl={murid.fotoUrl}
+                        nama={murid.nama}
+                        size="sm"
+                        className="w-11 h-11 rounded-2xl ring-2 ring-slate-100"
+                      />
+                      {/* Indikator Titik Online pada Avatar */}
+                      <span
+                        className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${
+                          presencesMap[String(murid.uid)]?.isOnline || presencesMap[String(murid.nisn)]?.isOnline
+                            ? "bg-emerald-500 ring-1 ring-emerald-300 animate-pulse"
+                            : "bg-slate-300"
+                        }`}
+                        title={
+                          presencesMap[String(murid.uid)]?.isOnline || presencesMap[String(murid.nisn)]?.isOnline
+                            ? "Online"
+                            : "Offline"
+                        }
+                      />
+                    </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm truncate">
-                          {murid.nama}
-                        </h4>
-                        {isMe && (
-                          <Badge className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0 rounded shrink-0">
-                            Saya
-                          </Badge>
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <h4 className="font-bold text-slate-900 text-xs sm:text-sm truncate">
+                            {murid.nama}
+                          </h4>
+                          {isMe && (
+                            <Badge className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0 rounded shrink-0">
+                              Saya
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Badge Unread Chat jika ada pesan belum terbaca dari teman ini */}
+                        {!isMe && (unreadMap[String(murid.nisn)] || unreadMap[String(murid.uid)]) > 0 && (
+                          <span className="min-w-5 h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center shrink-0 shadow-xs animate-bounce" title="Pesan baru belum dibaca">
+                            {(unreadMap[String(murid.nisn)] || unreadMap[String(murid.uid)]) > 9 ? "9+" : (unreadMap[String(murid.nisn)] || unreadMap[String(murid.uid)])}
+                          </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-500 font-mono mt-0.5 truncate">
-                        NISN: {murid.nisn}
-                      </p>
+
+                      {/* Baris Badge Online / Offline / Terakhir Dilihat */}
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {presencesMap[String(murid.uid)]?.isOnline || presencesMap[String(murid.nisn)]?.isOnline ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-extrabold text-[10px] border border-emerald-200/60">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Online
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 font-medium truncate">
+                            {presencesMap[String(murid.uid)]?.lastSeenText || presencesMap[String(murid.nisn)]?.lastSeenText || "Offline"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 

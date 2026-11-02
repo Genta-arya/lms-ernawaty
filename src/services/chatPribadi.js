@@ -135,8 +135,50 @@ export async function setTypingStatusPribadi(chatId, userId, userName, isTyping)
 }
 
 /**
- * Berlangganan status apakah lawan bicara sedang mengetik
+ * Berlangganan jumlah chat pribadi yang belum dibaca per pengirim
  */
+export function subscribeUnreadPribadiCounts(myIdentifiers = [], callback) {
+  if (!myIdentifiers || myIdentifiers.length === 0) {
+    callback({})
+    return () => {}
+  }
+
+  const q = query(
+    collection(db, "chatPribadi"),
+    where("penerimaId", "in", myIdentifiers.map(String)),
+    limit(100)
+  )
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      // Dapatkan list id pesan yang sudah dibaca dari storage
+      let readIds = []
+      try {
+        const raw = localStorage.getItem("lsm_erna_murid_read_notifications_v3")
+        readIds = raw ? JSON.parse(raw) : []
+      } catch (_) {}
+
+      const unreadMap = {}
+      snap.docs.forEach((d) => {
+        const notifId = `chat_pribadi_${d.id}`
+        if (!readIds.includes(notifId)) {
+          const data = d.data()
+          const senderId = String(data.pengirimNisn || data.pengirimId || "")
+          if (senderId) {
+            unreadMap[senderId] = (unreadMap[senderId] || 0) + 1
+          }
+        }
+      })
+
+      callback(unreadMap)
+    },
+    (err) => {
+      console.warn("Unread chat pribadi error:", err)
+      callback({})
+    }
+  )
+}
 export function subscribeTypingPribadi(chatId, currentUserId, callback) {
   if (!chatId) {
     callback(null)
