@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/context/AuthContext"
-import { getPrivateChatId, sendPesanPribadi, subscribePesanPribadi } from "@/services/chatPribadi"
+import {
+  getPrivateChatId,
+  sendPesanPribadi,
+  subscribePesanPribadi,
+  setTypingStatusPribadi,
+  subscribeTypingPribadi,
+} from "@/services/chatPribadi"
 import { UserAvatar } from "@/components/common/UserAvatar"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   MessageCircle,
   Send,
   X,
-  Sparkles,
 } from "lucide-react"
 
 export function ModalChatPribadi({ targetMurid, onClose }) {
@@ -16,10 +20,13 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
   const [messages, setMessages] = useState([])
   const [inputPesan, setInputPesan] = useState("")
   const [sending, setSending] = useState(false)
+  const [typingPartnerName, setTypingPartnerName] = useState(null)
   const messagesEndRef = useRef(null)
+  const typingTimeoutRef = useRef(null)
 
   // Tentukan id unik saya dan teman
   const myId = currentUser?.uid || profileData?.nisn
+  const myName = profileData?.nama || currentUser?.displayName || "Siswa"
   const targetId = targetMurid?.uid || targetMurid?.nisn
   const chatId = getPrivateChatId(myId, targetId)
 
@@ -32,15 +39,41 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
     return () => unsubscribe()
   }, [chatId])
 
+  // Realtime subscription status lawan bicara mengetik
+  useEffect(() => {
+    if (!chatId || !myId) return
+    const unsubscribe = subscribeTypingPribadi(chatId, myId, (otherName) => {
+      setTypingPartnerName(otherName)
+    })
+    return () => unsubscribe()
+  }, [chatId, myId])
+
   // Scroll otomatis ke bawah
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+  }, [messages, typingPartnerName])
+
+  function handleInputChange(e) {
+    const val = e.target.value
+    setInputPesan(val)
+
+    if (!chatId || !myId) return
+
+    setTypingStatusPribadi(chatId, myId, myName, true).catch(() => {})
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    typingTimeoutRef.current = setTimeout(() => {
+      setTypingStatusPribadi(chatId, myId, myName, false).catch(() => {})
+    }, 2500)
+  }
 
   async function handleKirim(e) {
     e.preventDefault()
     const clean = inputPesan.trim()
     if (!clean || sending || !chatId) return
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    setTypingStatusPribadi(chatId, myId, myName, false).catch(() => {})
 
     setSending(true)
     try {
@@ -48,7 +81,7 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
         chatId,
         pengirimId: myId,
         penerimaId: targetId,
-        pengirimNama: profileData?.nama || currentUser?.displayName || "Siswa",
+        pengirimNama: myName,
         pengirimFotoUrl: profileData?.fotoUrl || currentUser?.photoURL,
         pesan: clean,
       })
@@ -172,6 +205,21 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
               )
             })
           )}
+
+          {/* Indikator Animasi Lawan Bicara Sedang Mengetik... */}
+          {typingPartnerName && (
+            <div className="flex items-center gap-2 text-xs text-slate-500 italic py-1 animate-in fade-in">
+              <span className="flex gap-1 items-center px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-bounce" style={{ animationDelay: "300ms" }} />
+                <span className="ml-1 text-[11px]">
+                  <b>{typingPartnerName}</b> sedang mengetik...
+                </span>
+              </span>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
@@ -180,7 +228,7 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
           <input
             type="text"
             value={inputPesan}
-            onChange={(e) => setInputPesan(e.target.value)}
+            onChange={handleInputChange}
             placeholder={`Tulis pesan pribadi untuk ${targetMurid?.nama || "teman"}...`}
             className="flex-1 px-4 py-2.5 rounded-2xl bg-slate-100 border-0 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 placeholder:text-slate-400"
             maxLength={1000}
@@ -199,4 +247,3 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
     </div>
   )
 }
-

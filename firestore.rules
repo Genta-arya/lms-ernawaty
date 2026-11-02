@@ -167,5 +167,13 @@ service cloud.firestore {
         request.resource.data.pesan.size() <= 1000;
       allow update, delete: if isGuru() || (signedIn() && resource.data.pengirimId == request.auth.uid);
     }
+
+    match /typingKelas/{id} {
+      allow read, write: if isMurid() || isGuru();
+    }
+
+    match /typingPribadi/{id} {
+      allow read, write: if isMurid() || isGuru();
+    }
   }
 }

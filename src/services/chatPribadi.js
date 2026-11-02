@@ -1,5 +1,8 @@
 import {
   collection,
+  doc,
+  setDoc,
+  deleteDoc,
   addDoc,
   query,
   where,
@@ -32,6 +35,11 @@ export async function sendPesanPribadi({
   const cleanPesan = (pesan || "").trim()
   if (!cleanPesan || !chatId) {
     throw new Error("Pesan dan Chat ID tidak boleh kosong.")
+  }
+
+  // Bersihkan status mengetik saat pesan dikirim
+  if (chatId && pengirimId) {
+    setTypingStatusPribadi(chatId, pengirimId, "", false).catch(() => {})
   }
 
   return await addDoc(collection(db, "chatPribadi"), {
@@ -90,6 +98,75 @@ export function subscribePesanPribadi(chatId, callback) {
     (err) => {
       console.warn("Realtime chat pribadi error:", err)
       callback([])
+    }
+  )
+}
+
+/**
+ * Memperbarui status 'sedang mengetik...' untuk chat pribadi
+ */
+export async function setTypingStatusPribadi(chatId, userId, userName, isTyping) {
+  if (!chatId || !userId) return
+  const docId = `${chatId}_${userId}`
+  const ref = doc(db, "typingPribadi", docId)
+
+  if (isTyping) {
+    await setDoc(
+      ref,
+      {
+        chatId,
+        userId,
+        userName: userName || "Teman",
+        isTyping: true,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    )
+  } else {
+    await deleteDoc(ref).catch(() => {})
+  }
+}
+
+/**
+ * Berlangganan status apakah lawan bicara sedang mengetik
+ */
+export function subscribeTypingPribadi(chatId, currentUserId, callback) {
+  if (!chatId) {
+    callback(null)
+    return () => {}
+  }
+
+  const q = query(
+    collection(db, "typingPribadi"),
+    where("chatId", "==", chatId)
+  )
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      let isOtherTyping = false
+      let otherName = ""
+      const now = Date.now()
+
+      snap.docs.forEach((d) => {
+        const data = d.data()
+        if (String(data.userId) === String(currentUserId)) return
+
+        let timeMillis = 0
+        if (data.updatedAt?.toMillis) timeMillis = data.updatedAt.toMillis()
+        else if (data.updatedAt?.seconds) timeMillis = data.updatedAt.seconds * 1000
+
+        if (!timeMillis || now - timeMillis < 6000) {
+          isOtherTyping = true
+          otherName = data.userName || "Teman"
+        }
+      })
+
+      callback(isOtherTyping ? otherName : null)
+    },
+    (err) => {
+      console.warn("Typing pribadi listener error:", err)
+      callback(null)
     }
   )
 }

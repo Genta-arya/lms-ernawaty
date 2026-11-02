@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils"
 export function MuridNotificationMenu() {
   const { currentUser, profileData } = useAuth()
   const [open, setOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState("all") // "all" | "materi" | "tugas" | "kuis"
+  const [activeTab, setActiveTab] = useState("all") // "all" | "chat" | "materi" | "tugas" | "kuis"
   const [notifState, setNotifState] = useState({
     all: [],
     materi: [],
@@ -49,7 +49,7 @@ export function MuridNotificationMenu() {
     )
 
     return () => unsub()
-  }, [currentUser?.uid, profileData?.tingkat, profileData?.kelasNama, profileData?.kelasId])
+  }, [currentUser?.uid, profileData?.tingkat, profileData?.kelasNama, profileData?.kelasId, profileData?.nisn])
 
   // Tutup dropdown saat klik di luar
   useEffect(() => {

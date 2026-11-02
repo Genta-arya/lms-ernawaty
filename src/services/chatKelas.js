@@ -1,5 +1,8 @@
 import {
   collection,
+  doc,
+  setDoc,
+  deleteDoc,
   addDoc,
   query,
   where,
@@ -23,6 +26,12 @@ export async function sendPesanKelas({
   const cleanPesan = (pesan || "").trim()
   if (!cleanPesan || !kelasId) {
     throw new Error("Pesan dan ID kelas tidak boleh kosong.")
+  }
+
+  // Bersihkan status mengetik saat pesan dikirim
+  const myId = pengirimUid || pengirimNisn
+  if (myId) {
+    setTypingStatusKelas(kelasId, myId, "", false).catch(() => {})
   }
 
   return await addDoc(collection(db, "chatKelas"), {
@@ -80,6 +89,75 @@ export function subscribePesanKelas(kelasId, callback) {
     },
     (err) => {
       console.warn("Realtime chat kelas error:", err)
+      callback([])
+    }
+  )
+}
+
+/**
+ * Memperbarui status 'sedang mengetik...' untuk kelas
+ */
+export async function setTypingStatusKelas(kelasId, userId, userName, isTyping) {
+  if (!kelasId || !userId) return
+  const docId = `${kelasId}_${userId}`
+  const ref = doc(db, "typingKelas", docId)
+
+  if (isTyping) {
+    await setDoc(
+      ref,
+      {
+        kelasId,
+        userId,
+        userName: userName || "Teman",
+        isTyping: true,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    )
+  } else {
+    await deleteDoc(ref).catch(() => {})
+  }
+}
+
+/**
+ * Berlangganan siapa saja yang sedang mengetik di kelas
+ */
+export function subscribeTypingKelas(kelasId, currentUserId, callback) {
+  if (!kelasId) {
+    callback([])
+    return () => {}
+  }
+
+  const q = query(
+    collection(db, "typingKelas"),
+    where("kelasId", "==", kelasId)
+  )
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const typers = []
+      const now = Date.now()
+
+      snap.docs.forEach((d) => {
+        const data = d.data()
+        // Jangan sertakan diri sendiri
+        if (String(data.userId) === String(currentUserId)) return
+
+        // Timeout status mengetik jika lebih dari 6 detik tanpa update
+        let timeMillis = 0
+        if (data.updatedAt?.toMillis) timeMillis = data.updatedAt.toMillis()
+        else if (data.updatedAt?.seconds) timeMillis = data.updatedAt.seconds * 1000
+
+        if (!timeMillis || now - timeMillis < 6000) {
+          if (data.userName) typers.push(data.userName)
+        }
+      })
+
+      callback(typers)
+    },
+    (err) => {
+      console.warn("Typing listener error:", err)
       callback([])
     }
   )

@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/context/AuthContext"
-import { sendPesanKelas, subscribePesanKelas } from "@/services/chatKelas"
+import {
+  sendPesanKelas,
+  subscribePesanKelas,
+  setTypingStatusKelas,
+  subscribeTypingKelas,
+} from "@/services/chatKelas"
 import { UserAvatar } from "@/components/common/UserAvatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,9 +13,6 @@ import {
   MessageSquare,
   Send,
   Sparkles,
-  Smile,
-  ShieldCheck,
-  Clock,
 } from "lucide-react"
 
 export function ChatKelasRealtime({ kelasId, kelasNama }) {
@@ -18,7 +20,12 @@ export function ChatKelasRealtime({ kelasId, kelasNama }) {
   const [messages, setMessages] = useState([])
   const [inputPesan, setInputPesan] = useState("")
   const [sending, setSending] = useState(false)
+  const [typers, setTypers] = useState([])
   const messagesEndRef = useRef(null)
+  const typingTimeoutRef = useRef(null)
+
+  const myId = currentUser?.uid || profileData?.nisn
+  const myName = profileData?.nama || currentUser?.displayName || "Siswa"
 
   // Realtime subscription ke Firestore chatKelas
   useEffect(() => {
@@ -29,15 +36,43 @@ export function ChatKelasRealtime({ kelasId, kelasNama }) {
     return () => unsubscribe()
   }, [kelasId])
 
+  // Realtime subscription siapa yang sedang mengetik
+  useEffect(() => {
+    if (!kelasId || !myId) return
+    const unsubscribe = subscribeTypingKelas(kelasId, myId, (userNames) => {
+      setTypers(userNames)
+    })
+    return () => unsubscribe()
+  }, [kelasId, myId])
+
   // Scroll otomatis ke pesan terbawah saat pesan baru masuk
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+  }, [messages, typers])
+
+  function handleInputChange(e) {
+    const val = e.target.value
+    setInputPesan(val)
+
+    if (!kelasId || !myId) return
+
+    // Trigger sedang mengetik
+    setTypingStatusKelas(kelasId, myId, myName, true).catch(() => {})
+
+    // Reset timer berhenti mengetik jika user berhenti mengetik 2.5 detik
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    typingTimeoutRef.current = setTimeout(() => {
+      setTypingStatusKelas(kelasId, myId, myName, false).catch(() => {})
+    }, 2500)
+  }
 
   async function handleKirim(e) {
     e.preventDefault()
     const clean = inputPesan.trim()
     if (!clean || sending || !kelasId) return
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    setTypingStatusKelas(kelasId, myId, myName, false).catch(() => {})
 
     setSending(true)
     try {
@@ -45,7 +80,7 @@ export function ChatKelasRealtime({ kelasId, kelasNama }) {
         kelasId,
         pengirimUid: currentUser?.uid,
         pengirimNisn: profileData?.nisn,
-        pengirimNama: profileData?.nama || currentUser?.displayName || "Siswa",
+        pengirimNama: myName,
         pengirimFotoUrl: profileData?.fotoUrl || currentUser?.photoURL,
         pesan: clean,
       })
@@ -158,6 +193,21 @@ export function ChatKelasRealtime({ kelasId, kelasNama }) {
             )
           })
         )}
+
+        {/* Indikator Animasi Sedang Mengetik... */}
+        {typers.length > 0 && (
+          <div className="flex items-center gap-2 text-xs text-slate-500 italic py-1 animate-in fade-in">
+            <span className="flex gap-1 items-center px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-bounce" style={{ animationDelay: "300ms" }} />
+              <span className="ml-1 text-[11px]">
+                <b>{typers.join(", ")}</b> sedang mengetik...
+              </span>
+            </span>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -166,7 +216,7 @@ export function ChatKelasRealtime({ kelasId, kelasNama }) {
         <input
           type="text"
           value={inputPesan}
-          onChange={(e) => setInputPesan(e.target.value)}
+          onChange={handleInputChange}
           placeholder={`Kirim pesan ke teman Kelas ${kelasNama || "Saya"}...`}
           className="flex-1 px-4 py-2.5 rounded-2xl bg-slate-100 border-0 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 placeholder:text-slate-400"
           maxLength={1000}
@@ -184,4 +234,3 @@ export function ChatKelasRealtime({ kelasId, kelasNama }) {
     </div>
   )
 }
-
