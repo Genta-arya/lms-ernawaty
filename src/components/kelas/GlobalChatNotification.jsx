@@ -5,6 +5,7 @@ import { collection, query, where, limit, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { UserAvatar } from "@/components/common/UserAvatar"
 import { ModalChatPribadi } from "@/components/kelas/ModalChatPribadi"
+import { markMuridNotificationAsRead } from "@/services/notifikasiMurid"
 import { MessageCircle, X } from "lucide-react"
 
 export function GlobalChatNotification() {
@@ -112,6 +113,9 @@ export function GlobalChatNotification() {
 
   function handleBannerClick() {
     if (!activeBanner) return
+    if (activeBanner.id) {
+      markMuridNotificationAsRead(`chat_pribadi_${activeBanner.id}`)
+    }
     const target = {
       uid: activeBanner.senderId,
       nisn: activeBanner.senderNisn || null,

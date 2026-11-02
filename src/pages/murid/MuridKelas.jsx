@@ -264,6 +264,16 @@ export function MuridKelas() {
             const isMe = murid.nisn === profileData?.nisn || (currentUser && murid.uid === currentUser.uid)
             const rank = index + 1
 
+            // Hitung status presence
+            const pData = (murid.uid && presencesMap[String(murid.uid)]) || (murid.nisn && presencesMap[String(murid.nisn)]) || null
+            const isUserOnline = isMe ? true : (pData?.isOnline === true)
+            const statusText = isMe ? "Online" : (pData?.lastSeenText || "Offline")
+
+            // Hitung counter unread
+            const unreadCount = !isMe
+              ? ((murid.nisn && unreadMap[String(murid.nisn)]) || (murid.uid && unreadMap[String(murid.uid)]) || 0)
+              : 0
+
             return (
               <Card
                 key={murid.nisn}
@@ -301,15 +311,11 @@ export function MuridKelas() {
                       {/* Indikator Titik Online pada Avatar */}
                       <span
                         className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                          presencesMap[String(murid.uid)]?.isOnline || presencesMap[String(murid.nisn)]?.isOnline
+                          isUserOnline
                             ? "bg-emerald-500 ring-1 ring-emerald-300 animate-pulse"
                             : "bg-slate-300"
                         }`}
-                        title={
-                          presencesMap[String(murid.uid)]?.isOnline || presencesMap[String(murid.nisn)]?.isOnline
-                            ? "Online"
-                            : "Offline"
-                        }
+                        title={isUserOnline ? "Online" : "Offline"}
                       />
                     </div>
 
@@ -327,23 +333,26 @@ export function MuridKelas() {
                         </div>
 
                         {/* Badge Unread Chat jika ada pesan belum terbaca dari teman ini */}
-                        {!isMe && (unreadMap[String(murid.nisn)] || unreadMap[String(murid.uid)]) > 0 && (
-                          <span className="min-w-5 h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center shrink-0 shadow-xs animate-bounce" title="Pesan baru belum dibaca">
-                            {(unreadMap[String(murid.nisn)] || unreadMap[String(murid.uid)]) > 9 ? "9+" : (unreadMap[String(murid.nisn)] || unreadMap[String(murid.uid)])}
+                        {unreadCount > 0 && (
+                          <span
+                            className="min-w-5 h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center shrink-0 shadow-xs animate-bounce"
+                            title={`${unreadCount} pesan baru belum dibaca`}
+                          >
+                            {unreadCount > 9 ? "9+" : unreadCount}
                           </span>
                         )}
                       </div>
 
                       {/* Baris Badge Online / Offline / Terakhir Dilihat */}
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        {presencesMap[String(murid.uid)]?.isOnline || presencesMap[String(murid.nisn)]?.isOnline ? (
+                        {isUserOnline ? (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-extrabold text-[10px] border border-emerald-200/60">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             Online
                           </span>
                         ) : (
                           <span className="text-[10px] text-slate-400 font-medium truncate">
-                            {presencesMap[String(murid.uid)]?.lastSeenText || presencesMap[String(murid.nisn)]?.lastSeenText || "Offline"}
+                            {statusText}
                           </span>
                         )}
                       </div>

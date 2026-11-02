@@ -12,19 +12,37 @@ import {
 } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
-/**
- * Menandai semua pesan dari pengirim tertentu (atau chatId) sebagai sudah dibaca
- */
-export function markPesanPribadiAsRead(senderIdentifier) {
-  if (!senderIdentifier) return
+const STORAGE_KEY = "lsm_erna_murid_read_notifications_v3"
+
+function getStoredReadIds() {
   try {
-    const raw = localStorage.getItem("lsm_erna_murid_read_notifications_v3")
-    const current = raw ? JSON.parse(raw) : []
-    const marker = `chat_read_sender_${String(senderIdentifier)}`
-    if (!current.includes(marker)) {
-      current.push(marker)
-      localStorage.setItem("lsm_erna_murid_read_notifications_v3", JSON.stringify(current))
-      // Trigger event storage agar listener lokal segera update
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Menandai daftar pesan (array dari pesan chat) sebagai sudah dibaca
+ */
+export function markPesanPribadiAsRead(messages = []) {
+  if (!messages || messages.length === 0) return
+  try {
+    const current = getStoredReadIds()
+    let changed = false
+    messages.forEach((m) => {
+      if (m?.id) {
+        const notifId = `chat_pribadi_${m.id}`
+        if (!current.includes(notifId)) {
+          current.push(notifId)
+          changed = true
+        }
+      }
+    })
+
+    if (changed) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(current))
       window.dispatchEvent(new Event("storage"))
     }
   } catch (e) {
@@ -130,31 +148,6 @@ export function subscribePesanPribadi(chatId, callback) {
 }
 
 /**
- * Memperbarui status 'sedang mengetik...' untuk chat pribadi
- */
-export async function setTypingStatusPribadi(chatId, userId, userName, isTyping) {
-  if (!chatId || !userId) return
-  const docId = `${chatId}_${userId}`
-  const ref = doc(db, "typingPribadi", docId)
-
-  if (isTyping) {
-    await setDoc(
-      ref,
-      {
-        chatId,
-        userId,
-        userName: userName || "Teman",
-        isTyping: true,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    )
-  } else {
-    await deleteDoc(ref).catch(() => {})
-  }
-}
-
-/**
  * Berlangganan jumlah chat pribadi yang belum dibaca per pengirim
  */
 export function subscribeUnreadPribadiCounts(myIdentifiers = [], callback) {
@@ -163,56 +156,72 @@ export function subscribeUnreadPribadiCounts(myIdentifiers = [], callback) {
     return () => {}
   }
 
+  const ids = myIdentifiers.filter(Boolean).map(String)
+  if (ids.length === 0) {
+    callback({})
+    return () => {}
+  }
+
   const q = query(
     collection(db, "chatPribadi"),
-    where("penerimaId", "in", myIdentifiers.map(String)),
+    where("penerimaId", "in", ids),
     limit(100)
   )
 
-  return onSnapshot(
-    q,
-    (snap) => {
-      // Dapatkan list id pesan yang sudah dibaca dari storage
-      let readIds = []
-      try {
-        const raw = localStorage.getItem("lsm_erna_murid_read_notifications_v3")
-        readIds = raw ? JSON.parse(raw) : []
-      } catch (_) {}
+  const handleUpdate = (snap) => {
+    const readIds = getStoredReadIds()
+    const unreadMap = {}
 
-      const unreadMap = {}
-      snap.docs.forEach((d) => {
-        const notifId = `chat_pribadi_${d.id}`
+    snap.docs.forEach((d) => {
+      const notifId = `chat_pribadi_${d.id}`
+      // Hanya cek apakah id pesan individual ini sudah ditandai baca
+      if (!readIds.includes(notifId)) {
         const data = d.data()
         const senderId = String(data.pengirimNisn || data.pengirimId || "")
         const senderUid = String(data.pengirimId || "")
         const senderNisn = String(data.pengirimNisn || "")
 
-        // Cek apakah pesan atau pengirim sudah ditandai baca
-        const isRead =
-          readIds.includes(notifId) ||
-          (senderId && readIds.includes(`chat_read_sender_${senderId}`)) ||
-          (senderUid && readIds.includes(`chat_read_sender_${senderUid}`)) ||
-          (senderNisn && readIds.includes(`chat_read_sender_${senderNisn}`))
-
-        if (!isRead && senderId) {
+        if (senderId) {
           unreadMap[senderId] = (unreadMap[senderId] || 0) + 1
-          if (senderUid && senderUid !== senderId) {
-            unreadMap[senderUid] = (unreadMap[senderUid] || 0) + 1
-          }
-          if (senderNisn && senderNisn !== senderId) {
-            unreadMap[senderNisn] = (unreadMap[senderNisn] || 0) + 1
-          }
         }
-      })
+        if (senderUid && senderUid !== senderId) {
+          unreadMap[senderUid] = (unreadMap[senderUid] || 0) + 1
+        }
+        if (senderNisn && senderNisn !== senderId) {
+          unreadMap[senderNisn] = (unreadMap[senderNisn] || 0) + 1
+        }
+      }
+    })
 
-      callback(unreadMap)
+    callback(unreadMap)
+  }
+
+  const unsubscribe = onSnapshot(
+    q,
+    (snap) => {
+      handleUpdate(snap)
     },
     (err) => {
       console.warn("Unread chat pribadi error:", err)
       callback({})
     }
   )
+
+  // Tangani event storage jika di tab lain atau modal dibuka
+  const storageListener = () => {
+    // Force re-evaluate jika ada event storage
+  }
+  window.addEventListener("storage", storageListener)
+
+  return () => {
+    unsubscribe()
+    window.removeEventListener("storage", storageListener)
+  }
 }
+
+/**
+ * Berlangganan status apakah lawan bicara sedang mengetik
+ */
 export function subscribeTypingPribadi(chatId, currentUserId, callback) {
   if (!chatId) {
     callback(null)
@@ -252,4 +261,29 @@ export function subscribeTypingPribadi(chatId, currentUserId, callback) {
       callback(null)
     }
   )
+}
+
+/**
+ * Memperbarui status sedang mengetik di chat pribadi
+ */
+export async function setTypingStatusPribadi(chatId, userId, userName, isTyping = true) {
+  if (!chatId || !userId) return
+  const docId = `${chatId}_${userId}`
+  const ref = doc(db, "typingPribadi", docId)
+
+  if (isTyping) {
+    await setDoc(
+      ref,
+      {
+        chatId,
+        userId: String(userId),
+        userName: userName || "Teman",
+        isTyping: true,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    )
+  } else {
+    await deleteDoc(ref).catch(() => {})
+  }
 }

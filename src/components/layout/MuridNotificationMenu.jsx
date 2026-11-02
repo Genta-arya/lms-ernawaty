@@ -16,6 +16,8 @@ import {
   ArrowRight,
   CheckCheck,
   Sparkles,
+  MessageSquare,
+  MessageCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -25,6 +27,7 @@ export function MuridNotificationMenu() {
   const [activeTab, setActiveTab] = useState("all") // "all" | "chat" | "materi" | "tugas" | "kuis"
   const [notifState, setNotifState] = useState({
     all: [],
+    chat: [],
     materi: [],
     kuis: [],
     tugas: [],
@@ -33,13 +36,14 @@ export function MuridNotificationMenu() {
 
   const menuRef = useRef(null)
 
-  // Realtime Firestore Listener untuk notifikasi materi, tugas, dan kuis
+  // Realtime Firestore Listener untuk notifikasi materi, tugas, kuis, dan chat
   useEffect(() => {
     if (!currentUser?.uid) return
 
     const unsub = subscribeMuridNotifications(
       {
         uid: currentUser.uid,
+        studentNisn: profileData?.nisn || null,
         studentTingkat: profileData?.tingkat || profileData?.kelasNama,
         studentKelasId: profileData?.kelasId || null,
       },
@@ -49,7 +53,7 @@ export function MuridNotificationMenu() {
     )
 
     return () => unsub()
-  }, [currentUser?.uid, profileData?.tingkat, profileData?.kelasNama, profileData?.kelasId, profileData?.nisn])
+  }, [currentUser?.uid, profileData?.nisn, profileData?.tingkat, profileData?.kelasNama, profileData?.kelasId])
 
   // Tutup dropdown saat klik di luar
   useEffect(() => {
@@ -68,6 +72,8 @@ export function MuridNotificationMenu() {
   const currentList =
     activeTab === "all"
       ? notifState.all
+      : activeTab === "chat"
+      ? (notifState.chat || [])
       : activeTab === "materi"
       ? notifState.materi
       : activeTab === "tugas"
@@ -81,6 +87,7 @@ export function MuridNotificationMenu() {
       ...prev,
       unreadCount: 0,
       all: prev.all.map((n) => ({ ...n, isUnread: false })),
+      chat: (prev.chat || []).map((n) => ({ ...n, isUnread: false })),
       materi: prev.materi.map((n) => ({ ...n, isUnread: false })),
       kuis: prev.kuis.map((n) => ({ ...n, isUnread: false })),
       tugas: prev.tugas.map((n) => ({ ...n, isUnread: false })),
@@ -140,7 +147,7 @@ export function MuridNotificationMenu() {
                 </h3>
                 <span className="text-[10px] text-blue-100 font-medium mt-0.5 block">
                   {notifState.unreadCount > 0
-                    ? `${notifState.unreadCount} info materi, tugas & kuis baru`
+                    ? `${notifState.unreadCount} kabar & pesan baru belum dibaca`
                     : "Semua kabar terbaru telah kamu lihat"}
                 </span>
               </div>
@@ -159,13 +166,14 @@ export function MuridNotificationMenu() {
             )}
           </div>
 
-          {/* Baris Tab Filter (Semua, Materi, Tugas, Kuis) */}
+          {/* Baris Tab Filter (Semua, Chat, Materi, Tugas, Kuis) */}
           <div className="flex items-center gap-1 p-2 bg-slate-50 border-b border-slate-100 overflow-x-auto no-scrollbar text-xs font-bold">
             {[
               { id: "all", label: "Semua", count: notifState.unreadCount },
-              { id: "materi", label: "Materi", count: notifState.materi.filter((n) => n.isUnread).length },
-              { id: "tugas", label: "Tugas", count: notifState.tugas.filter((n) => n.isUnread).length },
-              { id: "kuis", label: "Kuis", count: notifState.kuis.filter((n) => n.isUnread).length },
+              { id: "chat", label: "Chat", count: (notifState.chat || []).filter((n) => n.isUnread).length },
+              { id: "materi", label: "Materi", count: (notifState.materi || []).filter((n) => n.isUnread).length },
+              { id: "tugas", label: "Tugas", count: (notifState.tugas || []).filter((n) => n.isUnread).length },
+              { id: "kuis", label: "Kuis", count: (notifState.kuis || []).filter((n) => n.isUnread).length },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -200,20 +208,24 @@ export function MuridNotificationMenu() {
                 <Sparkles className="w-8 h-8 text-slate-300 mx-auto" />
                 <p className="text-xs font-bold text-slate-700">Tidak ada notifikasi dalam kategori ini</p>
                 <p className="text-[11px] text-slate-400">
-                  Saat Ibu Guru menerbitkan materi, tugas atau kuis baru, info akan langsung tampil di sini secara realtime.
+                  Saat ada pesan kelas, pesan pribadi, materi, atau kuis baru, info akan langsung tampil di sini.
                 </p>
               </div>
             ) : (
               currentList.map((item) => {
                 const IconComponent =
-                  item.type === "materi"
+                  item.type === "chat"
+                    ? (item.badge === "Pribadi" ? MessageCircle : MessageSquare)
+                    : item.type === "materi"
                     ? BookOpen
                     : item.type === "tugas"
                     ? ClipboardList
                     : FileQuestion
 
                 const iconBg =
-                  item.type === "materi"
+                  item.type === "chat"
+                    ? (item.badge === "Pribadi" ? "bg-indigo-100 text-indigo-700" : "bg-sky-100 text-sky-700")
+                    : item.type === "materi"
                     ? "bg-indigo-100 text-indigo-700"
                     : item.type === "tugas"
                     ? "bg-amber-100 text-amber-800"
@@ -283,11 +295,11 @@ export function MuridNotificationMenu() {
           {/* Footer Panel */}
           <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
             <Link
-              to="/murid/materi"
+              to="/murid/kelas?tab=chat"
               onClick={() => setOpen(false)}
               className="text-xs font-extrabold text-blue-600 hover:text-blue-700 flex items-center gap-1 mx-auto py-0.5"
             >
-              <span>Buka Katalog Belajar</span>
+              <span>Buka Ruang Obrolan Kelas</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>

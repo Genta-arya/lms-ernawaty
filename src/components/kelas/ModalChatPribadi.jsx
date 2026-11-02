@@ -41,12 +41,13 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
     if (!chatId) return
     const unsubscribe = subscribePesanPribadi(chatId, (msgs) => {
       setMessages(msgs)
-      // Tandai semua pesan dari teman ini sebagai dibaca sehingga badge unread hilang
-      if (targetMurid?.nisn) markPesanPribadiAsRead(targetMurid.nisn)
-      if (targetMurid?.uid) markPesanPribadiAsRead(targetMurid.uid)
+      // Tandai semua pesan yang masuk di obrolan ini sebagai sudah dibaca
+      if (msgs && msgs.length > 0) {
+        markPesanPribadiAsRead(msgs)
+      }
     })
     return () => unsubscribe()
-  }, [chatId, targetMurid?.nisn, targetMurid?.uid])
+  }, [chatId])
 
   // Realtime subscription status lawan bicara mengetik
   useEffect(() => {

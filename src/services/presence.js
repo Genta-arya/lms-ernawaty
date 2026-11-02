@@ -1,35 +1,51 @@
-import { collection, doc, setDoc, onSnapshot, serverTimestamp } from "firebase/firestore"
+import { collection, doc, setDoc, updateDoc, onSnapshot, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
-const HEARTBEAT_INTERVAL = 30000 // Kirim sinyal online setiap 30 detik
-const ONLINE_THRESHOLD = 75000   // Dianggap online jika detak terakhir < 75 detik yang lalu
+const HEARTBEAT_INTERVAL = 25000 // Kirim sinyal online setiap 25 detik
+const ONLINE_THRESHOLD = 65000   // Dianggap online jika detak terakhir < 65 detik yang lalu
 
 /**
- * Memulai pengiriman sinyal status online (heartbeat) pengguna ke Firestore
+ * Memulai pengiriman sinyal status online (heartbeat) pengguna.
+ * Mengupdate ke koleksi akunMurid (yang sudah pasti memiliki izin write/update di Firestore)
+ * dan fallback/mirror ke userPresence.
  */
 export function startUserPresence(userId, userName, role = "murid", nisn = null) {
   if (!userId) return () => {}
 
-  const uidDocRef = doc(db, "userPresence", String(userId))
-  const nisnDocRef = nisn ? doc(db, "userPresence", String(nisn)) : null
+  const akunMuridRef = doc(db, "akunMurid", String(userId))
+  const userPresenceRef = doc(db, "userPresence", String(userId))
 
   const updateStatus = async (isOnline) => {
-    try {
-      const payload = {
-        userId: String(userId),
-        userName: userName || "Pengguna",
-        role,
-        nisn: nisn || null,
-        isOnline,
-        lastSeen: serverTimestamp(),
-        clientTime: Date.now(),
-      }
+    const payload = {
+      isOnline,
+      lastSeen: serverTimestamp(),
+      clientTime: Date.now(),
+    }
 
-      const tasks = [setDoc(uidDocRef, payload, { merge: true })]
-      if (nisnDocRef) {
-        tasks.push(setDoc(nisnDocRef, payload, { merge: true }))
+    // 1. Update ke akunMurid (koleksi utama dengan rule update: if request.auth.uid == uid)
+    try {
+      await updateDoc(akunMuridRef, payload)
+    } catch (_) {
+      try {
+        await setDoc(akunMuridRef, payload, { merge: true })
+      } catch (errAkun) {
+        // Abaikan jika akun adalah guru / non-murid
       }
-      await Promise.all(tasks)
+    }
+
+    // 2. Mirror ke userPresence (jika koleksi userPresence sudah dipublish di rules)
+    try {
+      await setDoc(
+        userPresenceRef,
+        {
+          userId: String(userId),
+          userName: userName || "Pengguna",
+          role,
+          nisn: nisn || null,
+          ...payload,
+        },
+        { merge: true }
+      )
     } catch (_) {}
   }
 
@@ -43,7 +59,7 @@ export function startUserPresence(userId, userName, role = "murid", nisn = null)
     }
   }, HEARTBEAT_INTERVAL)
 
-  // Tangani saat tab diminimalkan atau dibuka kembali
+  // Tangani saat tab dibuka kembali dari background
   const handleVisibilityChange = () => {
     if (document.visibilityState === "visible") {
       updateStatus(true)
@@ -51,9 +67,8 @@ export function startUserPresence(userId, userName, role = "murid", nisn = null)
   }
   document.addEventListener("visibilitychange", handleVisibilityChange)
 
-  // Tangani saat pengguna menutup tab/browser
+  // Tangani saat tab browser ditutup
   const handleBeforeUnload = () => {
-    // Upaya update offline
     updateStatus(false)
   }
   window.addEventListener("beforeunload", handleBeforeUnload)
@@ -62,32 +77,52 @@ export function startUserPresence(userId, userName, role = "murid", nisn = null)
     clearInterval(intervalId)
     document.removeEventListener("visibilitychange", handleVisibilityChange)
     window.removeEventListener("beforeunload", handleBeforeUnload)
-    updateStatus(false).catch(() => {})
   }
 }
 
 /**
- * Berlangganan status online / terakhir online untuk banyak pengguna (seluruh dokumen di userPresence)
+ * Berlangganan status online seluruh siswa secara realtime.
+ * Mendengarkan koleksi 'akunMurid' (karena sudah pasti memiliki 'allow read: if signedIn();')
+ * dan fallback ke 'userPresence'.
  */
 export function subscribeAllPresences(callback) {
-  const colRef = collection(db, "userPresence")
-  return onSnapshot(
-    colRef,
+  // Listener utama: akunMurid
+  const unsubAkunMurid = onSnapshot(
+    collection(db, "akunMurid"),
     (snap) => {
       const presenceMap = {}
       snap.docs.forEach((d) => {
         const data = d.data()
         const parsed = parsePresenceStatus(data)
-        if (data.userId) presenceMap[String(data.userId)] = parsed
-        if (data.nisn) presenceMap[String(data.nisn)] = parsed
+        const uid = d.id
+        const nisn = data.nisn ? String(data.nisn) : null
+
+        if (uid) presenceMap[uid] = parsed
+        if (nisn) presenceMap[nisn] = parsed
       })
       callback(presenceMap)
     },
     (err) => {
-      console.warn("Realtime presences error:", err)
-      callback({})
+      console.warn("AkunMurid presence listener warning:", err)
+      // Fallback ke userPresence
+      onSnapshot(
+        collection(db, "userPresence"),
+        (snap) => {
+          const presenceMap = {}
+          snap.docs.forEach((d) => {
+            const data = d.data()
+            const parsed = parsePresenceStatus(data)
+            if (data.userId) presenceMap[String(data.userId)] = parsed
+            if (data.nisn) presenceMap[String(data.nisn)] = parsed
+          })
+          callback(presenceMap)
+        },
+        () => callback({})
+      )
     }
   )
+
+  return () => unsubAkunMurid()
 }
 
 /**
@@ -99,18 +134,29 @@ export function subscribeSinglePresence(userId, callback) {
     return () => {}
   }
 
-  const userDocRef = doc(db, "userPresence", String(userId))
+  // Coba ambil dari akunMurid dulu
+  const ref = doc(db, "akunMurid", String(userId))
   return onSnapshot(
-    userDocRef,
+    ref,
     (docSnap) => {
-      if (!docSnap.exists()) {
-        callback({ isOnline: false, lastSeenText: "Offline" })
-        return
+      if (docSnap.exists()) {
+        const data = docSnap.data()
+        callback(parsePresenceStatus(data))
+      } else {
+        // Coba userPresence
+        const presenceRef = doc(db, "userPresence", String(userId))
+        onSnapshot(
+          presenceRef,
+          (pSnap) => {
+            if (pSnap.exists()) {
+              callback(parsePresenceStatus(pSnap.data()))
+            } else {
+              callback({ isOnline: false, lastSeenText: "Offline" })
+            }
+          },
+          () => callback({ isOnline: false, lastSeenText: "Offline" })
+        )
       }
-
-      const data = docSnap.data()
-      const status = parsePresenceStatus(data)
-      callback(status)
     },
     () => {
       callback({ isOnline: false, lastSeenText: "Offline" })
@@ -168,7 +214,7 @@ export function formatTerakhirOnline(timestamp) {
 
   const diffMin = Math.floor(diffSec / 60)
   if (diffMin < 60) {
-    return `Terakhir dilihat ${diffMin} menit yang lalu`
+    return `Terakhir dilihat ${diffMin} mnt lalu`
   }
 
   const jamMenit = date.toLocaleTimeString("id-ID", {
@@ -182,7 +228,7 @@ export function formatTerakhirOnline(timestamp) {
     now.getFullYear() === date.getFullYear()
 
   if (isToday) {
-    return `Terakhir dilihat hari ini pukul ${jamMenit}`
+    return `Terakhir dilihat ${jamMenit}`
   }
 
   const yesterday = new Date(now)
@@ -193,13 +239,12 @@ export function formatTerakhirOnline(timestamp) {
     yesterday.getFullYear() === date.getFullYear()
 
   if (isYesterday) {
-    return `Terakhir dilihat kemarin pukul ${jamMenit}`
+    return `Kemarin ${jamMenit}`
   }
 
   const tglBulan = date.toLocaleDateString("id-ID", {
     day: "numeric",
     month: "short",
   })
-  return `Terakhir dilihat ${tglBulan} pukul ${jamMenit}`
+  return `${tglBulan} ${jamMenit}`
 }
-
