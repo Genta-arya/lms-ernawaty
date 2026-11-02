@@ -1,12 +1,15 @@
-import admin from "firebase-admin"
+import { initializeApp, getApps, cert } from "firebase-admin/app"
+import { getFirestore } from "firebase-admin/firestore"
+import { getMessaging } from "firebase-admin/messaging"
 
-// Inisialisasi Firebase Admin jika belum terinisialisasi
-function getFirebaseAdmin() {
-  if (admin.apps.length > 0) {
-    return admin
+// Inisialisasi Firebase Admin App secara modular & aman
+function getAdminApp() {
+  const existingApps = getApps()
+  if (existingApps.length > 0) {
+    return existingApps[0]
   }
 
-  // Coba ambil credentials dari service account JSON string atau base64
+  // Ambil credentials dari service account JSON string
   const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
   if (serviceAccountRaw) {
     try {
@@ -19,30 +22,24 @@ function getFirebaseAdmin() {
       }
 
       if (parsed && parsed.private_key) {
-        // Normalisasi format private key newline jika di-escape
+        // Normalisasi format newline private key jika di-escape
         if (typeof parsed.private_key === "string" && parsed.private_key.includes("\\n")) {
           parsed.private_key = parsed.private_key.replace(/\\n/g, "\n")
         }
-        admin.initializeApp({
-          credential: admin.credential.cert(parsed),
+        return initializeApp({
+          credential: cert(parsed),
+          projectId: parsed.project_id || "lsm-ernawaty",
         })
-        return admin
       }
     } catch (e) {
       console.error("Gagal parse FIREBASE_SERVICE_ACCOUNT_KEY:", e)
     }
   }
 
-  // Fallback ke default initialization (menggunakan project ID)
-  try {
-    admin.initializeApp({
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID || "lsm-ernawaty",
-    })
-  } catch (e) {
-    console.error("Default admin init warning:", e)
-  }
-
-  return admin
+  // Fallback default init
+  return initializeApp({
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || "lsm-ernawaty",
+  })
 }
 
 export default async function handler(req, res) {
@@ -51,22 +48,31 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" })
   }
 
-  const { targetUserId, targetNisn, title, body, link, senderName, fotoUrl } = req.body || {}
+  // Parse body secara aman jika berupa string
+  let bodyData = req.body
+  if (typeof bodyData === "string") {
+    try {
+      bodyData = JSON.parse(bodyData)
+    } catch (_) {}
+  }
+
+  const { targetUserId, targetNisn, title, body, link, senderName, fotoUrl } = bodyData || {}
 
   if (!targetUserId && !targetNisn) {
     return res.status(400).json({ error: "targetUserId or targetNisn is required" })
   }
 
   try {
-    const firebaseAdmin = getFirebaseAdmin()
-    const db = firebaseAdmin.firestore()
+    const app = getAdminApp()
+    const db = getFirestore(app)
+    const messaging = getMessaging(app)
 
     // 1. Ambil token FCM target penerima dari Firestore collection fcmTokens
     const tokens = []
     const tokensSnap = await db.collection("fcmTokens").get()
 
-    tokensSnap.forEach((doc) => {
-      const data = doc.data()
+    tokensSnap.forEach((docSnap) => {
+      const data = docSnap.data()
       const matchUser = targetUserId && String(data.userId) === String(targetUserId)
       const matchNisn = targetNisn && String(data.nisn) === String(targetNisn)
       if ((matchUser || matchNisn) && data.token) {
@@ -103,7 +109,7 @@ export default async function handler(req, res) {
     }
 
     // 3. Kirim push notification ke perangkat target via FCM
-    const response = await firebaseAdmin.messaging().sendEachForMulticast(messagePayload)
+    const response = await messaging.sendEachForMulticast(messagePayload)
 
     // Bersihkan token yang sudah expired / tidak valid
     if (response.failureCount > 0) {
@@ -142,4 +148,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message || "Internal server error" })
   }
 }
-
