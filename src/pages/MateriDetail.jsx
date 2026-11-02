@@ -46,7 +46,7 @@ export function MateriDetail() {
   const [maxUnlockedIndex, setMaxUnlockedIndex] = useState(0)
 
   // Tujuan tombol kembali: jika murid/login ke /murid, jika guru ke /guru/materi, lainnya ke /murid
-  const backTarget = role === "guru" ? "/guru/materi" : "/murid"
+  const backTarget = role === "guru" ? "/guru/materi" : role === "murid" ? "/murid/materi" : "/"
 
   useEffect(() => {
     // Otomatis scroll ke paling atas saat halaman pertama kali dirender
