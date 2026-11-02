@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
 import { getDetailKelasDanTeman } from "@/services/kelas"
+import { ChatKelasRealtime } from "@/components/kelas/ChatKelasRealtime"
 import { UserAvatar } from "@/components/common/UserAvatar"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -19,6 +20,7 @@ import {
   Medal,
   Award,
   BookOpen,
+  MessageSquare,
 } from "lucide-react"
 
 export function MuridKelas() {
@@ -158,6 +160,7 @@ export function MuridKelas() {
             { id: "semua", label: "Daftar Teman", icon: Users },
             { id: "skor-kuis", label: "Peringkat Kuis", icon: Trophy },
             { id: "nilai-tugas", label: "Nilai Tugas", icon: ClipboardList },
+            { id: "chat", label: "Obrolan Kelas", icon: MessageSquare },
           ].map((tab) => {
             const Icon = tab.icon
             const active = activeTab === tab.id
@@ -180,8 +183,13 @@ export function MuridKelas() {
         </div>
       </div>
 
-      {/* Daftar Siswa Teman Sekelas */}
-      {sortedTeman.length === 0 ? (
+      {/* Tampilan Obrolan Realtime Kelas */}
+      {activeTab === "chat" ? (
+        <ChatKelasRealtime
+          kelasId={kelasData?.id || profileData?.kelasId}
+          kelasNama={kelasData?.nama || profileData?.kelasNama}
+        />
+      ) : sortedTeman.length === 0 ? (
         <div className="text-center py-16 border border-dashed rounded-3xl bg-slate-50/60 p-6">
           <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mx-auto mb-3 shadow-xs text-slate-400">
             <Users className="w-7 h-7 stroke-[1.6]" />
