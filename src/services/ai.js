@@ -23,7 +23,7 @@ export function getGeminiKeys() {
       if (Array.isArray(parsed.keys) && parsed.keys.length > 0) {
         return parsed.keys
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   return []
@@ -46,12 +46,9 @@ export function getNextApiKey() {
   return { key: selectedKey, index: currentIndex, total: keys.length }
 }
 
-// Model urutan prioritas: gemini-2.5-flash & gemini-2.0-flash yang sangat stabil di API resmi Google AI Studio
+// Model urutan prioritas: gemini-3.5-flash 
 export const GEMINI_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
-  "gemini-2.5-pro",
+  "gemini-3.5-flash"
 ]
 
 /**
@@ -90,7 +87,7 @@ async function callGeminiApi(apiKey, modelName, systemPrompt, userPrompt) {
       if (errJson?.error?.message) {
         errMsg = errJson.error.message
       }
-    } catch (_) {}
+    } catch (_) { }
     const err = new Error(errMsg)
     err.status = response.status
     throw err
@@ -180,7 +177,7 @@ function safeParseJson(rawText) {
       const repaired = clean.substring(0, lastSoalEnd + 1) + "\n  ]\n}"
       try {
         return JSON.parse(repaired)
-      } catch (_) {}
+      } catch (_) { }
     }
 
     // Coba tutup kurung array dan kurung kurawal
@@ -189,7 +186,7 @@ function safeParseJson(rawText) {
       const repaired = clean.substring(0, lastValidBrace + 1) + "\n  ]\n}"
       try {
         return JSON.parse(repaired)
-      } catch (_) {}
+      } catch (_) { }
     }
 
     throw new Error("AI sempat terpotong saat menyusun format. Silakan klik tombol Coba Lagi.")
