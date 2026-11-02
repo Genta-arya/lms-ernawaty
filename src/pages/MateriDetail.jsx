@@ -43,6 +43,7 @@ export function MateriDetail() {
   const [savingProgress, setSavingProgress] = useState(false)
   const [showScrollTop, setShowScrollTop] = useState(false)
   const [currentBagianIndex, setCurrentBagianIndex] = useState(0)
+  const [maxUnlockedIndex, setMaxUnlockedIndex] = useState(0)
 
   // Tujuan tombol kembali: jika murid/login ke /murid, jika guru ke /guru/materi, lainnya ke /murid
   const backTarget = role === "guru" ? "/guru/materi" : "/murid"
@@ -73,7 +74,11 @@ export function MateriDetail() {
           // Cek progres murid jika login
           if (role === "murid" && currentUser) {
             const prog = await getProgresMurid(currentUser.uid)
-            setIsSelesai(!!prog[mat.id])
+            const done = !!prog[mat.id]
+            setIsSelesai(done)
+            if (done && mat.bagian?.length) {
+              setMaxUnlockedIndex(mat.bagian.length - 1)
+            }
           }
         }
       } catch (err) {
@@ -316,23 +321,34 @@ export function MateriDetail() {
                   {materi.bagian.map((b, idx) => {
                     const isCurrent = idx === currentBagianIndex
                     const isPassed = idx < currentBagianIndex
+                    const isLocked = role === "murid" && !isSelesai && idx > maxUnlockedIndex
+
                     return (
                       <button
                         key={b.id || idx}
                         type="button"
+                        disabled={isLocked}
                         onClick={() => {
+                          if (isLocked) return
                           setCurrentBagianIndex(idx)
                           scrollToTop()
                         }}
-                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1 ${
+                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
                           isCurrent
                             ? "bg-blue-600 text-white shadow-xs"
+                            : isLocked
+                            ? "bg-slate-100/70 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60"
                             : isPassed
-                            ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                            : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                            ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 cursor-pointer"
+                            : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 cursor-pointer"
                         }`}
+                        title={isLocked ? "Selesaikan bagian sebelumnya terlebih dahulu" : b.judul}
                       >
-                        {isPassed && <Check className="w-3 h-3 text-emerald-700" />}
+                        {isLocked ? (
+                          <Lock className="w-3 h-3 text-slate-400" />
+                        ) : isPassed ? (
+                          <Check className="w-3 h-3 text-emerald-700" />
+                        ) : null}
                         <span>Bagian {idx + 1}</span>
                       </button>
                     )
@@ -396,7 +412,9 @@ export function MateriDetail() {
                           <Button
                             type="button"
                             onClick={() => {
-                              setCurrentBagianIndex((prev) => Math.min(materi.bagian.length - 1, prev + 1))
+                              const nextIdx = Math.min(materi.bagian.length - 1, currentBagianIndex + 1)
+                              setCurrentBagianIndex(nextIdx)
+                              setMaxUnlockedIndex((prev) => Math.max(prev, nextIdx))
                               scrollToTop()
                             }}
                             className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-xl font-bold gap-1.5 h-10 shadow-xs"
@@ -457,23 +475,33 @@ export function MateriDetail() {
             <nav className="space-y-1 text-xs">
               {materi.bagian?.map((bag, idx) => {
                 const isActive = idx === currentBagianIndex
+                const isLocked = role === "murid" && !isSelesai && idx > maxUnlockedIndex
+
                 return (
                   <button
                     key={bag.id || idx}
                     type="button"
+                    disabled={isLocked}
                     onClick={() => {
+                      if (isLocked) return
                       setCurrentBagianIndex(idx)
                       scrollToTop()
                     }}
                     className={`w-full text-left transition-colors py-1.5 px-2 rounded-lg text-xs truncate flex items-center justify-between gap-1.5 ${
                       isActive
                         ? "bg-blue-50 text-blue-700 font-extrabold"
-                        : "text-muted-foreground hover:text-foreground hover:bg-slate-50"
+                        : isLocked
+                        ? "text-slate-400 opacity-60 cursor-not-allowed hover:bg-transparent"
+                        : "text-muted-foreground hover:text-foreground hover:bg-slate-50 cursor-pointer"
                     }`}
-                    title={bag.judul}
+                    title={isLocked ? "Selesaikan bagian sebelumnya terlebih dahulu" : bag.judul}
                   >
                     <span className="truncate">{idx + 1}. {bag.judul}</span>
-                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />}
+                    {isActive ? (
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+                    ) : isLocked ? (
+                      <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                    ) : null}
                   </button>
                 )
               })}
