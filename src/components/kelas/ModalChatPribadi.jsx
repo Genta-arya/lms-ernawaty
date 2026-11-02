@@ -25,9 +25,11 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
   const typingTimeoutRef = useRef(null)
 
   // Tentukan id unik saya dan teman
-  const myId = currentUser?.uid || profileData?.nisn
+  const myId = profileData?.nisn || currentUser?.uid
+  const myNisn = profileData?.nisn || null
   const myName = profileData?.nama || currentUser?.displayName || "Siswa"
-  const targetId = targetMurid?.uid || targetMurid?.nisn
+  const targetId = targetMurid?.nisn || targetMurid?.uid
+  const targetNisn = targetMurid?.nisn || null
   const chatId = getPrivateChatId(myId, targetId)
 
   // Realtime subscription ke pesan chat pribadi
@@ -80,7 +82,9 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
       await sendPesanPribadi({
         chatId,
         pengirimId: myId,
+        pengirimNisn: myNisn,
         penerimaId: targetId,
+        penerimaNisn: targetNisn,
         pengirimNama: myName,
         pengirimFotoUrl: profileData?.fotoUrl || currentUser?.photoURL,
         pesan: clean,
@@ -132,7 +136,7 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
                 <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Online" />
               </div>
               <p className="text-[11px] text-slate-500 truncate">
-                Obrolan Pribadi &bull; NISN: {targetMurid?.nisn}
+                Obrolan Pribadi {targetMurid?.nisn && !targetMurid?.nisn.includes("-") && !targetMurid?.nisn.startsWith("http") ? `• NISN: ${targetMurid.nisn}` : ""}
               </p>
             </div>
           </div>

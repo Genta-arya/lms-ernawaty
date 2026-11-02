@@ -65,8 +65,9 @@ export function GlobalChatNotification() {
             const bannerData = {
               id: change.doc.id,
               senderId: pengirimId,
+              senderNisn: data.pengirimNisn || (pengirimId.length <= 12 ? pengirimId : ""),
               senderName: data.pengirimNama || "Teman Kelas",
-              senderFoto: data.pengirimFoto || null,
+              senderFoto: data.pengirimFoto || data.pengirimFotoUrl || null,
               pesan: data.pesan || "",
               chatId: data.chatId,
             }
@@ -113,9 +114,9 @@ export function GlobalChatNotification() {
     if (!activeBanner) return
     const target = {
       uid: activeBanner.senderId,
-      nisn: activeBanner.senderId,
+      nisn: activeBanner.senderNisn || null,
       nama: activeBanner.senderName,
-      foto: activeBanner.senderFoto,
+      fotoUrl: activeBanner.senderFoto,
     }
     setActiveBanner(null)
     setActiveChatTarget(target)
@@ -188,3 +189,4 @@ export function GlobalChatNotification() {
     </>
   )
 }
+

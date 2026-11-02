@@ -27,7 +27,9 @@ export function getPrivateChatId(idA, idB) {
 export async function sendPesanPribadi({
   chatId,
   pengirimId,
+  pengirimNisn,
   penerimaId,
+  penerimaNisn,
   pengirimNama,
   pengirimFotoUrl,
   pesan,
@@ -42,11 +44,16 @@ export async function sendPesanPribadi({
     setTypingStatusPribadi(chatId, pengirimId, "", false).catch(() => {})
   }
 
+  const pNisn = pengirimNisn || (typeof pengirimId === "string" && !pengirimId.includes("-") && pengirimId.length <= 15 ? pengirimId : null)
+  const rNisn = penerimaNisn || (typeof penerimaId === "string" && !penerimaId.includes("-") && penerimaId.length <= 15 ? penerimaId : null)
+
   return await addDoc(collection(db, "chatPribadi"), {
     chatId,
     participants: [String(pengirimId), String(penerimaId)],
     pengirimId: String(pengirimId),
     penerimaId: String(penerimaId),
+    pengirimNisn: pNisn,
+    penerimaNisn: rNisn,
     pengirimNama: pengirimNama || "Siswa",
     pengirimFotoUrl: pengirimFotoUrl || null,
     pesan: cleanPesan,
