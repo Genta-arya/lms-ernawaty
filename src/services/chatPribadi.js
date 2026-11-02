@@ -3,7 +3,6 @@ import {
   addDoc,
   query,
   where,
-  orderBy,
   limit,
   onSnapshot,
   serverTimestamp,
@@ -49,6 +48,7 @@ export async function sendPesanPribadi({
 
 /**
  * Berlangganan pesan chat pribadi secara realtime
+ * Tidak memerlukan composite index di Firestore karena sorting dilakukan di sisi klien.
  */
 export function subscribePesanPribadi(chatId, callback) {
   if (!chatId) {
@@ -59,8 +59,7 @@ export function subscribePesanPribadi(chatId, callback) {
   const q = query(
     collection(db, "chatPribadi"),
     where("chatId", "==", chatId),
-    orderBy("createdAt", "asc"),
-    limit(80)
+    limit(100)
   )
 
   return onSnapshot(
@@ -70,6 +69,22 @@ export function subscribePesanPribadi(chatId, callback) {
         id: d.id,
         ...d.data(),
       }))
+
+      // Urutkan berdasarkan waktu di sisi klien (in-memory sort)
+      messages.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis
+          ? a.createdAt.toMillis()
+          : a.createdAt?.seconds
+          ? a.createdAt.seconds * 1000
+          : a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const timeB = b.createdAt?.toMillis
+          ? b.createdAt.toMillis()
+          : b.createdAt?.seconds
+          ? b.createdAt.seconds * 1000
+          : b.createdAt ? new Date(b.createdAt).getTime() : 0
+        return timeA - timeB
+      })
+
       callback(messages)
     },
     (err) => {

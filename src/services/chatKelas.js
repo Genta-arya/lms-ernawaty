@@ -3,7 +3,6 @@ import {
   addDoc,
   query,
   where,
-  orderBy,
   limit,
   onSnapshot,
   serverTimestamp,
@@ -39,6 +38,7 @@ export async function sendPesanKelas({
 
 /**
  * Berlangganan (realtime subscription) pesan obrolan kelas
+ * Tidak memerlukan composite index di Firestore karena sorting dilakukan di sisi klien.
  */
 export function subscribePesanKelas(kelasId, callback) {
   if (!kelasId) {
@@ -46,12 +46,11 @@ export function subscribePesanKelas(kelasId, callback) {
     return () => {}
   }
 
-  // Ambil 60 pesan terakhir
+  // Gunakan single-field filter agar TIDAK memerlukan composite index di Firebase
   const q = query(
     collection(db, "chatKelas"),
     where("kelasId", "==", kelasId),
-    orderBy("createdAt", "asc"),
-    limit(60)
+    limit(100)
   )
 
   return onSnapshot(
@@ -61,6 +60,22 @@ export function subscribePesanKelas(kelasId, callback) {
         id: d.id,
         ...d.data(),
       }))
+
+      // Urutkan berdasarkan waktu di sisi klien (in-memory sort)
+      messages.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis
+          ? a.createdAt.toMillis()
+          : a.createdAt?.seconds
+          ? a.createdAt.seconds * 1000
+          : a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const timeB = b.createdAt?.toMillis
+          ? b.createdAt.toMillis()
+          : b.createdAt?.seconds
+          ? b.createdAt.seconds * 1000
+          : b.createdAt ? new Date(b.createdAt).getTime() : 0
+        return timeA - timeB
+      })
+
       callback(messages)
     },
     (err) => {
@@ -69,4 +84,3 @@ export function subscribePesanKelas(kelasId, callback) {
     }
   )
 }
-
