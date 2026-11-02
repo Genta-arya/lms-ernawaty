@@ -16,12 +16,35 @@ import { db } from "@/lib/firebase"
 export async function getKelasList() {
   try {
     const colRef = collection(db, "kelas")
-    const snap = await getDocs(colRef)
-    const list = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-      jumlahMurid: 0,
-    }))
+    const [snap, muridSnap] = await Promise.all([
+      getDocs(colRef),
+      getDocs(collection(db, "murid")).catch(() => ({ docs: [] })),
+    ])
+
+    // Hitung jumlah murid per kelasId dan nama kelas
+    const countMap = new Map()
+    muridSnap.docs.forEach((docSnap) => {
+      const data = docSnap.data()
+      if (data.kelasId) {
+        countMap.set(data.kelasId, (countMap.get(data.kelasId) || 0) + 1)
+      }
+      if (data.kelasNama) {
+        const cleanName = data.kelasNama.replace(/^Kelas\s+/i, "").trim().toLowerCase()
+        countMap.set(cleanName, (countMap.get(cleanName) || 0) + 1)
+      }
+    })
+
+    const list = snap.docs.map((d) => {
+      const data = d.data()
+      const cleanName = (data.nama || "").replace(/^Kelas\s+/i, "").trim().toLowerCase()
+      // Hitung murid dari kelasId atau fallback dari nama kelas
+      const totalMurid = countMap.get(d.id) || countMap.get(cleanName) || 0
+      return {
+        id: d.id,
+        ...data,
+        jumlahMurid: totalMurid,
+      }
+    })
 
     // Urutkan berdasarkan tingkat lalu nama kelas
     return list.sort((a, b) => {
