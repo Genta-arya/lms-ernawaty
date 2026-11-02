@@ -6,15 +6,28 @@ function getFirebaseAdmin() {
     return admin
   }
 
-  // Coba ambil credentials dari service account JSON string
+  // Coba ambil credentials dari service account JSON string atau base64
   const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
   if (serviceAccountRaw) {
     try {
-      const serviceAccount = JSON.parse(serviceAccountRaw)
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      })
-      return admin
+      let parsed = null
+      if (typeof serviceAccountRaw === "object") {
+        parsed = serviceAccountRaw
+      } else {
+        const cleaned = serviceAccountRaw.trim()
+        parsed = JSON.parse(cleaned)
+      }
+
+      if (parsed && parsed.private_key) {
+        // Normalisasi format private key newline jika di-escape
+        if (typeof parsed.private_key === "string" && parsed.private_key.includes("\\n")) {
+          parsed.private_key = parsed.private_key.replace(/\\n/g, "\n")
+        }
+        admin.initializeApp({
+          credential: admin.credential.cert(parsed),
+        })
+        return admin
+      }
     } catch (e) {
       console.error("Gagal parse FIREBASE_SERVICE_ACCOUNT_KEY:", e)
     }
