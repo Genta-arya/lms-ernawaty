@@ -16,6 +16,9 @@ import {
   BookOpen,
   CheckCircle,
   ArrowLeft,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   FileQuestion,
   Sparkles,
   Check,
@@ -39,6 +42,7 @@ export function MateriDetail() {
   const [loading, setLoading] = useState(true)
   const [savingProgress, setSavingProgress] = useState(false)
   const [showScrollTop, setShowScrollTop] = useState(false)
+  const [currentBagianIndex, setCurrentBagianIndex] = useState(0)
 
   // Tujuan tombol kembali: jika murid/login ke /murid, jika guru ke /guru/materi, lainnya ke /murid
   const backTarget = role === "guru" ? "/guru/materi" : "/murid"
@@ -280,67 +284,157 @@ export function MateriDetail() {
             </Card>
           )}
 
-          {/* Bagian-Bagian Materi */}
-          <div className="space-y-10 min-w-0">
-            {materi.bagian?.map((bag, idx) => (
-              <section key={bag.id || idx} id={`bagian-${idx}`} className="scroll-mt-24 space-y-4 min-w-0">
-                <div className="flex items-center gap-2 border-b pb-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded shrink-0">
-                    Bagian {idx + 1}
+          {/* Breakdown Interaktif Mode LMS Per Bagian */}
+          {(!materi.bagian || materi.bagian.length === 0) ? (
+            <div className="p-8 text-center border rounded-2xl bg-slate-50/60 text-muted-foreground text-sm">
+              Materi ini belum memiliki rincian bagian modul.
+            </div>
+          ) : (
+            <div className="space-y-6 min-w-0">
+              {/* Stepper Progres Interaktif */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-white border border-blue-100/90 shadow-2xs space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span className="font-extrabold text-blue-900 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    Bagian {currentBagianIndex + 1} dari {materi.bagian.length}
                   </span>
-                  <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground break-words">
-                    {bag.judul}
-                  </h2>
+                  <span className="font-bold text-slate-500 text-[11px]">
+                    {Math.round(((currentBagianIndex + 1) / materi.bagian.length) * 100)}% selesai dibaca
+                  </span>
                 </div>
 
-                <div className="prose prose-slate rich-editor-content max-w-none text-sm sm:text-base leading-relaxed break-words overflow-x-auto">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      table: ({ node, ...props }) => (
-                        <div className="w-full overflow-x-auto my-4 rounded-xl border border-slate-200 shadow-xs">
-                          <table className="w-full text-left text-xs sm:text-sm divide-y divide-slate-200" {...props} />
-                        </div>
-                      ),
-                      pre: ({ node, ...props }) => (
-                        <pre className="overflow-x-auto p-4 rounded-xl bg-slate-900 text-slate-100 text-xs sm:text-sm leading-relaxed" {...props} />
-                      ),
-                    }}
-                  >
-                    {bag.konten}
-                  </ReactMarkdown>
+                {/* Progress bar */}
+                <div className="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${((currentBagianIndex + 1) / materi.bagian.length) * 100}%` }}
+                  />
                 </div>
-              </section>
-            ))}
-          </div>
 
-          {/* Tombol Aksi Murid: Tandai Selesai */}
-          {role === "murid" && (
-            <div className="p-6 bg-card border rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
-              <div className="text-center sm:text-left">
-                <p className="font-bold text-foreground text-sm sm:text-base">Sudah selesai membaca materi ini?</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Tandai selesai untuk menyimpan progres belajarmu ke dashboard siswa.
-                </p>
+                {/* Pill Navigasi Cepat Antar Bagian */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar">
+                  {materi.bagian.map((b, idx) => {
+                    const isCurrent = idx === currentBagianIndex
+                    const isPassed = idx < currentBagianIndex
+                    return (
+                      <button
+                        key={b.id || idx}
+                        type="button"
+                        onClick={() => {
+                          setCurrentBagianIndex(idx)
+                          scrollToTop()
+                        }}
+                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1 ${
+                          isCurrent
+                            ? "bg-blue-600 text-white shadow-xs"
+                            : isPassed
+                            ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                            : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                        }`}
+                      >
+                        {isPassed && <Check className="w-3 h-3 text-emerald-700" />}
+                        <span>Bagian {idx + 1}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-              <Button
-                onClick={handleToggleSelesai}
-                disabled={savingProgress}
-                variant={isSelesai ? "secondary" : "default"}
-                className={isSelesai ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-semibold" : "font-semibold shadow-xs"}
-              >
-                {isSelesai ? (
-                  <>
-                    <Check className="w-4 h-4 mr-2 text-emerald-600" />
-                    Selesai Dibaca
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Tandai Selesai Dibaca
-                  </>
-                )}
-              </Button>
+
+              {/* Konten Bagian yang Sedang Aktif */}
+              {(() => {
+                const bag = materi.bagian[currentBagianIndex] || materi.bagian[0]
+                const isLastBagian = currentBagianIndex === materi.bagian.length - 1
+                const isFirstBagian = currentBagianIndex === 0
+
+                return (
+                  <section id="konten-materi-aktif" className="space-y-6 min-w-0 bg-white p-5 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs">
+                    <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                      <span className="text-xs font-black uppercase tracking-wider text-blue-700 bg-blue-50 px-3 py-1 rounded-xl shrink-0 border border-blue-200/60">
+                        Bagian {currentBagianIndex + 1} dari {materi.bagian.length}
+                      </span>
+                      <h2 className="text-lg sm:text-xl font-black tracking-tight text-slate-900 break-words">
+                        {bag.judul}
+                      </h2>
+                    </div>
+
+                    <div className="prose prose-slate rich-editor-content max-w-none text-sm sm:text-base leading-relaxed break-words overflow-x-auto">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          table: ({ node, ...props }) => (
+                            <div className="w-full overflow-x-auto my-4 rounded-xl border border-slate-200 shadow-xs">
+                              <table className="w-full text-left text-xs sm:text-sm divide-y divide-slate-200" {...props} />
+                            </div>
+                          ),
+                          pre: ({ node, ...props }) => (
+                            <pre className="overflow-x-auto p-4 rounded-xl bg-slate-900 text-slate-100 text-xs sm:text-sm leading-relaxed" {...props} />
+                          ),
+                        }}
+                      >
+                        {bag.konten}
+                      </ReactMarkdown>
+                    </div>
+
+                    {/* Navigasi Interaktif Bagian Sebelumnya / Selanjutnya */}
+                    <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isFirstBagian}
+                        onClick={() => {
+                          setCurrentBagianIndex((prev) => Math.max(0, prev - 1))
+                          scrollToTop()
+                        }}
+                        className="text-xs rounded-xl font-bold gap-1.5 h-10 order-2 sm:order-1"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span>Bagian Sebelumnya</span>
+                      </Button>
+
+                      <div className="flex items-center gap-2 order-1 sm:order-2">
+                        {!isLastBagian ? (
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              setCurrentBagianIndex((prev) => Math.min(materi.bagian.length - 1, prev + 1))
+                              scrollToTop()
+                            }}
+                            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-xl font-bold gap-1.5 h-10 shadow-xs"
+                          >
+                            <span>Lanjut ke Bagian {currentBagianIndex + 2}</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          role === "murid" && (
+                            <Button
+                              type="button"
+                              onClick={handleToggleSelesai}
+                              disabled={savingProgress}
+                              className={`w-full sm:w-auto text-xs rounded-xl font-bold gap-1.5 h-10 shadow-xs ${
+                                isSelesai
+                                  ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                              }`}
+                            >
+                              {isSelesai ? (
+                                <>
+                                  <Check className="w-4 h-4 text-emerald-600" />
+                                  <span>Materi Selesai Dipelajari</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span>Tandai Semua Selesai</span>
+                                </>
+                              )}
+                            </Button>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </section>
+                )
+              })()}
             </div>
           )}
 
@@ -360,17 +454,29 @@ export function MateriDetail() {
             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
               Daftar Isi
             </span>
-            <nav className="space-y-1.5 text-xs">
-              {materi.bagian?.map((bag, idx) => (
-                <a
-                  key={bag.id || idx}
-                  href={`#bagian-${idx}`}
-                  className="block text-muted-foreground hover:text-primary transition-colors py-1 truncate"
-                  title={bag.judul}
-                >
-                  {idx + 1}. {bag.judul}
-                </a>
-              ))}
+            <nav className="space-y-1 text-xs">
+              {materi.bagian?.map((bag, idx) => {
+                const isActive = idx === currentBagianIndex
+                return (
+                  <button
+                    key={bag.id || idx}
+                    type="button"
+                    onClick={() => {
+                      setCurrentBagianIndex(idx)
+                      scrollToTop()
+                    }}
+                    className={`w-full text-left transition-colors py-1.5 px-2 rounded-lg text-xs truncate flex items-center justify-between gap-1.5 ${
+                      isActive
+                        ? "bg-blue-50 text-blue-700 font-extrabold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-slate-50"
+                    }`}
+                    title={bag.judul}
+                  >
+                    <span className="truncate">{idx + 1}. {bag.judul}</span>
+                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />}
+                  </button>
+                )
+              })}
             </nav>
 
             <hr className="my-3 border-slate-100" />
