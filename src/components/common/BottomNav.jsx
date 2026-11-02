@@ -73,7 +73,8 @@ export function BottomNav() {
   }
 
   let activeIndex = items.findIndex((item) => isTabActive(item))
-  if (activeIndex === -1) activeIndex = 0
+  // Jika path saat ini tidak sesuai dengan menu tab manapun, hide BottomNav
+  if (activeIndex === -1) return null
 
   const userFoto = profileData?.fotoUrl || currentUser?.photoURL || null
   const userNama = profileData?.nama || currentUser?.displayName || currentUser?.email || "U"
