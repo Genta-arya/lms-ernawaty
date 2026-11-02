@@ -181,6 +181,17 @@ export function Navbar() {
                     Beranda
                   </Link>
                   <Link
+                    to="/murid/kelas"
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full transition-all",
+                      pathname.startsWith("/murid/kelas")
+                        ? "bg-blue-50 text-blue-600 font-bold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
+                    )}
+                  >
+                    Kelas
+                  </Link>
+                  <Link
                     to="/murid/materi"
                     className={cn(
                       "px-3.5 py-1.5 rounded-full transition-all",

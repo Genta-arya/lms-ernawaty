@@ -609,7 +609,29 @@ export function Dashboard() {
 
       {/* Kuis Latihan & Tugas Mandiri: Hanya tampil di Desktop (di Mobile digantikan Mading & Peringkat Skor Kuis) */}
       <div className="hidden md:block space-y-4 pt-4">
-        <div className="flex items-center justify-between">
+        {/* Banner Pintasan Ruang Kelas untuk Desktop */}
+        <div className="p-5 rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 text-white flex items-center justify-between shadow-lg shadow-blue-500/10">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/15 text-[11px] font-semibold text-blue-100">
+              <GraduationCap className="w-3.5 h-3.5 text-amber-300" />
+              <span>Ruang Kelas Siswa</span>
+            </div>
+            <h3 className="text-lg font-black text-white">
+              Kelas {kelasData?.nama || profileData?.kelasNama || "Saya"}
+            </h3>
+            <p className="text-xs text-blue-100 max-w-xl">
+              Lihat teman sekelas, pantau peringkat kuis bersama, dan bandingkan nilai tugas untuk saling memotivasi belajar.
+            </p>
+          </div>
+          <Button asChild className="bg-white text-blue-700 hover:bg-blue-50 font-black text-xs rounded-2xl h-10 px-5 shadow-xs shrink-0 gap-1.5">
+            <Link to="/murid/kelas">
+              <span>Buka Ruang Kelas</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </Button>
+        </div>
+
+        <div className="flex items-center justify-between pt-2">
           <div>
             <h2 className="text-xl font-bold tracking-tight">Kuis Latihan Tersedia</h2>
             <p className="text-xs text-muted-foreground">Kerjakan latihan untuk mendapatkan skor dan pembahasan langsung.</p>
