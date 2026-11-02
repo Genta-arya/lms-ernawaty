@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
 import { getDetailKelasDanTeman } from "@/services/kelas"
 import { ChatKelasRealtime } from "@/components/kelas/ChatKelasRealtime"
@@ -27,13 +27,24 @@ import {
 
 export function MuridKelas() {
   const { currentUser, profileData } = useAuth()
+  const [searchParams] = useSearchParams()
+  const initialTab = searchParams.get("tab") === "chat" ? "chat" : "semua"
+
   const [kelasData, setKelasData] = useState(null)
   const [temanList, setTemanList] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("semua") // "semua" | "skor-kuis" | "nilai-tugas"
+  const [activeTab, setActiveTab] = useState(initialTab) // "semua" | "skor-kuis" | "nilai-tugas" | "chat"
   const [selectedMurid, setSelectedMurid] = useState(null)
   const [chatTargetMurid, setChatTargetMurid] = useState(null)
+
+  // Sinkronkan tab aktif jika parameter query berubah (misal diklik dari menu notifikasi)
+  useEffect(() => {
+    const tabParam = searchParams.get("tab")
+    if (tabParam === "chat") {
+      setActiveTab("chat")
+    }
+  }, [searchParams])
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" })
