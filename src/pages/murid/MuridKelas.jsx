@@ -34,12 +34,12 @@ export function MuridKelas() {
     window.scrollTo({ top: 0, behavior: "smooth" })
 
     async function load() {
-      if (!profileData?.kelasId) {
+      if (!profileData) {
         setLoading(false)
         return
       }
       try {
-        const { kelas, teman } = await getDetailKelasDanTeman(profileData.kelasId)
+        const { kelas, teman } = await getDetailKelasDanTeman(profileData.kelasId, profileData)
         setKelasData(kelas)
         setTemanList(teman)
       } catch (err) {
@@ -411,3 +411,4 @@ export function MuridKelas() {
     </div>
   )
 }
+

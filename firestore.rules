@@ -44,7 +44,8 @@ service cloud.firestore {
 
     match /murid/{nisn} {
       allow read, write: if isGuru();
-      allow get: if isMurid() && akun().nisn == nisn;
+      // Siswa teraktivasi dapat membaca data murid (untuk melihat teman sekelas di ruang kelas)
+      allow read: if isMurid();
       // Siswa boleh memperbarui nama profilnya sendiri
       allow update: if isMurid() && akun().nisn == nisn;
       // pencarian data sendiri berdasarkan email (untuk aktivasi otomatis)
@@ -97,7 +98,8 @@ service cloud.firestore {
         request.resource.data.nisn == akun().nisn &&
         request.resource.data.skor is number &&
         request.resource.data.skor >= 0 && request.resource.data.skor <= 100;
-      allow read: if isGuru() || (isMurid() && resource.data.uid == request.auth.uid);
+      // Siswa teraktivasi dapat membaca skor kuis (untuk leaderboard dan peringkat kelas)
+      allow read: if isGuru() || isMurid();
       allow update, delete: if isGuru();
     }
 
@@ -136,10 +138,8 @@ service cloud.firestore {
     }
 
     match /pengumpulanTugas/{id} {
-      // Guru dapat membaca semua, siswa dapat membaca pengumpulan miliknya
-      allow read: if isGuru() || (signedIn() && (
-        resource == null || resource.data.uid == request.auth.uid
-      ));
+      // Guru dapat membaca semua, siswa dapat membaca pengumpulan (termasuk nilai teman sekelas)
+      allow read: if isGuru() || isMurid();
       // Siswa dapat mengumpulkan tugasnya sendiri, guru dapat menilai
       allow create: if isGuru() || (signedIn() && request.resource.data.uid == request.auth.uid);
       allow update: if isGuru() || (signedIn() && request.resource.data.uid == request.auth.uid);
