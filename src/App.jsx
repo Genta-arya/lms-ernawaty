@@ -45,6 +45,7 @@ import { Profil as MuridProfil } from "@/pages/murid/Profil"
 import { TugasList as MuridTugasList } from "@/pages/murid/TugasList"
 import { TugasDetail as MuridTugasDetail } from "@/pages/murid/TugasDetail"
 import { MuridKelas } from "@/pages/murid/MuridKelas"
+import { GlobalChatNotification } from "@/components/kelas/GlobalChatNotification"
 
 export default function App() {
   return (
@@ -130,6 +131,8 @@ export default function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+        {/* Global Chat Toast Notification (layaknya WhatsApp) */}
+        <GlobalChatNotification />
       </ToastProvider>
     </AuthProvider>
   )
