@@ -44,6 +44,7 @@ import { Riwayat as MuridRiwayat } from "@/pages/murid/Riwayat"
 import { Profil as MuridProfil } from "@/pages/murid/Profil"
 import { TugasList as MuridTugasList } from "@/pages/murid/TugasList"
 import { TugasDetail as MuridTugasDetail } from "@/pages/murid/TugasDetail"
+import { MuridKelas } from "@/pages/murid/MuridKelas"
 
 export default function App() {
   return (
@@ -115,6 +116,7 @@ export default function App() {
           }
         >
           <Route index element={<MuridDashboard />} />
+          <Route path="kelas" element={<MuridKelas />} />
           <Route path="materi" element={<MuridMateriBelajar />} />
           <Route path="mading" element={<Mading />} />
           <Route path="tugas" element={<MuridTugasList />} />

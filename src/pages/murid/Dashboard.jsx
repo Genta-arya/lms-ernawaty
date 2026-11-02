@@ -363,16 +363,16 @@ export function Dashboard() {
 
           {/* ── BARIS KEDUA ── */}
 
-          {/* Menu 5: Kuis Latihan */}
+          {/* Menu 5: Ruang Kelas & Teman Sekelas */}
           <Link
-            to="/murid/materi"
+            to="/murid/kelas"
             className="flex flex-col items-center gap-1.5 p-1 rounded-2xl active:scale-95 transition-all group relative"
           >
             <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-violet-600 to-purple-600 text-white flex items-center justify-center shadow-md shadow-violet-500/20 group-hover:scale-105 transition-transform">
-              <FileQuestion className="w-6 h-6 stroke-[2.2]" />
+              <GraduationCap className="w-6 h-6 stroke-[2.2]" />
             </div>
             <span className="text-[11px] font-black text-slate-800 leading-tight">
-              Kuis
+              Kelas
             </span>
           </Link>
 
