@@ -96,13 +96,15 @@ export function MateriDetail() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  async function handleToggleSelesai() {
-    if (!currentUser || role !== "murid" || !materi) return
+  async function handleSelesaiMateri() {
+    if (!currentUser || role !== "murid" || !materi || isSelesai) return
     setSavingProgress(true)
     try {
-      const nextStatus = !isSelesai
-      await markMateriSelesai(currentUser.uid, profileData?.nisn || "", materi.id, nextStatus)
-      setIsSelesai(nextStatus)
+      await markMateriSelesai(currentUser.uid, profileData?.nisn || "", materi.id, true)
+      setIsSelesai(true)
+      if (materi.bagian?.length) {
+        setMaxUnlockedIndex(materi.bagian.length - 1)
+      }
     } catch (err) {
       console.error("Gagal menandai progres:", err)
     } finally {
@@ -424,28 +426,22 @@ export function MateriDetail() {
                           </Button>
                         ) : (
                           role === "murid" && (
-                            <Button
-                              type="button"
-                              onClick={handleToggleSelesai}
-                              disabled={savingProgress}
-                              className={`w-full sm:w-auto text-xs rounded-xl font-bold gap-1.5 h-10 shadow-xs ${
-                                isSelesai
-                                  ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-                                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                              }`}
-                            >
-                              {isSelesai ? (
-                                <>
-                                  <Check className="w-4 h-4 text-emerald-600" />
-                                  <span>Materi Selesai Dipelajari</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle className="w-4 h-4" />
-                                  <span>Tandai Semua Selesai</span>
-                                </>
-                              )}
-                            </Button>
+                            isSelesai ? (
+                              <div className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-xs font-bold px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                                <Check className="w-4 h-4 text-emerald-600" />
+                                <span>Materi Telah Tuntas Dipelajari</span>
+                              </div>
+                            ) : (
+                              <Button
+                                type="button"
+                                onClick={handleSelesaiMateri}
+                                disabled={savingProgress}
+                                className="w-full sm:w-auto text-xs rounded-xl font-bold gap-1.5 h-10 shadow-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                                <span>{savingProgress ? "Menyimpan Progres..." : "Selesaikan & Buka Kuis"}</span>
+                              </Button>
+                            )
                           )
                         )}
                       </div>
@@ -534,16 +530,10 @@ export function MateriDetail() {
                             </Link>
                           </Button>
                         ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleToggleSelesai}
-                            className="w-full text-xs h-8 rounded-lg font-semibold border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 gap-1.5 shadow-none"
-                            title="Tandai materi selesai dibaca untuk membuka kuis latihan"
-                          >
-                            <CheckCircle className="w-3.5 h-3.5 text-amber-600" />
-                            <span>Tandai Selesai untuk Kuis</span>
-                          </Button>
+                          <div className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-slate-100/80 border border-slate-200/80 text-[11px] font-bold text-slate-500 cursor-not-allowed">
+                            <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>Selesaikan materi untuk membuka</span>
+                          </div>
                         )
                       ) : (
                         <Button variant="outline" size="sm" asChild className="w-full text-xs h-8 rounded-lg">
