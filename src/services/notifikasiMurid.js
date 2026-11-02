@@ -234,6 +234,9 @@ export function subscribeMuridNotifications({ uid, studentNisn, studentTingkat, 
       if (msg.createdAt?.toMillis) timeMillis = msg.createdAt.toMillis()
       else if (msg.createdAt?.seconds) timeMillis = msg.createdAt.seconds * 1000
 
+      const senderIdParam = encodeURIComponent(String(msg.pengirimNisn || msg.pengirimId || ""))
+      const senderNamaParam = encodeURIComponent(String(msg.pengirimNama || "Teman"))
+
       chatNotifs.push({
         id: notifId,
         rawId: msg.id,
@@ -241,7 +244,7 @@ export function subscribeMuridNotifications({ uid, studentNisn, studentTingkat, 
         title: `Pesan Pribadi dari ${msg.pengirimNama || "Teman"}`,
         desc: msg.pesan,
         time: timeMillis,
-        link: `/murid/kelas`,
+        link: `/murid/kelas?chatWith=${senderIdParam}&chatName=${senderNamaParam}`,
         badge: "Pribadi",
         badgeColor: "bg-indigo-50 text-indigo-700 border-indigo-200",
         isUnread: !isRead,

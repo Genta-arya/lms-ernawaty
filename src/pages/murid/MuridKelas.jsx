@@ -44,7 +44,25 @@ export function MuridKelas() {
     if (tabParam === "chat") {
       setActiveTab("chat")
     }
-  }, [searchParams])
+
+    const chatWith = searchParams.get("chatWith")
+    const chatName = searchParams.get("chatName")
+    if (chatWith) {
+      // Cari teman di list atau buat target dari parameter
+      const matched = temanList.find(
+        (t) => String(t.nisn) === String(chatWith) || String(t.uid) === String(chatWith)
+      )
+      if (matched) {
+        setChatTargetMurid(matched)
+      } else {
+        setChatTargetMurid({
+          nisn: chatWith.length <= 15 ? chatWith : null,
+          uid: chatWith,
+          nama: chatName ? decodeURIComponent(chatName) : "Teman",
+        })
+      }
+    }
+  }, [searchParams, temanList])
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" })
