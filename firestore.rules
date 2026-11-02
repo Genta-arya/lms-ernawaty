@@ -156,5 +156,16 @@ service cloud.firestore {
         request.resource.data.pesan.size() <= 1000;
       allow update, delete: if isGuru() || (signedIn() && resource.data.pengirimUid == request.auth.uid);
     }
+
+    match /chatPribadi/{id} {
+      // Siswa teraktivasi dan guru dapat membaca pesan jika termasuk partisipan obrolan
+      allow read: if isGuru() || isMurid();
+      // Siswa teraktivasi dan guru dapat mengirim pesan pribadi
+      allow create: if (isMurid() || isGuru()) &&
+        request.resource.data.pesan is string &&
+        request.resource.data.pesan.size() > 0 &&
+        request.resource.data.pesan.size() <= 1000;
+      allow update, delete: if isGuru() || (signedIn() && resource.data.pengirimId == request.auth.uid);
+    }
   }
 }

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
 import { getDetailKelasDanTeman } from "@/services/kelas"
 import { ChatKelasRealtime } from "@/components/kelas/ChatKelasRealtime"
+import { ModalChatPribadi } from "@/components/kelas/ModalChatPribadi"
 import { UserAvatar } from "@/components/common/UserAvatar"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,6 +22,7 @@ import {
   Award,
   BookOpen,
   MessageSquare,
+  MessageCircle,
 } from "lucide-react"
 
 export function MuridKelas() {
@@ -31,6 +33,7 @@ export function MuridKelas() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("semua") // "semua" | "skor-kuis" | "nilai-tugas"
   const [selectedMurid, setSelectedMurid] = useState(null)
+  const [chatTargetMurid, setChatTargetMurid] = useState(null)
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -286,11 +289,35 @@ export function MuridKelas() {
                       </div>
                     </div>
                   </div>
+
+                  {!isMe && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setChatTargetMurid(murid)
+                      }}
+                      className="w-full text-xs font-bold rounded-xl h-8 gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50 mt-1"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Chat Pribadi</span>
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             )
           })}
         </div>
+      )}
+
+      {/* Modal Obrolan Pribadi Antar Siswa */}
+      {chatTargetMurid && (
+        <ModalChatPribadi
+          targetMurid={chatTargetMurid}
+          onClose={() => setChatTargetMurid(null)}
+        />
       )}
 
       {/* Modal Popup Detail Nilai & Riwayat Siswa yang Dipilih */}
@@ -405,14 +432,30 @@ export function MuridKelas() {
               )}
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setSelectedMurid(null)}
-              className="w-full text-xs font-bold rounded-xl h-10 mt-2"
-            >
-              Tutup
-            </Button>
+            <div className="flex items-center gap-2 pt-2">
+              {selectedMurid.nisn !== profileData?.nisn && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    const target = selectedMurid
+                    setSelectedMurid(null)
+                    setChatTargetMurid(target)
+                  }}
+                  className="flex-1 text-xs font-bold rounded-xl h-10 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Kirim Pesan Pribadi</span>
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSelectedMurid(null)}
+                className="flex-1 text-xs font-bold rounded-xl h-10"
+              >
+                Tutup
+              </Button>
+            </div>
           </div>
         </div>
       )}
