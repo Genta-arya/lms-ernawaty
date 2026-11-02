@@ -56,11 +56,14 @@ export function MateriBelajar() {
         setKuisList(allKuis)
         setKelasData(kData)
 
-        const pMap = {}
-        progres.forEach((p) => {
-          pMap[p.materiId] = p.selesai
-        })
-        setProgresMap(pMap)
+        // getProgresMurid mengembalikan map { [materiId]: boolean }
+        if (Array.isArray(progres)) {
+          const pMap = {};
+          progres.forEach((pr) => { pMap[pr.materiId] = pr.selesai; });
+          setProgresMap(pMap);
+        } else {
+          setProgresMap(progres || {});
+        }
       } catch (err) {
         console.error("Gagal memuat materi murid:", err)
       } finally {

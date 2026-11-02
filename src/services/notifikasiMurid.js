@@ -239,7 +239,7 @@ export function subscribeMuridNotifications({ uid, studentTingkat, studentKelasI
   )
 
   // Listener 5: Progres Baca Materi Murid
-  const qProg = query(collection(db, "progresMateri"), where("uid", "==", uid))
+  const qProg = query(collection(db, "progres"), where("uid", "==", uid))
   const unsubProg = onSnapshot(
     qProg,
     (snap) => {
