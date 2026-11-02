@@ -7,6 +7,7 @@ import {
   subscribePesanPribadi,
   setTypingStatusPribadi,
   subscribeTypingPribadi,
+  markPesanPribadiAsRead,
 } from "@/services/chatPribadi"
 import { subscribeSinglePresence } from "@/services/presence"
 import { UserAvatar } from "@/components/common/UserAvatar"
@@ -35,14 +36,17 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
   const targetNisn = targetMurid?.nisn || null
   const chatId = getPrivateChatId(myId, targetId)
 
-  // Realtime subscription ke pesan chat pribadi
+  // Realtime subscription ke pesan chat pribadi & tandai sudah dibaca
   useEffect(() => {
     if (!chatId) return
     const unsubscribe = subscribePesanPribadi(chatId, (msgs) => {
       setMessages(msgs)
+      // Tandai semua pesan dari teman ini sebagai dibaca sehingga badge unread hilang
+      if (targetMurid?.nisn) markPesanPribadiAsRead(targetMurid.nisn)
+      if (targetMurid?.uid) markPesanPribadiAsRead(targetMurid.uid)
     })
     return () => unsubscribe()
-  }, [chatId])
+  }, [chatId, targetMurid?.nisn, targetMurid?.uid])
 
   // Realtime subscription status lawan bicara mengetik
   useEffect(() => {

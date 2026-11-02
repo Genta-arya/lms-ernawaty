@@ -10,23 +10,26 @@ const ONLINE_THRESHOLD = 75000   // Dianggap online jika detak terakhir < 75 det
 export function startUserPresence(userId, userName, role = "murid", nisn = null) {
   if (!userId) return () => {}
 
-  const userDocRef = doc(db, "userPresence", String(userId))
+  const uidDocRef = doc(db, "userPresence", String(userId))
+  const nisnDocRef = nisn ? doc(db, "userPresence", String(nisn)) : null
 
   const updateStatus = async (isOnline) => {
     try {
-      await setDoc(
-        userDocRef,
-        {
-          userId: String(userId),
-          userName: userName || "Pengguna",
-          role,
-          nisn: nisn || null,
-          isOnline,
-          lastSeen: serverTimestamp(),
-          clientTime: Date.now(),
-        },
-        { merge: true }
-      )
+      const payload = {
+        userId: String(userId),
+        userName: userName || "Pengguna",
+        role,
+        nisn: nisn || null,
+        isOnline,
+        lastSeen: serverTimestamp(),
+        clientTime: Date.now(),
+      }
+
+      const tasks = [setDoc(uidDocRef, payload, { merge: true })]
+      if (nisnDocRef) {
+        tasks.push(setDoc(nisnDocRef, payload, { merge: true }))
+      }
+      await Promise.all(tasks)
     } catch (_) {}
   }
 

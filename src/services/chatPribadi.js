@@ -13,6 +13,26 @@ import {
 import { db } from "@/lib/firebase"
 
 /**
+ * Menandai semua pesan dari pengirim tertentu (atau chatId) sebagai sudah dibaca
+ */
+export function markPesanPribadiAsRead(senderIdentifier) {
+  if (!senderIdentifier) return
+  try {
+    const raw = localStorage.getItem("lsm_erna_murid_read_notifications_v3")
+    const current = raw ? JSON.parse(raw) : []
+    const marker = `chat_read_sender_${String(senderIdentifier)}`
+    if (!current.includes(marker)) {
+      current.push(marker)
+      localStorage.setItem("lsm_erna_murid_read_notifications_v3", JSON.stringify(current))
+      // Trigger event storage agar listener lokal segera update
+      window.dispatchEvent(new Event("storage"))
+    }
+  } catch (e) {
+    console.warn("Gagal update status baca chat:", e)
+  }
+}
+
+/**
  * Menghasilkan chatId unik yang deterministik dari dua identifier (uid atau nisn)
  * sehingga urutan A dan B selalu menghasilkan chatId yang persis sama.
  */
@@ -162,11 +182,25 @@ export function subscribeUnreadPribadiCounts(myIdentifiers = [], callback) {
       const unreadMap = {}
       snap.docs.forEach((d) => {
         const notifId = `chat_pribadi_${d.id}`
-        if (!readIds.includes(notifId)) {
-          const data = d.data()
-          const senderId = String(data.pengirimNisn || data.pengirimId || "")
-          if (senderId) {
-            unreadMap[senderId] = (unreadMap[senderId] || 0) + 1
+        const data = d.data()
+        const senderId = String(data.pengirimNisn || data.pengirimId || "")
+        const senderUid = String(data.pengirimId || "")
+        const senderNisn = String(data.pengirimNisn || "")
+
+        // Cek apakah pesan atau pengirim sudah ditandai baca
+        const isRead =
+          readIds.includes(notifId) ||
+          (senderId && readIds.includes(`chat_read_sender_${senderId}`)) ||
+          (senderUid && readIds.includes(`chat_read_sender_${senderUid}`)) ||
+          (senderNisn && readIds.includes(`chat_read_sender_${senderNisn}`))
+
+        if (!isRead && senderId) {
+          unreadMap[senderId] = (unreadMap[senderId] || 0) + 1
+          if (senderUid && senderUid !== senderId) {
+            unreadMap[senderUid] = (unreadMap[senderUid] || 0) + 1
+          }
+          if (senderNisn && senderNisn !== senderId) {
+            unreadMap[senderNisn] = (unreadMap[senderNisn] || 0) + 1
           }
         }
       })

@@ -114,6 +114,15 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Jalankan heartbeat presence online pengguna
+  useEffect(() => {
+    if (!currentUser?.uid) return
+    const name = profileData?.nama || currentUser.displayName || "Pengguna"
+    const nisn = profileData?.nisn || null
+    const cleanup = startUserPresence(currentUser.uid, name, role, nisn)
+    return () => cleanup()
+  }, [currentUser?.uid, profileData?.nama, profileData?.nisn, role])
+
   useEffect(() => {
     // Tangani hasil kembalian dari login redirect di tab yang sama
     async function handleRedirect() {
