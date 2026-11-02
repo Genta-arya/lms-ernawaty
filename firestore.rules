@@ -181,5 +181,9 @@ service cloud.firestore {
     match /userPresence/{id} {
       allow read, write: if signedIn();
     }
+
+    match /fcmTokens/{id} {
+      allow read, write: if signedIn();
+    }
   }
 }

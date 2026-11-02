@@ -19,7 +19,7 @@ const firebaseConfig = {
 }
 
 // Inisialisasi Firebase App
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp()
+export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp()
 
 export const auth = getAuth(app)
 // Pastikan sesi login disimpan permanen di Local Storage browser

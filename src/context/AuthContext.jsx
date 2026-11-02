@@ -12,6 +12,7 @@ import { doc, getDoc } from "firebase/firestore"
 import { auth, db, googleProvider } from "@/lib/firebase"
 import { checkAutoActivation } from "@/services/klaim"
 import { startUserPresence } from "@/services/presence"
+import { requestNotificationPermissionAndGetToken, onForegroundMessage } from "@/services/fcm"
 
 const AuthContext = createContext(null)
 
@@ -114,13 +115,26 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Jalankan heartbeat presence online pengguna
+  // Jalankan heartbeat presence online pengguna & inisialisasi FCM
   useEffect(() => {
     if (!currentUser?.uid) return
     const name = profileData?.nama || currentUser.displayName || "Pengguna"
     const nisn = profileData?.nisn || null
     const cleanup = startUserPresence(currentUser.uid, name, role, nisn)
-    return () => cleanup()
+
+    // Request token FCM jika pengguna mengizinkan notifikasi browser
+    requestNotificationPermissionAndGetToken(currentUser.uid, nisn).catch(() => {})
+
+    // Listener pesan foreground FCM
+    let unsubForeground = () => {}
+    onForegroundMessage(() => {}).then((fn) => {
+      if (typeof fn === "function") unsubForeground = fn
+    }).catch(() => {})
+
+    return () => {
+      cleanup()
+      unsubForeground()
+    }
   }, [currentUser?.uid, profileData?.nama, profileData?.nisn, role])
 
   useEffect(() => {
