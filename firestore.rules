@@ -169,11 +169,11 @@ service cloud.firestore {
     }
 
     match /typingKelas/{id} {
-      allow read, write: if isMurid() || isGuru();
+      allow read, write: if signedIn();
     }
 
     match /typingPribadi/{id} {
-      allow read, write: if isMurid() || isGuru();
+      allow read, write: if signedIn();
     }
   }
 }
