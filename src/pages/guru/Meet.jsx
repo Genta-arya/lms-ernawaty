@@ -23,6 +23,7 @@ import {
   Users,
   Sparkles,
   ExternalLink,
+  ShieldAlert,
 } from "lucide-react"
 
 export function GuruMeet() {

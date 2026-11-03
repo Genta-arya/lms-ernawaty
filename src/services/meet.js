@@ -55,6 +55,35 @@ export async function createSesiMeet({
     throw new Error("Judul, kelas sasaran, dan guru pengampu wajib diisi.")
   }
 
+  const targetDate = waktuMulai ? new Date(waktuMulai) : new Date()
+
+  // Validasi: hanya boleh 1 sesi aktif di kelas yang sama pada hari yang sama
+  try {
+    const qCheck = query(
+      collection(db, COLLECTION_NAME),
+      where("kelasId", "in", [kelasId, "semua"]),
+      where("status", "==", "berlangsung")
+    )
+    const snapCheck = await getDocs(qCheck)
+    const activeSameDay = snapCheck.docs.find((d) => {
+      const s = d.data()
+      const sDate = s.waktuMulai?.toDate ? s.waktuMulai.toDate() : new Date(s.waktuMulai || s.createdAt)
+      return (
+        sDate.getFullYear() === targetDate.getFullYear() &&
+        sDate.getMonth() === targetDate.getMonth() &&
+        sDate.getDate() === targetDate.getDate()
+      )
+    })
+    if (activeSameDay) {
+      throw new Error(
+        `Masih ada sesi tatap muka yang aktif (LIVE BERLANGSUNG) di kelas ini pada hari yang sama ("${activeSameDay.data().judul}"). Silakan akhiri sesi aktif tersebut terlebih dahulu sebelum membuat sesi baru.`
+      )
+    }
+  } catch (err) {
+    if (err.message?.includes("LIVE BERLANGSUNG")) throw err
+    console.warn("Gagal cek validasi sesi aktif:", err)
+  }
+
   const randomStr = Math.random().toString(36).substring(2, 8)
   const channelName = `meet_${kelasId.replace(/[^a-zA-Z0-9]/g, "")}_${Date.now()}_${randomStr}`
 
