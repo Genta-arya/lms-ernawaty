@@ -206,42 +206,45 @@ export async function setActiveScreenSharer(channelName, userAccount) {
 }
 
 /**
- * Guru melakukan force mute kepada peserta tertentu
+ * Guru melakukan force mute kepada peserta tertentu (trigger signal sekali lewat timestamp)
  */
 export async function forceMuteUser(channelName, targetUserAccount) {
   if (!channelName || !targetUserAccount) return
   const docRef = doc(db, "meetControls", channelName)
-  const { arrayUnion, setDoc } = await import("firebase/firestore")
+  const { setDoc } = await import("firebase/firestore")
   await updateDoc(docRef, {
-    mutedUsers: arrayUnion(targetUserAccount),
+    lastMutedUser: { user: targetUserAccount, at: Date.now() },
     updatedAt: serverTimestamp(),
   }).catch(async () => {
     await setDoc(docRef, {
       channelName,
       activeSharer: null,
-      mutedUsers: [targetUserAccount],
-      kickedUsers: [],
+      lastMutedUser: { user: targetUserAccount, at: Date.now() },
+      kickedUsers: {},
       updatedAt: serverTimestamp(),
     })
   })
 }
 
 /**
- * Guru melakukan kick (keluarkan) peserta dari sesi meet
+ * Guru melakukan kick (keluarkan) peserta dari sesi meet dengan timestamp timeout (misal 15 detik)
+ * Setelah 15 detik, siswa bisa kembali bergabung.
  */
 export async function forceKickUser(channelName, targetUserAccount) {
   if (!channelName || !targetUserAccount) return
   const docRef = doc(db, "meetControls", channelName)
-  const { arrayUnion, setDoc } = await import("firebase/firestore")
+  const { setDoc } = await import("firebase/firestore")
+  const kickUntil = Date.now() + 15000 // Diblokir selama 15 detik, setelah itu dapat masuk kembali
+
   await updateDoc(docRef, {
-    kickedUsers: arrayUnion(targetUserAccount),
+    [`kickedUsers.${targetUserAccount}`]: kickUntil,
     updatedAt: serverTimestamp(),
   }).catch(async () => {
     await setDoc(docRef, {
       channelName,
       activeSharer: null,
-      mutedUsers: [],
-      kickedUsers: [targetUserAccount],
+      lastMutedUser: null,
+      kickedUsers: { [targetUserAccount]: kickUntil },
       updatedAt: serverTimestamp(),
     })
   })

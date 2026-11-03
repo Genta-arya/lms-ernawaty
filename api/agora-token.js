@@ -40,10 +40,9 @@ export default async function handler(req, res) {
     const cleanUserAccount = (userAccount || "Peserta").trim()
     const rtcRole = role === "subscriber" ? RtcRole.SUBSCRIBER : RtcRole.PUBLISHER
 
-    // Durasi token berlaku (24 jam)
+    // Durasi token berlaku dalam detik (24 jam)
+    // Di agora-token v2, tokenExpire dan privilegeExpire adalah durasi dalam detik (seconds elapsed since now), bukan epoch timestamp!
     const expirationTimeInSeconds = 3600 * 24
-    const currentTimestamp = Math.floor(Date.now() / 1000)
-    const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds
 
     // Gunakan buildTokenWithUserAccount agar nama asli langsung terikat di Agora SDK
     const token = RtcTokenBuilder.buildTokenWithUserAccount(
@@ -52,8 +51,8 @@ export default async function handler(req, res) {
       channelName,
       cleanUserAccount,
       rtcRole,
-      currentTimestamp,
-      privilegeExpiredTs
+      expirationTimeInSeconds,
+      expirationTimeInSeconds
     )
 
     return res.status(200).json({
@@ -61,7 +60,7 @@ export default async function handler(req, res) {
       appId: AGORA_APP_ID,
       channelName,
       userAccount: cleanUserAccount,
-      expiresAt: privilegeExpiredTs,
+      expiresIn: expirationTimeInSeconds,
     })
   } catch (error) {
     console.error("Gagal generate Agora token:", error)

@@ -37,6 +37,7 @@ export function AgoraMeetRoom({
   const [cameraOn, setCameraOn] = useState(true)
   const [isScreenSharing, setIsScreenSharing] = useState(false)
   const [remoteUsers, setRemoteUsers] = useState([])
+  const [speakingUsers, setSpeakingUsers] = useState({}) // { [uid]: boolean }
   const [errorMsg, setErrorMsg] = useState("")
 
   // Realtime meet controls (Zoom-like features)
@@ -48,6 +49,7 @@ export function AgoraMeetRoom({
   const screenTrackRef = useRef(null)
   const localVideoRef = useRef(null)
   const activeSharerVideoRef = useRef(null)
+  const lastProcessedMuteRef = useRef(0)
 
   // 1. Berlangganan kontrol realtime sesi meet (Host controls: mute, kick, sharescreen lock)
   useEffect(() => {
@@ -55,18 +57,23 @@ export function AgoraMeetRoom({
     const unsub = subscribeMeetControls(channelName, (controls) => {
       setActiveSharer(controls?.activeSharer || null)
 
-      // Cek apakah saya kena force kick oleh guru
-      if (!isGuru && controls?.kickedUsers?.includes(userNama)) {
-        alert("Anda telah dikeluarkan dari sesi meet oleh guru pengajar.")
+      // Cek apakah saya kena force kick oleh guru dan kick masih aktif
+      const kickUntil = controls?.kickedUsers?.[userNama]
+      if (!isGuru && kickUntil && Date.now() < kickUntil) {
+        alert("Anda dikeluarkan dari sesi meet oleh guru pengajar. Anda dapat bergabung kembali setelah beberapa saat.")
         leaveChannel()
         return
       }
 
-      // Cek apakah saya kena force mute oleh guru
-      if (!isGuru && controls?.mutedUsers?.includes(userNama)) {
-        if (localTracksRef.current.audioTrack && micOn) {
-          localTracksRef.current.audioTrack.setEnabled(false)
-          setMicOn(false)
+      // Cek apakah saya kena force mute oleh guru (one-time signal)
+      if (!isGuru && controls?.lastMutedUser?.user === userNama) {
+        const muteTs = controls.lastMutedUser.at || 0
+        if (muteTs > lastProcessedMuteRef.current) {
+          lastProcessedMuteRef.current = muteTs
+          if (localTracksRef.current.audioTrack && micOn) {
+            localTracksRef.current.audioTrack.setEnabled(false)
+            setMicOn(false)
+          }
         }
       }
     })
@@ -99,10 +106,10 @@ export function AgoraMeetRoom({
         console.warn("Gagal subscribe ke remote track:", subErr)
       }
 
-      // Pastikan state selalu clone objek user agar React mendeteksi perubahan videoTrack
+      // Pastikan state selalu clone objek user agar React mendeteksi perubahan videoTrack & hasAudio
       setRemoteUsers((prev) => {
         const filtered = prev.filter((u) => u.uid !== user.uid)
-        return [...filtered, user]
+        return [...filtered, { ...user, hasAudio: user.hasAudio, hasVideo: user.hasVideo }]
       })
 
       if (mediaType === "audio") {
@@ -113,8 +120,19 @@ export function AgoraMeetRoom({
     client.on("user-unpublished", (user, mediaType) => {
       setRemoteUsers((prev) => {
         const filtered = prev.filter((u) => u.uid !== user.uid)
-        return [...filtered, user]
+        return [...filtered, { ...user, hasAudio: user.hasAudio, hasVideo: user.hasVideo }]
       })
+    })
+
+    // Volume level indicator listener
+    client.on("volume-indicator", (volumes) => {
+      const activeMap = {}
+      volumes.forEach((v) => {
+        if (v.level > 5) {
+          activeMap[v.uid] = true
+        }
+      })
+      setSpeakingUsers(activeMap)
     })
 
     client.on("user-left", (user) => {
@@ -124,6 +142,11 @@ export function AgoraMeetRoom({
     async function initCall() {
       try {
         setConnecting(true)
+        // Aktifkan indikator deteksi suara berbicara
+        try {
+          client.enableAudioVolumeIndicator()
+        } catch (_) {}
+
         const tokenData = await fetchAgoraToken(channelName, userNama)
         const appId = tokenData.appId || "5960c48ec498439798df7c0d1249ae4d"
         const token = tokenData.token
@@ -534,9 +557,12 @@ export function AgoraMeetRoom({
                   const wrapperClass = isLastOddItem ? "col-span-2 w-full" : "col-span-1 w-full"
 
                   if (p.isLocal) {
+                    const isSpeaking = speakingUsers[userNama]
                     return (
                       <div key="local-user" className={wrapperClass}>
-                        <div className={`relative rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800/80 overflow-hidden shadow-xl flex items-center justify-center w-full ${
+                        <div className={`relative rounded-2xl sm:rounded-3xl bg-slate-900 border overflow-hidden shadow-xl flex items-center justify-center w-full transition-all duration-200 ${
+                          isSpeaking ? "ring-2 ring-emerald-400 border-emerald-400" : "border-slate-800/80"
+                        } ${
                           isLastOddItem ? "aspect-[21/9] sm:aspect-[24/9] max-h-[38vh]" : "aspect-video"
                         }`}>
                           <div
@@ -553,7 +579,14 @@ export function AgoraMeetRoom({
                           )}
                           <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 shadow-md">
                             <span>{userNama} (Saya)</span>
-                            {!micOn && <MicOff className="w-3.5 h-3.5 text-rose-400" />}
+                            {isSpeaking ? (
+                              <span className="flex items-center gap-1 text-emerald-400 font-extrabold text-[11px]">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                                <Mic className="w-3.5 h-3.5" />
+                              </span>
+                            ) : !micOn ? (
+                              <MicOff className="w-3.5 h-3.5 text-rose-400" />
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -564,6 +597,7 @@ export function AgoraMeetRoom({
                     <div key={p.uid} className={wrapperClass}>
                       <RemoteUserVideoCard
                         user={p.user}
+                        isSpeaking={speakingUsers[p.uid]}
                         isGuruHost={isGuru}
                         isFullSpan={isLastOddItem}
                         onMute={() => handleMuteMurid(p.uid)}
@@ -722,7 +756,7 @@ export function AgoraMeetRoom({
   )
 }
 
-function RemoteUserVideoCard({ user, compact = false, isFullSpan = false, isGuruHost = false, onMute, onKick }) {
+function RemoteUserVideoCard({ user, compact = false, isFullSpan = false, isSpeaking = false, isGuruHost = false, onMute, onKick }) {
   const containerRef = useRef(null)
   const [hasVideoTrack, setHasVideoTrack] = useState(!!user.videoTrack)
 
@@ -758,7 +792,9 @@ function RemoteUserVideoCard({ user, compact = false, isFullSpan = false, isGuru
 
   return (
     <div
-      className={`relative rounded-2xl bg-slate-900 border border-slate-800/80 overflow-hidden shadow-xl flex items-center justify-center w-full group shrink-0 ${
+      className={`relative rounded-2xl bg-slate-900 border overflow-hidden shadow-xl flex items-center justify-center w-full group shrink-0 transition-all duration-200 ${
+        isSpeaking ? "ring-2 ring-emerald-400 border-emerald-400" : "border-slate-800/80"
+      } ${
         compact
           ? "h-full aspect-video"
           : isFullSpan
@@ -790,10 +826,17 @@ function RemoteUserVideoCard({ user, compact = false, isFullSpan = false, isGuru
         </div>
       )}
 
-      {/* Label Nama Peserta */}
+      {/* Label Nama Peserta & Indikator Suara */}
       <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-xl text-[11px] font-bold text-white flex items-center gap-1.5 shadow-md">
         <span className="truncate max-w-[120px]">{displayName}</span>
-        {!user.hasAudio && <MicOff className="w-3 h-3 text-rose-400" />}
+        {isSpeaking ? (
+          <span className="flex items-center gap-1 text-emerald-400 font-extrabold text-[10px]">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+            <Mic className="w-3 h-3" />
+          </span>
+        ) : !user.hasAudio ? (
+          <MicOff className="w-3 h-3 text-rose-400" />
+        ) : null}
       </div>
 
       {/* Host Action Hover Buttons (Khusus Guru Pengajar) */}
