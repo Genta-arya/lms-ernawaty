@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { DashboardMuridSkeleton } from "@/components/ui/loading-skeletons"
 import { PengumumanCarousel } from "@/components/pengumuman/PengumumanCarousel"
+import { ModalDetailGuru } from "@/components/guru/ModalDetailGuru"
 import {
   BookOpen,
   FileQuestion,
@@ -61,6 +62,7 @@ export function Dashboard() {
   const [pengumumanList, setPengumumanList] = useState([])
   const [karyaList, setKaryaList] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isGuruModalOpen, setIsGuruModalOpen] = useState(false)
 
   // Filter Search & Status Selesai
   const [searchQuery, setSearchQuery] = useState("")
@@ -393,25 +395,19 @@ export function Dashboard() {
             </span>
           </a>
 
-          {/* Menu 7: Pengumuman Sekolah */}
-          <a
-            href="#pengumuman-guru"
-            onClick={(e) => {
-              e.preventDefault()
-              window.scrollTo({ top: 0, behavior: "smooth" })
-            }}
-            className="flex flex-col items-center gap-1.5 p-1 rounded-2xl active:scale-95 transition-all group relative"
+          {/* Menu 7: Info Guru Pengampu */}
+          <button
+            type="button"
+            onClick={() => setIsGuruModalOpen(true)}
+            className="flex flex-col items-center gap-1.5 p-1 rounded-2xl active:scale-95 transition-all group relative text-center"
           >
-            <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-sky-500 to-cyan-600 text-white flex items-center justify-center shadow-md shadow-sky-500/20 group-hover:scale-105 transition-transform relative">
-              <Megaphone className="w-6 h-6 stroke-[2.2]" />
-              {activeAnnouncements.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white" />
-              )}
+            <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-indigo-500 to-blue-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform relative">
+              <GraduationCap className="w-6 h-6 stroke-[2.2]" />
             </div>
             <span className="text-[11px] font-black text-slate-800 leading-tight">
               Info Guru
             </span>
-          </a>
+          </button>
 
           {/* Menu 8: Profil Siswa */}
           <Link
@@ -822,6 +818,12 @@ export function Dashboard() {
 
       {/* Grid: Kuis Latihan */}
 
+      {/* Modal Detail Guru Pengampu */}
+      <ModalDetailGuru
+        isOpen={isGuruModalOpen}
+        onClose={() => setIsGuruModalOpen(false)}
+        guruData={guruData}
+      />
     </div>
   )
 }
