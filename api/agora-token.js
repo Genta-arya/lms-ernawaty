@@ -6,7 +6,7 @@ const AGORA_APP_ID = process.env.AGORA_APP_ID || "5960c48ec498439798df7c0d1249ae
 const AGORA_APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE || "3adf9df6ca3b43e19f35e5b70705a097"
 
 export default async function handler(req, res) {
-  // Aktifkan CORS agar aman dipanggil
+  // Aktifkan CORS
   res.setHeader("Access-Control-Allow-Credentials", true)
   res.setHeader("Access-Control-Allow-Origin", "*")
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS,PATCH,DELETE,POST,PUT")
@@ -31,27 +31,26 @@ export default async function handler(req, res) {
       } catch (_) {}
     }
 
-    const { channelName, uid, role } = body || {}
+    const { channelName, userAccount, role } = body || {}
 
     if (!channelName) {
       return res.status(400).json({ error: "channelName is required" })
     }
 
-    // Role publisher untuk bisa berbicara dan menyalakan kamera
+    const cleanUserAccount = (userAccount || "Peserta").trim()
     const rtcRole = role === "subscriber" ? RtcRole.SUBSCRIBER : RtcRole.PUBLISHER
 
-    // Durasi token berlaku (misal 24 jam)
+    // Durasi token berlaku (24 jam)
     const expirationTimeInSeconds = 3600 * 24
     const currentTimestamp = Math.floor(Date.now() / 1000)
     const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds
 
-    const userUid = uid ? Number(uid) || 0 : 0
-
-    const token = RtcTokenBuilder.buildTokenWithUid(
+    // Gunakan buildTokenWithUserAccount agar nama asli langsung terikat di Agora SDK
+    const token = RtcTokenBuilder.buildTokenWithUserAccount(
       AGORA_APP_ID,
       AGORA_APP_CERTIFICATE,
       channelName,
-      userUid,
+      cleanUserAccount,
       rtcRole,
       currentTimestamp,
       privilegeExpiredTs
@@ -61,7 +60,7 @@ export default async function handler(req, res) {
       token,
       appId: AGORA_APP_ID,
       channelName,
-      uid: userUid,
+      userAccount: cleanUserAccount,
       expiresAt: privilegeExpiredTs,
     })
   } catch (error) {

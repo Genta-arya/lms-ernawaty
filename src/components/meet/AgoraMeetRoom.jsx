@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import AgoraRTC from "agora-rtc-sdk-ng"
 import { fetchAgoraToken } from "@/services/meet"
 import { Button } from "@/components/ui/button"
@@ -12,8 +13,6 @@ import {
   Monitor,
   Users,
   Settings,
-  Maximize2,
-  Minimize2,
   Sparkles,
 } from "lucide-react"
 
@@ -39,6 +38,9 @@ export function AgoraMeetRoom({
 
   useEffect(() => {
     let mounted = true
+
+    // Kunci scroll halaman utama saat meet aktif
+    document.body.style.overflow = "hidden"
 
     // Buat client Agora RTC
     const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" })
@@ -73,13 +75,13 @@ export function AgoraMeetRoom({
     async function initCall() {
       try {
         setConnecting(true)
-        // Dapatkan token dinamis dari backend serverless
-        const tokenData = await fetchAgoraToken(channelName)
+        // Ambil token resmi berbasis userAccount (Nama Peserta)
+        const tokenData = await fetchAgoraToken(channelName, userNama)
         const appId = tokenData.appId || "5960c48ec498439798df7c0d1249ae4d"
-        const token = tokenData.token || null
+        const token = tokenData.token
 
-        // Gabung channel
-        const uid = await client.join(appId, channelName, token, null)
+        // Gabung channel menggunakan userAccount (String nama)
+        await client.join(appId, channelName, token, userNama)
 
         // Buat local audio & video track
         try {
@@ -90,7 +92,7 @@ export function AgoraMeetRoom({
 
           localTracksRef.current = { audioTrack, videoTrack }
 
-          // Putar video lokal
+          // Putar video lokal ke elemen DOM
           if (localVideoRef.current && videoTrack) {
             localVideoRef.current.innerHTML = ""
             videoTrack.play(localVideoRef.current)
@@ -99,8 +101,7 @@ export function AgoraMeetRoom({
           // Publikasikan track ke channel
           await client.publish([audioTrack, videoTrack])
         } catch (deviceErr) {
-          console.warn("Gagal akses kamera/mic, mencoba audio saja:", deviceErr)
-          // Fallback coba audio saja jika kamera tidak tersedia / ditolak
+          console.warn("Kamera tidak dapat diakses, mencoba mic saja:", deviceErr)
           try {
             const audioTrack = await AgoraRTC.createMicrophoneAudioTrack()
             localTracksRef.current.audioTrack = audioTrack
@@ -117,7 +118,7 @@ export function AgoraMeetRoom({
           setConnecting(false)
         }
       } catch (err) {
-        console.error("Gagal bergabung ke sesi Agora Meet:", err)
+        console.error("Gagal bergabung ke sesi Meet LSM:", err)
         if (mounted) {
           setErrorMsg(err.message || "Gagal menghubungkan ke ruang meet.")
           setConnecting(false)
@@ -129,11 +130,12 @@ export function AgoraMeetRoom({
 
     return () => {
       mounted = false
+      document.body.style.overflow = "auto"
       leaveChannel()
     }
-  }, [channelName])
+  }, [channelName, userNama])
 
-  // Pastikan video lokal selalu terputar di elemen container saat track siap
+  // Pastikan video lokal selalu di-render saat kamera aktif
   useEffect(() => {
     const vTrack = localTracksRef.current?.videoTrack
     if (vTrack && localVideoRef.current && cameraOn && !isScreenSharing) {
@@ -167,6 +169,7 @@ export function AgoraMeetRoom({
     } catch (e) {
       console.warn("Error leaving Agora channel:", e)
     } finally {
+      document.body.style.overflow = "auto"
       setJoined(false)
       if (onLeave) onLeave()
     }
@@ -214,14 +217,13 @@ export function AgoraMeetRoom({
         const screenTrack = await AgoraRTC.createScreenVideoTrack({}, "disable")
         screenTrackRef.current = screenTrack
 
-        // Unpublish video kamera lokal jika ada
         if (localTracksRef.current.videoTrack) {
           await client.unpublish(localTracksRef.current.videoTrack)
         }
 
-        // Publish screen track
         await client.publish(screenTrack)
         if (localVideoRef.current) {
+          localVideoRef.current.innerHTML = ""
           screenTrack.play(localVideoRef.current)
         }
 
@@ -246,7 +248,6 @@ export function AgoraMeetRoom({
       screenTrackRef.current.close()
       screenTrackRef.current = null
 
-      // Publish kembali kamera lokal
       if (localTracksRef.current.videoTrack) {
         await client.publish(localTracksRef.current.videoTrack)
         if (localVideoRef.current) {
@@ -258,10 +259,11 @@ export function AgoraMeetRoom({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[9999] bg-slate-950 flex flex-col text-white animate-in fade-in duration-200 w-screen h-screen overflow-hidden">
+  // Render menggunakan React Portal langsung ke document.body agar tidak terpotong navbar atau overflow container
+  return createPortal(
+    <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[999999] bg-slate-950 flex flex-col text-white w-screen h-screen overflow-hidden animate-in fade-in duration-200">
       {/* Top Bar Header */}
-      <div className="p-3.5 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between gap-3 backdrop-blur-md">
+      <div className="p-3.5 sm:p-4 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between gap-3 backdrop-blur-md shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-md">
             <Video className="w-4 h-4" />
@@ -272,7 +274,7 @@ export function AgoraMeetRoom({
             </h2>
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Meet LSM</span>
+              <span className="font-bold text-emerald-400">Meet LSM</span>
               <span>&bull;</span>
               <span>{remoteUsers.length + 1} Peserta Terhubung</span>
             </div>
@@ -292,7 +294,7 @@ export function AgoraMeetRoom({
           <div className="text-center space-y-3">
             <div className="w-12 h-12 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-sm font-semibold text-slate-300">
-              Menghubungkan ke ruang meet Agora...
+              Menghubungkan ke ruang Meet LSM...
             </p>
             <p className="text-xs text-slate-500 max-w-xs mx-auto">
               Mohon izinkan akses mikrofon dan kamera di browser Anda jika diminta.
@@ -321,7 +323,10 @@ export function AgoraMeetRoom({
           >
             {/* Video Lokal (Saya) */}
             <div className="relative rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl flex items-center justify-center min-h-[220px]">
-              <div ref={localVideoRef} className="w-full h-full min-h-[220px] bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover" />
+              <div
+                ref={localVideoRef}
+                className="w-full h-full min-h-[220px] bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
+              />
               {!cameraOn && !isScreenSharing && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 space-y-2">
                   <div className="w-16 h-16 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-black text-xl ring-2 ring-blue-500/20">
@@ -330,7 +335,7 @@ export function AgoraMeetRoom({
                   <span className="text-xs font-semibold">Kamera Dinonaktifkan</span>
                 </div>
               )}
-              <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-xl text-[11px] font-bold text-white flex items-center gap-1.5">
+              <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-xl text-[11px] font-bold text-white flex items-center gap-1.5 shadow-xs">
                 <span>{userNama} (Saya)</span>
                 {!micOn && <MicOff className="w-3 h-3 text-rose-400" />}
               </div>
@@ -398,7 +403,8 @@ export function AgoraMeetRoom({
           <span className="hidden sm:inline">Tinggalkan Sesi</span>
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -407,18 +413,27 @@ function RemoteUserVideoCard({ user }) {
 
   useEffect(() => {
     if (user.videoTrack && containerRef.current) {
+      containerRef.current.innerHTML = ""
       user.videoTrack.play(containerRef.current)
     }
   }, [user.videoTrack])
 
+  // user.uid sekarang berisi String nama peserta (userAccount) jika join dengan userAccount, atau string angka
+  const displayName =
+    typeof user.uid === "string" && isNaN(Number(user.uid))
+      ? user.uid
+      : `Peserta #${String(user.uid).slice(-4)}`
+
   return (
     <div className="relative rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl flex items-center justify-center min-h-[220px]">
-      <div ref={containerRef} className="w-full h-full object-cover" />
-      <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-xl text-[11px] font-bold text-white flex items-center gap-1.5">
-        <span>Peserta #{String(user.uid).slice(-4)}</span>
+      <div
+        ref={containerRef}
+        className="w-full h-full min-h-[220px] bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
+      />
+      <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-xl text-[11px] font-bold text-white flex items-center gap-1.5 shadow-xs">
+        <span>{displayName}</span>
         {!user.hasAudio && <MicOff className="w-3 h-3 text-rose-400" />}
       </div>
     </div>
   )
 }
-

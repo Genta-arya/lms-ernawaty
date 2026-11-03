@@ -19,13 +19,13 @@ const COLLECTION_NAME = "sesiMeet"
 const AGORA_APP_ID = "5960c48ec498439798df7c0d1249ae4d"
 
 /**
- * Mengambil token Agora RTC dari serverless function
+ * Mengambil token Agora RTC dari serverless function menggunakan String userAccount (Nama Peserta)
  */
-export async function fetchAgoraToken(channelName, uid = 0, role = "publisher") {
+export async function fetchAgoraToken(channelName, userAccount = "Peserta", role = "publisher") {
   const res = await fetch("/api/agora-token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ channelName, uid, role }),
+    body: JSON.stringify({ channelName, userAccount, role }),
   })
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}))
@@ -47,7 +47,7 @@ export async function createSesiMeet({
   kelasId,
   kelasNama,
   tingkat = null,
-  waktuMulai, // ISO string atau timestamp
+  waktuMulai,
   guruUid,
   guruNama,
 }) {
@@ -55,7 +55,6 @@ export async function createSesiMeet({
     throw new Error("Judul, kelas sasaran, dan guru pengampu wajib diisi.")
   }
 
-  // Generate channelName unik berbasis alphanumeric tanpa karakter ilegal
   const randomStr = Math.random().toString(36).substring(2, 8)
   const channelName = `meet_${kelasId.replace(/[^a-zA-Z0-9]/g, "")}_${Date.now()}_${randomStr}`
 
