@@ -182,6 +182,19 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
+
+    match /forumDiskusi/{id} {
+      // Siswa teraktivasi dan guru dapat membaca diskusi
+      allow read: if signedIn();
+      // Siswa dan guru dapat memposting pertanyaan/tanggapan
+      allow create: if (isMurid() || isGuru()) &&
+        request.resource.data.isi is string &&
+        request.resource.data.isi.size() > 0 &&
+        request.resource.data.isi.size() <= 2000;
+      // Guru atau pengirim sendiri dapat mengupdate / menghapus postingan
+      allow update, delete: if isGuru() || (signedIn() && resource.data.pengirimId == request.auth.uid);
+    }
+
     match /fcmTokens/{id} {
       allow read, write: if signedIn();
     }

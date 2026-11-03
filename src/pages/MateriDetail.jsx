@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { DetailPageSkeleton } from "@/components/ui/loading-skeletons"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { LeaderboardHarian } from "@/components/kuis/LeaderboardHarian"
+import { ForumDiskusi } from "@/components/materi/ForumDiskusi"
 import {
   BookOpen,
   CheckCircle,
@@ -451,6 +452,11 @@ export function MateriDetail() {
               })()}
             </div>
           )}
+
+          {/* Forum Diskusi & Tanya Jawab Materi */}
+          <div className="pt-2">
+            <ForumDiskusi materi={materi} />
+          </div>
 
           {/* Papan Peringkat Harian Nilai Kuis Materi Ini */}
           <div className="pt-2">

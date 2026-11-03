@@ -7,6 +7,7 @@ import { getKuisList } from "@/services/kuis"
 import { getKlaimList, subscribeKlaimCount } from "@/services/klaim"
 import { getTugasList, subscribeTugasPerluNilaiCount } from "@/services/tugas"
 import { getPengumumanList, subscribePengumumanList } from "@/services/pengumuman"
+import { subscribeRecentForumDiscussions } from "@/services/forumDiskusi"
 import { useAuth } from "@/context/AuthContext"
 import { Badge } from "@/components/ui/badge"
 import { DashboardGuruSkeleton } from "@/components/ui/loading-skeletons"
@@ -29,6 +30,7 @@ import {
   Feather,
   ClipboardList,
   Megaphone,
+  MessageSquare,
 } from "lucide-react"
 
 export function Dashboard() {
@@ -45,6 +47,7 @@ export function Dashboard() {
     pengumumanCount: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [recentDiscussions, setRecentDiscussions] = useState([])
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -107,7 +110,12 @@ export function Dashboard() {
       }))
     })
 
+    const unsubForum = subscribeRecentForumDiscussions(6, (items) => {
+      setRecentDiscussions(items);
+    });
+
     return () => {
+      if (typeof unsubForum === "function") unsubForum();
       if (typeof unsubPengumuman === "function") unsubPengumuman()
       if (typeof unsubKlaim === "function") unsubKlaim()
       if (typeof unsubTugas === "function") unsubTugas()
@@ -443,6 +451,104 @@ export function Dashboard() {
           </Link>
         </div>
       </div>
+
+      {/* 4. Panel Diskusi Materi Terkini */}
+      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-5 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+              <MessageSquare className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
+                Diskusi & Tanya Jawab Materi Terkini
+              </h2>
+              <p className="text-xs text-slate-500">
+                Aktivitas interaksi dan pertanyaan siswa pada setiap modul materi pembelajaran
+              </p>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-xs font-bold px-2.5 py-0.5 rounded-full border-indigo-200 text-indigo-700 bg-indigo-50/50">
+            {recentDiscussions.length} Diskusi
+          </Badge>
+        </div>
+
+        {recentDiscussions.length === 0 ? (
+          <div className="text-center py-8 px-4 rounded-2xl bg-slate-50/70 border border-slate-200/80 text-slate-400 space-y-1.5">
+            <MessageSquare className="w-7 h-7 mx-auto text-slate-300 opacity-60" />
+            <div className="text-xs font-semibold text-slate-600">Belum Ada Diskusi Siswa</div>
+            <p className="text-[11px] max-w-sm mx-auto">
+              Saat siswa atau guru mengajukan pertanyaan di modul materi, pesan akan otomatis muncul di panel ini.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {recentDiscussions.map((item) => {
+              const isGuru = item.pengirimRole === "guru";
+              const targetUrl = item.materiSlug ? `/materi/${item.materiSlug}` : "/guru/materi";
+
+              return (
+                <div
+                  key={item.id}
+                  className="p-3.5 rounded-2xl bg-slate-50/70 border border-slate-200/80 hover:border-indigo-300 hover:shadow-xs transition-all space-y-2 flex flex-col justify-between"
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${
+                            isGuru ? "bg-indigo-600 ring-2 ring-indigo-200" : "bg-blue-600"
+                          }`}
+                        >
+                          {item.pengirimFotoUrl ? (
+                            <img
+                              src={item.pengirimFotoUrl}
+                              alt={item.pengirimNama}
+                              className="w-full h-full object-cover rounded-full"
+                            />
+                          ) : (
+                            item.pengirimNama?.charAt(0)?.toUpperCase() || "U"
+                          )}
+                        </div>
+                        <span className="font-bold text-xs text-slate-900 truncate">
+                          {item.pengirimNama}
+                        </span>
+                        {isGuru ? (
+                          <Badge className="bg-indigo-100 text-indigo-700 text-[9px] font-black px-1.5 py-0 border-none shrink-0">
+                            Guru
+                          </Badge>
+                        ) : item.pengirimKelas ? (
+                          <Badge variant="outline" className="text-[9px] text-slate-500 border-slate-200 px-1 py-0 shrink-0">
+                            {item.pengirimKelas}
+                          </Badge>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-700 line-clamp-2 leading-relaxed">
+                      "{item.isi}"
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-slate-500 text-[10px] truncate max-w-[180px] sm:max-w-[220px]" title={item.materiJudul}>
+                      📖 {item.materiJudul || "Materi Pembelajaran"}
+                    </span>
+                    <Link
+                      to={targetUrl}
+                      className="inline-flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-800 text-[11px]"
+                    >
+                      <span>Lihat & Tanggapi</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }
