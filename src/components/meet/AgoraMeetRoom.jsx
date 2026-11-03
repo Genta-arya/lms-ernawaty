@@ -40,6 +40,7 @@ import {
   Settings,
   ChevronUp,
   RotateCcw,
+  X,
 } from "lucide-react"
 
 export function AgoraMeetRoom({
@@ -93,6 +94,7 @@ export function AgoraMeetRoom({
 
   const presentationContainerRef = useRef(null)
   const [isFullscreenShare, setIsFullscreenShare] = useState(false)
+  const [dismissRotateTip, setDismissRotateTip] = useState(false)
 
   function toggleFullscreenShare() {
     if (!presentationContainerRef.current) return
@@ -849,11 +851,11 @@ export function AgoraMeetRoom({
           /* =========================================================================
              ZOOM SCREEN SHARE MODE (RESPONSIF MOBILE & DESKTOP - ZERO CROP)
              ========================================================================= */
-          <div className="flex-1 flex flex-col h-full p-2 sm:p-4 gap-2 sm:gap-3 overflow-hidden min-h-0">
+          <div className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar p-2 sm:p-4 flex flex-col gap-2 sm:gap-3 min-h-0">
             {/* Layar Utama Presentasi */}
             <div
               ref={presentationContainerRef}
-              className="w-full aspect-video sm:aspect-auto sm:flex-1 relative rounded-xl sm:rounded-2xl bg-black border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center min-h-[200px] sm:min-h-[320px]"
+              className="w-full max-w-5xl mx-auto aspect-video max-h-[60vh] sm:max-h-none sm:aspect-auto sm:flex-1 relative rounded-xl sm:rounded-2xl bg-black border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center shrink-0 min-h-[180px] sm:min-h-[300px]"
             >
               {activeSharer === userNama ? (
                 <div
@@ -895,72 +897,95 @@ export function AgoraMeetRoom({
                 )}
               </div>
 
-              {/* Petunjuk Rotasi Mobile */}
-              <div className="flex sm:hidden absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/75 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/10 text-[9px] text-slate-300 items-center gap-1 pointer-events-none z-10">
-                <RotateCcw className="w-2.5 h-2.5 text-blue-400" />
-                <span>Bisa putar HP landscape untuk layar lebih besar</span>
-              </div>
+              {/* Petunjuk Rotasi Mobile (Bisa di-close siswa) */}
+              {!dismissRotateTip && (
+                <div className="flex sm:hidden absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md pl-2.5 pr-1.5 py-1 rounded-full border border-white/15 text-[10px] text-slate-200 items-center gap-1.5 shadow-xl z-20 animate-in fade-in slide-in-from-bottom-2">
+                  <RotateCcw className="w-3 h-3 text-blue-400 shrink-0" />
+                  <span className="truncate max-w-[200px]">Bisa putar HP untuk layar penuh</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDismissRotateTip(true)
+                    }}
+                    className="p-0.5 hover:bg-white/20 rounded-full text-slate-400 hover:text-white transition-all ml-0.5 active:scale-95"
+                    title="Tutup petunjuk"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Strip Thumbnail Bawah */}
-            <div className="h-20 sm:h-28 flex items-center gap-2 overflow-x-auto pb-1 shrink-0 no-scrollbar touch-pan-x">
-              {/* Thumbnail Saya */}
-              <div className="relative rounded-xl sm:rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center">
-                {isScreenSharing ? (
-                  <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
-                    <Monitor className="w-5 h-5 text-emerald-400" />
-                    <span className="text-[10px] font-bold text-slate-300">Layar Anda</span>
-                  </div>
-                ) : (
-                  <>
-                    <div
-                      ref={localVideoRef}
-                      className={`w-full h-full bg-black -scale-x-100 pointer-events-none [&_video]:!object-cover [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_div]:!bg-transparent ${
-                        cameraOn ? "opacity-100" : "opacity-0"
-                      }`}
-                    />
-                    {!cameraOn && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-bold text-xs ring-1 ring-blue-500/20">
-                          {userNama.charAt(0).toUpperCase()}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-                <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-bold text-white flex items-center gap-1">
-                  <span>{userNama}</span>
-                  {!micOn && <MicOff className="w-2.5 h-2.5 text-rose-400" />}
-                </div>
+            {/* Strip Thumbnail Bawah (Peserta Kelas) */}
+            <div className="w-full max-w-5xl mx-auto shrink-0 flex flex-col space-y-1.5 pb-2">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[10px] sm:text-xs font-bold text-slate-400">
+                  Peserta Kelas ({remoteUsers.length + 1})
+                </span>
+                <span className="text-[9px] text-slate-500 hidden sm:inline">
+                  Scroll horizontal untuk melihat peserta lainnya
+                </span>
               </div>
-
-              {/* Thumbnail Peserta Lain */}
-              {remoteUsers.map((u) => {
-                const isSharer = u.uid === activeSharer
-                return (
-                  <div
-                    key={u.uid}
-                    className="relative rounded-xl sm:rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center"
-                  >
-                    {isSharer ? (
-                      <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
-                        <Monitor className="w-5 h-5 text-emerald-400 animate-pulse" />
-                        <span className="text-[10px] font-bold text-slate-300 truncate max-w-[90px]">
-                          {u.uid}
-                        </span>
-                        <span className="text-[8px] text-emerald-400 font-semibold">Berbagi Layar</span>
-                      </div>
-                    ) : (
-                      <RemoteUserVideoCard
-                        user={u}
-                        compact={true}
-                        isSpeaking={speakingUsers[u.uid]}
-                        isHandRaised={!!raisedHands[u.uid]}
+              <div className="h-20 sm:h-28 flex items-center gap-2 overflow-x-auto pb-1 shrink-0 no-scrollbar touch-pan-x">
+                {/* Thumbnail Saya */}
+                <div className="relative rounded-xl sm:rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center">
+                  {isScreenSharing ? (
+                    <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
+                      <Monitor className="w-5 h-5 text-emerald-400" />
+                      <span className="text-[10px] font-bold text-slate-300">Layar Anda</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        ref={localVideoRef}
+                        className={`w-full h-full bg-black -scale-x-100 pointer-events-none [&_video]:!object-cover [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_div]:!bg-transparent ${
+                          cameraOn ? "opacity-100" : "opacity-0"
+                        }`}
                       />
-                    )}
+                      {!cameraOn && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-bold text-xs ring-1 ring-blue-500/20">
+                            {userNama.charAt(0).toUpperCase()}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-bold text-white flex items-center gap-1">
+                    <span>{userNama}</span>
+                    {!micOn && <MicOff className="w-2.5 h-2.5 text-rose-400" />}
                   </div>
-                )
-              })}
+                </div>
+
+                {/* Thumbnail Peserta Lain */}
+                {remoteUsers.map((u) => {
+                  const isSharer = u.uid === activeSharer
+                  return (
+                    <div
+                      key={u.uid}
+                      className="relative rounded-xl sm:rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center"
+                    >
+                      {isSharer ? (
+                        <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
+                          <Monitor className="w-5 h-5 text-emerald-400 animate-pulse" />
+                          <span className="text-[10px] font-bold text-slate-300 truncate max-w-[90px]">
+                            {u.uid}
+                          </span>
+                          <span className="text-[8px] text-emerald-400 font-semibold">Berbagi Layar</span>
+                        </div>
+                      ) : (
+                        <RemoteUserVideoCard
+                          user={u}
+                          compact={true}
+                          isSpeaking={speakingUsers[u.uid]}
+                          isHandRaised={!!raisedHands[u.uid]}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         ) : viewMode === "speaker" ? (
