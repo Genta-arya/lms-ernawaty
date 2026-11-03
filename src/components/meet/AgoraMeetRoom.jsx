@@ -878,10 +878,11 @@ export function AgoraMeetRoom({
     await setSpotlightUser(channelName, spotlightUser === nama ? null : nama)
   }
 
-  // Cek apakah ada yang sedang share screen (hanya aktif jika presenter benar-benar ada di room)
+  // Cek apakah ada yang sedang share screen:
+  // Aktif jika diri sendiri sedang sharing, ATAU Firestore mencatat activeSharer, ATAU ada remote user yang publish video track
   const isSomeoneSharing =
-    !!activeSharer &&
-    (activeSharer === userNama ? isScreenSharing : remoteUsers.some((u) => u.uid === activeSharer))
+    (activeSharer === userNama && isScreenSharing) ||
+    (!!activeSharer && (remoteUsers.length === 0 || remoteUsers.some((u) => String(u.uid) === String(activeSharer) || u.hasVideo)))
 
   // Siapa pembicara aktif di Speaker View
   const currentSpeakerUid =
