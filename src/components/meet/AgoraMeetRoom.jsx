@@ -92,6 +92,7 @@ export function AgoraMeetRoom({
 
           // Putar video lokal
           if (localVideoRef.current && videoTrack) {
+            localVideoRef.current.innerHTML = ""
             videoTrack.play(localVideoRef.current)
           }
 
@@ -131,6 +132,19 @@ export function AgoraMeetRoom({
       leaveChannel()
     }
   }, [channelName])
+
+  // Pastikan video lokal selalu terputar di elemen container saat track siap
+  useEffect(() => {
+    const vTrack = localTracksRef.current?.videoTrack
+    if (vTrack && localVideoRef.current && cameraOn && !isScreenSharing) {
+      try {
+        localVideoRef.current.innerHTML = ""
+        vTrack.play(localVideoRef.current)
+      } catch (e) {
+        console.warn("Video play error:", e)
+      }
+    }
+  }, [cameraOn, isScreenSharing, joined])
 
   async function leaveChannel() {
     try {
@@ -182,6 +196,10 @@ export function AgoraMeetRoom({
       } else {
         await videoTrack.setEnabled(true)
         setCameraOn(true)
+        if (localVideoRef.current) {
+          localVideoRef.current.innerHTML = ""
+          videoTrack.play(localVideoRef.current)
+        }
       }
     }
   }
@@ -232,6 +250,7 @@ export function AgoraMeetRoom({
       if (localTracksRef.current.videoTrack) {
         await client.publish(localTracksRef.current.videoTrack)
         if (localVideoRef.current) {
+          localVideoRef.current.innerHTML = ""
           localTracksRef.current.videoTrack.play(localVideoRef.current)
         }
       }
@@ -240,7 +259,7 @@ export function AgoraMeetRoom({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col text-white animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] bg-slate-950 flex flex-col text-white animate-in fade-in duration-200 w-screen h-screen overflow-hidden">
       {/* Top Bar Header */}
       <div className="p-3.5 sm:p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between gap-3 backdrop-blur-md">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -253,7 +272,7 @@ export function AgoraMeetRoom({
             </h2>
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Agora RTC Live</span>
+              <span>Meet LSM</span>
               <span>&bull;</span>
               <span>{remoteUsers.length + 1} Peserta Terhubung</span>
             </div>
@@ -302,7 +321,7 @@ export function AgoraMeetRoom({
           >
             {/* Video Lokal (Saya) */}
             <div className="relative rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl flex items-center justify-center min-h-[220px]">
-              <div ref={localVideoRef} className="w-full h-full object-cover" />
+              <div ref={localVideoRef} className="w-full h-full min-h-[220px] bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover" />
               {!cameraOn && !isScreenSharing && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 space-y-2">
                   <div className="w-16 h-16 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-black text-xl ring-2 ring-blue-500/20">
