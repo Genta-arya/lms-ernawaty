@@ -9,8 +9,6 @@ import {
   forceMuteAllUsers,
   askUserToUnmute,
   forceKickUser,
-  toggleRaiseHand,
-  updateScreenSharePermission,
   setSpotlightUser,
 } from "@/services/meet"
 import { MeetChatDrawer } from "./MeetChatDrawer"
@@ -29,7 +27,6 @@ import {
   UserX,
   Volume2,
   VolumeX,
-  Hand,
   MessageSquare,
   LayoutGrid,
   Maximize2,
@@ -64,8 +61,6 @@ export function AgoraMeetRoom({
   // Realtime meet controls
   const [activeSharer, setActiveSharer] = useState(null)
   const [spotlightUser, setSpotlightUserState] = useState(null)
-  const [allowStudentScreenShare, setAllowStudentScreenShare] = useState(false)
-  const [raisedHands, setRaisedHands] = useState({}) // { [userAccount]: timestamp }
   const [showParticipantList, setShowParticipantList] = useState(false)
   const [showChat, setShowChat] = useState(false)
 
@@ -119,17 +114,12 @@ export function AgoraMeetRoom({
     micOnRef.current = micOn
   }, [micOn])
 
-  // Cek apakah saya sedang angkat tangan
-  const isMyHandRaised = !!raisedHands[userNama]
-
   // 1. Berlangganan kontrol realtime sesi meet
   useEffect(() => {
     if (!channelName) return
     const unsub = subscribeMeetControls(channelName, (controls) => {
       setActiveSharer(controls?.activeSharer || null)
       setSpotlightUserState(controls?.spotlightUser || null)
-      setAllowStudentScreenShare(!!controls?.allowStudentScreenShare)
-      setRaisedHands(controls?.raisedHands || {})
 
       // Cek apakah saya kena force kick
       const kickUntil = controls?.kickedUsers?.[userNama]
@@ -460,9 +450,6 @@ export function AgoraMeetRoom({
       if (isScreenSharing) {
         await setActiveScreenSharer(channelName, null)
       }
-      if (isMyHandRaised) {
-        await toggleRaiseHand(channelName, userNama, false)
-      }
       const { audioTrack, videoTrack } = localTracksRef.current
       if (audioTrack) {
         audioTrack.stop()
@@ -578,21 +565,14 @@ export function AgoraMeetRoom({
     }, 600)
   }
 
-  // Toggle Angkat Tangan (Raise Hand)
-  async function handleToggleRaiseHand() {
-    await toggleRaiseHand(channelName, userNama, !isMyHandRaised)
-  }
-
-  // Toggle Berbagi Layar (Screen Sharing)
+  // Toggle Berbagi Layar (Screen Sharing - Khusus Guru)
   async function toggleScreenShare() {
-    const client = clientRef.current
-    if (!client) return
-
-    // Cek izin murid untuk share screen
-    if (!isGuru && !allowStudentScreenShare) {
-      alert("Izin berbagi layar dinonaktifkan oleh guru pengajar.")
+    if (!isGuru) {
+      alert("Hanya guru pengajar yang diizinkan berbagi layar.")
       return
     }
+    const client = clientRef.current
+    if (!client) return
 
     if (activeSharer && activeSharer !== userNama) {
       alert(`Peserta "${activeSharer}" sedang berbagi layar. Mohon tunggu giliran.`)
@@ -688,12 +668,6 @@ export function AgoraMeetRoom({
     if (window.confirm(`Keluarkan peserta "${nama}" dari sesi meet?`)) {
       await forceKickUser(channelName, nama)
     }
-  }
-
-  // Guru toggle izin share screen murid
-  async function handleToggleScreenSharePermission() {
-    if (!isGuru) return
-    await updateScreenSharePermission(channelName, !allowStudentScreenShare)
   }
 
   // Guru set spotlight
@@ -818,11 +792,6 @@ export function AgoraMeetRoom({
           >
             <Users className="w-4 h-4 shrink-0" />
             <span className="text-[11px] hidden sm:inline">{remoteUsers.length + 1}</span>
-            {Object.keys(raisedHands).length > 0 && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 text-black text-[9px] font-black rounded-full flex items-center justify-center animate-bounce">
-                {Object.keys(raisedHands).length}
-              </span>
-            )}
           </button>
         </div>
       </div>
@@ -979,7 +948,9 @@ export function AgoraMeetRoom({
                           user={u}
                           compact={true}
                           isSpeaking={speakingUsers[u.uid]}
-                          isHandRaised={!!raisedHands[u.uid]}
+                          isSpotlight={spotlightUser === u.uid}
+                          isGuruHost={isGuru}
+                          onSpotlight={() => handleSetSpotlight(u.uid)}
                         />
                       )}
                     </div>
@@ -1008,6 +979,29 @@ export function AgoraMeetRoom({
                   </Badge>
                 )}
               </div>
+
+              {/* Tombol Kontrol Spotlight oleh Guru Host di Layar Utama */}
+              {isGuru && (
+                <button
+                  type="button"
+                  onClick={() => handleSetSpotlight(currentSpeakerUid)}
+                  className={`absolute top-2.5 right-2.5 sm:top-3 sm:right-3 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg z-20 transition-all active:scale-95 border ${
+                    spotlightUser === currentSpeakerUid
+                      ? "bg-amber-500 border-amber-400 text-black shadow-amber-500/30 font-black"
+                      : "bg-black/75 hover:bg-black/90 border-white/20 text-white"
+                  }`}
+                  title={
+                    spotlightUser === currentSpeakerUid
+                      ? "Lepas Spotlight (Bebaskan layar ke pembicara aktif)"
+                      : `Kunci ${currentSpeakerUid} sebagai Spotlight untuk semua peserta`
+                  }
+                >
+                  <Pin className={`w-3.5 h-3.5 ${spotlightUser === currentSpeakerUid ? "fill-black" : "text-amber-400"}`} />
+                  <span>
+                    {spotlightUser === currentSpeakerUid ? "Lepas Spotlight" : "Jadikan Spotlight"}
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* Area Peserta Lain */}
@@ -1026,7 +1020,7 @@ export function AgoraMeetRoom({
                 {/* Thumbnail Saya */}
                 <div
                   onClick={() => setPinnedUser(userNama)}
-                  className={`relative rounded-xl sm:rounded-2xl bg-slate-900 border overflow-hidden shadow-md h-20 sm:h-28 aspect-video shrink-0 flex items-center justify-center cursor-pointer transition-all ${
+                  className={`relative rounded-xl sm:rounded-2xl bg-slate-900 border overflow-hidden shadow-md h-20 sm:h-28 aspect-video shrink-0 flex items-center justify-center cursor-pointer transition-all group ${
                     currentSpeakerUid === userNama ? "ring-2 ring-blue-500" : "border-slate-800"
                   }`}
                 >
@@ -1047,6 +1041,25 @@ export function AgoraMeetRoom({
                     <span>{userNama} (Saya)</span>
                     {!micOn && <MicOff className="w-2.5 h-2.5 text-rose-400" />}
                   </div>
+
+                  {/* Tombol Spotlight Saya untuk Guru */}
+                  {isGuru && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleSetSpotlight(userNama)
+                      }}
+                      className={`absolute top-1 right-1 p-1 rounded-lg text-xs z-10 transition-all ${
+                        spotlightUser === userNama
+                          ? "bg-amber-500 text-black font-bold shadow-md opacity-100"
+                          : "bg-black/75 hover:bg-amber-600 text-white border border-white/20 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      }`}
+                      title={spotlightUser === userNama ? "Lepas Spotlight Saya" : "Spotlight Saya"}
+                    >
+                      <Pin className={`w-3 h-3 ${spotlightUser === userNama ? "fill-black" : ""}`} />
+                    </button>
+                  )}
                 </div>
 
                 {/* Thumbnail Peserta Lain */}
@@ -1071,7 +1084,9 @@ export function AgoraMeetRoom({
                           user={u}
                           compact={true}
                           isSpeaking={speakingUsers[u.uid]}
-                          isHandRaised={!!raisedHands[u.uid]}
+                          isSpotlight={spotlightUser === u.uid}
+                          isGuruHost={isGuru}
+                          onSpotlight={() => handleSetSpotlight(u.uid)}
                         />
                       )}
                     </div>
@@ -1133,14 +1148,15 @@ export function AgoraMeetRoom({
 
                     if (p.isLocal) {
                       const isSpeaking = speakingUsers[userNama]
-                      const handRaised = isMyHandRaised
 
                       return (
                         <div key="local-user" className={wrapperClass}>
                           <div
-                            className={`relative rounded-xl sm:rounded-2xl bg-slate-900 border overflow-hidden shadow-xl flex items-center justify-center w-full transition-all duration-200 ${
+                            className={`relative rounded-xl sm:rounded-2xl bg-slate-900 border overflow-hidden shadow-xl flex items-center justify-center w-full group transition-all duration-200 ${
                               isSpeaking
                                 ? "ring-2 ring-emerald-400 border-emerald-400"
+                                : spotlightUser === userNama
+                                ? "ring-2 ring-amber-400 border-amber-400"
                                 : "border-slate-800/80"
                             } ${aspectClass}`}
                           >
@@ -1161,12 +1177,20 @@ export function AgoraMeetRoom({
                               </div>
                             )}
 
-                            {/* Ikon Angkat Tangan */}
-                            {handRaised && (
-                              <div className="absolute top-2 left-2 bg-amber-500 text-black px-2 py-0.5 rounded-lg font-black text-[10px] flex items-center gap-1 shadow-lg animate-bounce">
-                                <Hand className="w-3 h-3 fill-black" />
-                                <span>Angkat Tangan</span>
-                              </div>
+                            {/* Tombol Spotlight Guru untuk Local User */}
+                            {isGuru && (
+                              <button
+                                type="button"
+                                onClick={() => handleSetSpotlight(userNama)}
+                                className={`absolute top-2 right-2 p-1.5 rounded-xl text-xs z-20 transition-all ${
+                                  spotlightUser === userNama
+                                    ? "bg-amber-500 text-black font-bold shadow-md opacity-100"
+                                    : "bg-black/75 hover:bg-amber-600 text-white border border-white/20 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                }`}
+                                title={spotlightUser === userNama ? "Lepas Spotlight Saya" : "Spotlight Saya"}
+                              >
+                                <Pin className={`w-3.5 h-3.5 ${spotlightUser === userNama ? "fill-black" : ""}`} />
+                              </button>
                             )}
 
                             <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-xl text-[10px] sm:text-xs font-bold text-white flex items-center gap-1.5 shadow-md">
@@ -1190,7 +1214,6 @@ export function AgoraMeetRoom({
                         <RemoteUserVideoCard
                           user={p.user}
                           isSpeaking={speakingUsers[p.uid]}
-                          isHandRaised={!!raisedHands[p.uid]}
                           isSpotlight={spotlightUser === p.uid}
                           isGuruHost={isGuru}
                           aspectClass={aspectClass}
@@ -1233,31 +1256,16 @@ export function AgoraMeetRoom({
 
             {/* Action Cepat Guru */}
             {isGuru && (
-              <div className="grid grid-cols-2 gap-2 border-b border-slate-800 pb-2">
+              <div className="border-b border-slate-800 pb-2">
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
                   onClick={handleMuteAllMurid}
-                  className="text-[10px] font-bold h-8 border-slate-700 bg-slate-800 text-rose-300 hover:bg-rose-950/40"
+                  className="w-full text-[11px] font-bold h-8 border-slate-700 bg-slate-800 text-rose-300 hover:bg-rose-950/40"
                 >
-                  <VolumeX className="w-3 h-3 mr-1" />
-                  Mute Semua
-                </Button>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleToggleScreenSharePermission}
-                  className={`text-[10px] font-bold h-8 border-slate-700 ${
-                    allowStudentScreenShare
-                      ? "bg-indigo-600/30 text-indigo-300 border-indigo-500/40"
-                      : "bg-slate-800 text-slate-400"
-                  }`}
-                >
-                  <Monitor className="w-3 h-3 mr-1" />
-                  {allowStudentScreenShare ? "Share: Murid ON" : "Share: Guru Saja"}
+                  <VolumeX className="w-3.5 h-3.5 mr-1.5" />
+                  Mute Semua Murid
                 </Button>
               </div>
             )}
@@ -1269,11 +1277,6 @@ export function AgoraMeetRoom({
                   <div className="font-bold text-slate-100 truncate">
                     {userNama} (Anda) {isGuru ? "(Host)" : ""}
                   </div>
-                  {isMyHandRaised && (
-                    <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
-                      <Hand className="w-3 h-3" /> Angkat tangan
-                    </span>
-                  )}
                 </div>
                 <span className="text-[10px] text-slate-400 shrink-0">
                   {micOn ? "Mic On" : "Muted"}
@@ -1283,7 +1286,6 @@ export function AgoraMeetRoom({
               {/* Teman / Murid */}
               {remoteUsers.map((u) => {
                 const nama = u.uid
-                const handRaised = !!raisedHands[nama]
                 return (
                   <div
                     key={nama}
@@ -1291,11 +1293,6 @@ export function AgoraMeetRoom({
                   >
                     <div className="min-w-0">
                       <div className="font-semibold text-slate-200 truncate">{nama}</div>
-                      {handRaised && (
-                        <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
-                          <Hand className="w-3 h-3" /> Angkat tangan
-                        </span>
-                      )}
                     </div>
 
                     {isGuru ? (
@@ -1486,48 +1483,33 @@ export function AgoraMeetRoom({
                 </span>
               </button>
 
-              {/* Screen Sharing Toggle */}
-              <button
-                type="button"
-                onClick={toggleScreenShare}
-                disabled={activeSharer && activeSharer !== userNama}
-                className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl sm:rounded-2xl flex items-center justify-center gap-1.5 transition-all active:scale-95 border ${
-                  isScreenSharing
-                    ? "bg-indigo-600 border-indigo-500 text-white shadow-sm ring-1 ring-indigo-400/50"
-                    : activeSharer && activeSharer !== userNama
-                    ? "bg-slate-800/50 border-slate-800 text-slate-500 cursor-not-allowed opacity-50"
-                    : "bg-slate-800/90 hover:bg-slate-700/90 border-slate-700/60 text-white"
-                }`}
-                title={
-                  activeSharer && activeSharer !== userNama
-                    ? `${activeSharer} sedang berbagi layar`
-                    : isScreenSharing
-                    ? "Hentikan Berbagi Layar"
-                    : "Bagikan Layar"
-                }
-              >
-                <Monitor className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400" />
-                <span className="text-[11px] font-semibold hidden md:inline">
-                  {isScreenSharing ? "Stop Share" : "Share Screen"}
-                </span>
-              </button>
-
-              {/* Angkat Tangan (Raise Hand) */}
-              <button
-                type="button"
-                onClick={handleToggleRaiseHand}
-                className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl sm:rounded-2xl flex items-center justify-center gap-1.5 transition-all active:scale-95 border ${
-                  isMyHandRaised
-                    ? "bg-amber-500 border-amber-400 text-black font-black animate-pulse"
-                    : "bg-slate-800/90 hover:bg-slate-700/90 border-slate-700/60 text-white"
-                }`}
-                title={isMyHandRaised ? "Turunkan Tangan" : "Angkat Tangan"}
-              >
-                <Hand className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isMyHandRaised ? "fill-black" : "text-amber-400"}`} />
-                <span className="text-[11px] font-semibold hidden md:inline">
-                  {isMyHandRaised ? "Turunkan" : "Angkat Tangan"}
-                </span>
-              </button>
+              {/* Screen Sharing Toggle (Khusus Guru Pengajar) */}
+              {isGuru && (
+                <button
+                  type="button"
+                  onClick={toggleScreenShare}
+                  disabled={activeSharer && activeSharer !== userNama}
+                  className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl sm:rounded-2xl flex items-center justify-center gap-1.5 transition-all active:scale-95 border ${
+                    isScreenSharing
+                      ? "bg-indigo-600 border-indigo-500 text-white shadow-sm ring-1 ring-indigo-400/50"
+                      : activeSharer && activeSharer !== userNama
+                      ? "bg-slate-800/50 border-slate-800 text-slate-500 cursor-not-allowed opacity-50"
+                      : "bg-slate-800/90 hover:bg-slate-700/90 border-slate-700/60 text-white"
+                  }`}
+                  title={
+                    activeSharer && activeSharer !== userNama
+                      ? `${activeSharer} sedang berbagi layar`
+                      : isScreenSharing
+                      ? "Hentikan Berbagi Layar"
+                      : "Bagikan Layar"
+                  }
+                >
+                  <Monitor className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400" />
+                  <span className="text-[11px] font-semibold hidden md:inline">
+                    {isScreenSharing ? "Stop Share" : "Share Screen"}
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* Right Action: Leave Call Button */}
@@ -1555,7 +1537,6 @@ function RemoteUserVideoCard({
   compact = false,
   aspectClass = "aspect-[4/3] sm:aspect-video",
   isSpeaking = false,
-  isHandRaised = false,
   isSpotlight = false,
   isGuruHost = false,
   onMute,
@@ -1615,16 +1596,16 @@ function RemoteUserVideoCard({
         </div>
       )}
 
-      {/* Badge Angkat Tangan */}
-      {isHandRaised && (
-        <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-amber-500 text-black px-1.5 py-0.5 rounded-lg font-black text-[9px] sm:text-[10px] flex items-center gap-1 shadow-md animate-bounce">
-          <Hand className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-black" />
-          <span>Tangan Terangkat</span>
+      {/* Badge Spotlight */}
+      {isSpotlight && (
+        <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-amber-500 text-black px-1.5 py-0.5 rounded-lg font-black text-[9px] sm:text-[10px] flex items-center gap-1 shadow-md z-10">
+          <Pin className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-black" />
+          <span>Spotlight</span>
         </div>
       )}
 
       {/* Label Nama Peserta & Indikator Suara */}
-      <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-xl text-[10px] sm:text-[11px] font-bold text-white flex items-center gap-1.5 shadow-md max-w-[85%]">
+      <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-xl text-[10px] sm:text-[11px] font-bold text-white flex items-center gap-1.5 shadow-md max-w-[85%] z-10">
         <span className="truncate">{displayName}</span>
         {isSpeaking ? (
           <span className="flex items-center gap-1 text-emerald-400 font-extrabold text-[9px] sm:text-[10px] shrink-0">
@@ -1636,7 +1617,26 @@ function RemoteUserVideoCard({
         ) : null}
       </div>
 
-      {/* Host Action Hover Buttons */}
+      {/* Tombol Kontrol Spotlight untuk Guru saat Mode Compact / Thumbnail Strip di Speaker View */}
+      {isGuruHost && compact && onSpotlight && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onSpotlight()
+          }}
+          className={`absolute top-1 right-1 p-1 rounded-lg text-xs z-20 pointer-events-auto transition-all ${
+            isSpotlight
+              ? "bg-amber-500 text-black font-bold shadow-md opacity-100"
+              : "bg-black/75 hover:bg-amber-600 text-white border border-white/20 opacity-0 group-hover:opacity-100 focus:opacity-100"
+          }`}
+          title={isSpotlight ? "Lepas Spotlight" : "Spotlight Peserta"}
+        >
+          <Pin className={`w-3 h-3 ${isSpotlight ? "fill-black" : ""}`} />
+        </button>
+      )}
+
+      {/* Host Action Hover Buttons (Full Mode) */}
       {isGuruHost && !compact && (
         <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/70 backdrop-blur-md p-1 rounded-xl border border-white/10 z-10 pointer-events-auto">
           <button
