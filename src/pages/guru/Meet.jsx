@@ -86,8 +86,7 @@ export function GuruMeet() {
 
     if (conflictingActiveSession) {
       alert(
-        `Tidak dapat membuat sesi baru: Masih ada sesi tatap muka yang aktif (LIVE BERLANGSUNG) untuk kelas ${
-          targetKelas?.nama || "ini"
+        `Tidak dapat membuat sesi baru: Masih ada sesi tatap muka yang aktif (LIVE BERLANGSUNG) untuk kelas ${targetKelas?.nama || "ini"
         } pada hari yang sama ("${conflictingActiveSession.judul}"). Harap selesaikan atau akhiri sesi tersebut terlebih dahulu.`
       )
       return
@@ -193,7 +192,7 @@ export function GuruMeet() {
             <span>Sesi Virtual Meet & Tatap Muka</span>
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Jadwalkan dan mulai sesi video conference interaktif dengan siswa per kelas menggunakan Agora RTC.
+            Jadwalkan dan mulai sesi video conference interaktif.
           </p>
         </div>
 
@@ -344,24 +343,22 @@ export function GuruMeet() {
               return (
                 <div
                   key={sesi.id}
-                  className={`p-4 sm:p-5 rounded-3xl border transition-all space-y-3.5 flex flex-col justify-between ${
-                    isLive
+                  className={`p-4 sm:p-5 rounded-3xl border transition-all space-y-3.5 flex flex-col justify-between ${isLive
                       ? "bg-emerald-50/60 border-emerald-300 shadow-sm ring-2 ring-emerald-500/20"
                       : isDone
-                      ? "bg-slate-50/80 border-slate-200 opacity-80"
-                      : "bg-white border-slate-200/90 shadow-2xs hover:border-blue-300"
-                  }`}
+                        ? "bg-slate-50/80 border-slate-200 opacity-80"
+                        : "bg-white border-slate-200/90 shadow-2xs hover:border-blue-300"
+                    }`}
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <Badge
-                        className={`text-[10px] font-black px-2 py-0.5 rounded-full border-none ${
-                          isLive
+                        className={`text-[10px] font-black px-2 py-0.5 rounded-full border-none ${isLive
                             ? "bg-emerald-600 text-white animate-pulse"
                             : isDone
-                            ? "bg-slate-200 text-slate-600"
-                            : "bg-blue-100 text-blue-700"
-                        }`}
+                              ? "bg-slate-200 text-slate-600"
+                              : "bg-blue-100 text-blue-700"
+                          }`}
                       >
                         {isLive ? "LIVE BERLANGSUNG" : isDone ? "SELESAI" : "TERJADWAL"}
                       </Badge>
