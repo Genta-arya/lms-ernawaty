@@ -27,6 +27,7 @@ import {
   Users,
   ShieldAlert,
   UserX,
+  Volume2,
   VolumeX,
   Hand,
   MessageSquare,
@@ -70,10 +71,13 @@ export function AgoraMeetRoom({
   const [viewMode, setViewMode] = useState("gallery")
   const [pinnedUser, setPinnedUser] = useState(null)
 
-  // Device switching state
-  const [availableCams, setAvailableCams] = useState([])
+  // Device switching state (Terpisah Audio Input & Audio Output)
   const [availableMics, setAvailableMics] = useState([])
+  const [availableSpeakers, setAvailableSpeakers] = useState([])
+  const [selectedMicId, setSelectedMicId] = useState(initialSettings?.selectedMicId || "")
+  const [selectedSpeakerId, setSelectedSpeakerId] = useState(initialSettings?.selectedSpeakerId || "")
   const [showDeviceMenu, setShowDeviceMenu] = useState(false)
+  const [testingSpeaker, setTestingSpeaker] = useState(false)
 
   const clientRef = useRef(null)
   const localTracksRef = useRef({ audioTrack: null, videoTrack: null })
@@ -162,11 +166,15 @@ export function AgoraMeetRoom({
     const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" })
     clientRef.current = client
 
-    // Deteksi perangkat yang tersedia
+    // Deteksi perangkat audio input dan audio output
     AgoraRTC.getDevices().then((devs) => {
       if (mounted) {
-        setAvailableCams(devs.filter((d) => d.kind === "videoinput"))
-        setAvailableMics(devs.filter((d) => d.kind === "audioinput"))
+        const mics = devs.filter((d) => d.kind === "audioinput")
+        const spks = devs.filter((d) => d.kind === "audiooutput")
+        setAvailableMics(mics)
+        setAvailableSpeakers(spks)
+        if (!selectedMicId && mics.length > 0) setSelectedMicId(mics[0].deviceId)
+        if (!selectedSpeakerId && spks.length > 0) setSelectedSpeakerId(spks[0].deviceId)
       }
     })
 
@@ -199,6 +207,9 @@ export function AgoraMeetRoom({
 
       if (mediaType === "audio") {
         try {
+          if (selectedSpeakerId && user.audioTrack?.setPlaybackDevice) {
+            user.audioTrack.setPlaybackDevice(selectedSpeakerId).catch(() => {})
+          }
           user.audioTrack?.play()
         } catch (aErr) {
           console.warn("Gagal memutar remote audio track:", aErr)
@@ -287,10 +298,11 @@ export function AgoraMeetRoom({
           setMicOn(false)
         }
 
-        // Kamera Video
+        // Kamera Video - Terkunci ke kamera depan (facingMode: "user")
         try {
           videoTrack = await AgoraRTC.createCameraVideoTrack({
             encoderConfig: "480p_1",
+            facingMode: "user",
             cameraId: initialSettings?.selectedCamId || undefined,
           })
           localTracksRef.current.videoTrack = videoTrack
@@ -491,19 +503,9 @@ export function AgoraMeetRoom({
     }
   }
 
-  // Switch Perangkat Kamera
-  async function handleSwitchCamera(deviceId) {
-    if (localTracksRef.current?.videoTrack) {
-      try {
-        await localTracksRef.current.videoTrack.setDevice(deviceId)
-      } catch (err) {
-        console.warn("Gagal switch camera device:", err)
-      }
-    }
-  }
-
-  // Switch Perangkat Mic
+  // Switch Perangkat Mic (Audio Input)
   async function handleSwitchMic(deviceId) {
+    setSelectedMicId(deviceId)
     if (localTracksRef.current?.audioTrack) {
       try {
         await localTracksRef.current.audioTrack.setDevice(deviceId)
@@ -511,6 +513,44 @@ export function AgoraMeetRoom({
         console.warn("Gagal switch mic device:", err)
       }
     }
+  }
+
+  // Switch Perangkat Speaker (Audio Output)
+  async function handleSwitchSpeaker(deviceId) {
+    setSelectedSpeakerId(deviceId)
+    remoteUsers.forEach((u) => {
+      try {
+        u.audioTrack?.setPlaybackDevice?.(deviceId)
+      } catch (err) {
+        console.warn("Gagal set playback device speaker:", err)
+      }
+    })
+  }
+
+  // Uji Suara Speaker di dalam Meet Room
+  function handleTestSpeaker() {
+    if (testingSpeaker) return
+    setTestingSpeaker(true)
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+
+    osc.type = "sine"
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime)
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15)
+
+    gain.gain.setValueAtTime(0.15, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
+
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.5)
+
+    setTimeout(() => {
+      setTestingSpeaker(false)
+      ctx.close()
+    }, 600)
   }
 
   // Toggle Angkat Tangan (Raise Hand)
@@ -1214,36 +1254,74 @@ export function AgoraMeetRoom({
         {!connecting && !errorMsg && (
           <div className="fixed bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-[9999999] pointer-events-auto max-w-[98vw]">
             <div className="flex items-center gap-1 sm:gap-2.5 p-1 sm:p-2 px-2 sm:px-4 rounded-full bg-slate-900/95 sm:bg-slate-900/90 hover:bg-slate-900/98 border border-white/15 shadow-2xl backdrop-blur-2xl transition-all ring-1 ring-black/40 relative">
-              {/* Device Selector Popover Menu */}
+              {/* Device Selector Popover Menu (Terpisah Audio Input & Audio Output) */}
               {showDeviceMenu && (
-                <div className="absolute bottom-14 sm:bottom-16 left-0 sm:left-2 bg-slate-900 border border-slate-700 rounded-2xl p-3 shadow-2xl backdrop-blur-xl w-60 sm:w-64 max-w-[90vw] text-xs space-y-2.5 z-50 animate-in fade-in zoom-in-95">
-                  <span className="font-extrabold text-[11px] text-slate-300 block border-b border-slate-800 pb-1">
-                    Pilih Perangkat Cepat
-                  </span>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400">Kamera:</span>
-                    <select
-                      onChange={(e) => handleSwitchCamera(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-[11px] text-slate-200"
+                <div className="absolute bottom-14 sm:bottom-16 left-0 sm:left-2 bg-slate-900 border border-slate-700 rounded-2xl p-3 shadow-2xl backdrop-blur-xl w-64 sm:w-72 max-w-[92vw] text-xs space-y-3 z-50 animate-in fade-in zoom-in-95">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                    <span className="font-extrabold text-[11px] text-slate-200">
+                      Pengaturan Audio
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeviceMenu(false)}
+                      className="text-slate-400 hover:text-white text-xs px-1"
                     >
-                      {availableCams.map((c) => (
-                        <option key={c.deviceId} value={c.deviceId}>
-                          {c.label || "Kamera"}
-                        </option>
-                      ))}
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* 1. TERPISAH: AUDIO INPUT (MIKROFON) */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                      <Mic className="w-3 h-3" />
+                      <span>Audio Input (Mikrofon)</span>
+                    </span>
+                    <select
+                      value={selectedMicId}
+                      onChange={(e) => handleSwitchMic(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-[11px] text-slate-200 truncate focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    >
+                      {availableMics.length === 0 ? (
+                        <option value="">Tidak ada mikrofon terdeteksi</option>
+                      ) : (
+                        availableMics.map((m) => (
+                          <option key={m.deviceId} value={m.deviceId}>
+                            {m.label || `Mikrofon ${m.deviceId.slice(0, 5)}`}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400">Mikrofon:</span>
+
+                  {/* 2. TERPISAH: AUDIO OUTPUT (SPEAKER) */}
+                  <div className="space-y-1.5 pt-1.5 border-t border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                        <Volume2 className="w-3 h-3" />
+                        <span>Audio Output (Speaker)</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleTestSpeaker}
+                        className="text-[9px] text-amber-400 hover:text-amber-300 font-extrabold flex items-center gap-0.5 bg-amber-500/10 px-1.5 py-0.5 rounded active:scale-95 transition-all"
+                      >
+                        <span>{testingSpeaker ? "Memutar..." : "Uji Suara"}</span>
+                      </button>
+                    </div>
                     <select
-                      onChange={(e) => handleSwitchMic(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-[11px] text-slate-200"
+                      value={selectedSpeakerId}
+                      onChange={(e) => handleSwitchSpeaker(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-[11px] text-slate-200 truncate focus:outline-none focus:ring-1 focus:ring-amber-500"
                     >
-                      {availableMics.map((m) => (
-                        <option key={m.deviceId} value={m.deviceId}>
-                          {m.label || "Mikrofon"}
-                        </option>
-                      ))}
+                      {availableSpeakers.length === 0 ? (
+                        <option value="">Speaker default sistem</option>
+                      ) : (
+                        availableSpeakers.map((s) => (
+                          <option key={s.deviceId} value={s.deviceId}>
+                            {s.label || `Speaker ${s.deviceId.slice(0, 5)}`}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                 </div>

@@ -50,12 +50,15 @@ export function PreMeetLobbyModal({
     async function setupPreview() {
       setLoadingDevices(true)
       try {
-        // Minta izin kamera & mic
+        // Minta izin kamera (kunci ke kamera depan) & mic
         let vTrack = null
         let aTrack = null
 
         try {
-          vTrack = await AgoraRTC.createCameraVideoTrack({ encoderConfig: "480p_1" })
+          vTrack = await AgoraRTC.createCameraVideoTrack({
+            encoderConfig: "480p_1",
+            facingMode: "user",
+          })
           localCamTrackRef.current = vTrack
           if (mounted && previewVideoRef.current && vTrack) {
             previewVideoRef.current.innerHTML = ""
@@ -63,7 +66,6 @@ export function PreMeetLobbyModal({
           }
         } catch (vErr) {
           console.warn("Gagal init kamera preview:", vErr)
-          if (mounted) setCamOn(false)
         }
 
         try {
@@ -88,7 +90,10 @@ export function PreMeetLobbyModal({
           setMicrophones(mics)
           setSpeakers(spks)
 
-          if (cams.length > 0) setSelectedCamId(cams[0].deviceId)
+          // Kunci kamera depan jika ada
+          const frontCam = cams.find((c) => /front|depan|user|facetime/i.test(c.label))
+          const defaultCam = frontCam || cams[0]
+          if (defaultCam) setSelectedCamId(defaultCam.deviceId)
           if (mics.length > 0) setSelectedMicId(mics[0].deviceId)
           if (spks.length > 0) setSelectedSpeakerId(spks[0].deviceId)
         }
@@ -213,7 +218,7 @@ export function PreMeetLobbyModal({
     }
     onJoin({
       initialMicOn: micOn,
-      initialCamOn: camOn,
+      initialCamOn: true,
       selectedCamId,
       selectedMicId,
       selectedSpeakerId,
@@ -223,7 +228,7 @@ export function PreMeetLobbyModal({
   return (
     <div className="fixed inset-0 z-[999999] bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
       <div className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[92vh]">
-        {/* Kolom Kiri: Layar Preview Kamera & Indikator Mic */}
+        {/* Kolom Kiri: Layar Preview Kamera (Otomatis Aktif & Kunci Kamera Depan) */}
         <div className="flex-1 bg-black p-4 sm:p-6 flex flex-col justify-between relative min-h-[300px] md:min-h-[460px]">
           {/* Badge Status */}
           <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
@@ -233,23 +238,12 @@ export function PreMeetLobbyModal({
             </Badge>
           </div>
 
-          {/* Kotak Video */}
+          {/* Kotak Video (Selalu Aktif) */}
           <div className="relative flex-1 rounded-2xl bg-slate-950 overflow-hidden flex items-center justify-center border border-slate-800/80 my-2">
             <div
               ref={previewVideoRef}
-              className={`w-full h-full [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
-                camOn ? "block" : "hidden"
-              }`}
+              className="w-full h-full [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
             />
-
-            {!camOn && (
-              <div className="flex flex-col items-center justify-center space-y-3 text-slate-400">
-                <div className="w-20 h-20 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center font-black text-2xl ring-2 ring-blue-500/30">
-                  {userNama.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-xs font-semibold text-slate-400">Kamera Dimatikan</span>
-              </div>
-            )}
 
             {/* Indikator Level Suara Mikrofon di atas Video */}
             <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2 text-xs">
@@ -270,41 +264,34 @@ export function PreMeetLobbyModal({
                 </div>
               )}
             </div>
+
+            {/* Badge Info Kamera Depan Terkunci */}
+            <div className="absolute top-3 right-3 bg-blue-600/80 backdrop-blur-md px-2.5 py-1 rounded-xl text-[10px] font-bold text-white flex items-center gap-1.5 border border-blue-400/30 shadow-md">
+              <Sparkles className="w-3 h-3 text-blue-200" />
+              <span>Kamera Depan Otomatis Aktif</span>
+            </div>
           </div>
 
-          {/* Tombol Cepat Mic & Cam di Bawah Preview */}
+          {/* Tombol Cepat Mic di Bawah Preview */}
           <div className="flex items-center justify-center gap-3 pt-2">
             <button
               type="button"
               onClick={handleToggleMic}
-              className={`p-3 rounded-full font-bold text-xs flex items-center gap-2 transition-all active:scale-95 ${
+              className={`p-2.5 px-5 rounded-full font-bold text-xs flex items-center gap-2 transition-all active:scale-95 shadow-md ${
                 micOn
                   ? "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
                   : "bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/30"
               }`}
             >
-              {micOn ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
-              <span>{micOn ? "Mic Aktif" : "Mic Mati"}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleToggleCam}
-              className={`p-3 rounded-full font-bold text-xs flex items-center gap-2 transition-all active:scale-95 ${
-                camOn
-                  ? "bg-slate-800 hover:bg-slate-700 text-white border border-slate-700"
-                  : "bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/30"
-              }`}
-            >
-              {camOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
-              <span>{camOn ? "Kamera Aktif" : "Kamera Mati"}</span>
+              {micOn ? <Mic className="w-4 h-4 text-emerald-400" /> : <MicOff className="w-4 h-4" />}
+              <span>{micOn ? "Mikrofon Aktif" : "Mikrofon Dinonaktifkan"}</span>
             </button>
           </div>
         </div>
 
-        {/* Kolom Kanan: Pengaturan Perangkat & Tombol Masuk */}
-        <div className="w-full md:w-80 lg:w-96 p-5 sm:p-6 flex flex-col justify-between bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800 space-y-5 overflow-y-auto">
-          <div className="space-y-4">
+        {/* Kolom Kanan: Pengaturan Terpisah Audio Input & Audio Output */}
+        <div className="w-full md:w-80 lg:w-96 p-5 sm:p-6 flex flex-col justify-between bg-slate-900 border-t md:border-t-0 md:border-l border-slate-800 space-y-4 overflow-y-auto">
+          <div className="space-y-3.5">
             <div>
               <span className="text-[10px] font-black tracking-widest text-blue-400 uppercase">
                 Persiapan Ruang Meet
@@ -317,102 +304,113 @@ export function PreMeetLobbyModal({
               </p>
             </div>
 
-            {/* Pilihan Perangkat */}
-            <div className="space-y-3 pt-2">
-              {/* Kamera */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                  <Video className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Kamera Video</span>
-                </label>
-                <select
-                  value={selectedCamId}
-                  onChange={(e) => handleChangeCamera(e.target.value)}
-                  disabled={loadingDevices || cameras.length === 0}
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 truncate"
-                >
-                  {cameras.length === 0 ? (
-                    <option value="">Tidak ada kamera terdeteksi</option>
-                  ) : (
-                    cameras.map((c) => (
-                      <option key={c.deviceId} value={c.deviceId}>
-                        {c.label || `Kamera ${c.deviceId.slice(0, 5)}`}
-                      </option>
-                    ))
-                  )}
-                </select>
+            {/* Info Kamera Depan */}
+            <div className="p-2.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold">
+                  <Video className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-white">Kamera Depan (Selfie)</div>
+                  <div className="text-[10px] text-blue-300">Otomatis aktif & terkunci</div>
+                </div>
               </div>
+              <Badge className="bg-emerald-500/20 text-emerald-300 border-none text-[9px] px-2 py-0.5 font-black">
+                Aktif
+              </Badge>
+            </div>
 
-              {/* Mikrofon */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                  <Mic className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Mikrofon Audio</span>
+            {/* 1. TERPISAH: AUDIO INPUT (MIKROFON) */}
+            <div className="p-3 rounded-2xl bg-slate-800/60 border border-slate-700/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
+                  <Mic className="w-3.5 h-3.5" />
+                  <span>Audio Input (Mikrofon)</span>
                 </label>
-                <select
-                  value={selectedMicId}
-                  onChange={(e) => handleChangeMic(e.target.value)}
-                  disabled={loadingDevices || microphones.length === 0}
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 truncate"
+                <span
+                  className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded ${
+                    micOn ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"
+                  }`}
                 >
-                  {microphones.length === 0 ? (
-                    <option value="">Tidak ada mikrofon terdeteksi</option>
-                  ) : (
-                    microphones.map((m) => (
-                      <option key={m.deviceId} value={m.deviceId}>
-                        {m.label || `Mikrofon ${m.deviceId.slice(0, 5)}`}
-                      </option>
-                    ))
-                  )}
-                </select>
+                  {micOn ? "Mic Aktif" : "Muted"}
+                </span>
               </div>
-
-              {/* Speaker & Tombol Uji Suara */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Speaker / Output Suara</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleTestSpeaker}
-                    className="text-[10px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1"
-                  >
-                    <span>{audioTestPlaying ? "Memutar nada..." : "Uji Suara"}</span>
-                  </button>
-                </label>
-                <select
-                  value={selectedSpeakerId}
-                  onChange={(e) => setSelectedSpeakerId(e.target.value)}
-                  disabled={loadingDevices || speakers.length === 0}
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 truncate"
-                >
-                  {speakers.length === 0 ? (
-                    <option value="">Speaker default browser</option>
-                  ) : (
-                    speakers.map((s) => (
-                      <option key={s.deviceId} value={s.deviceId}>
-                        {s.label || `Speaker ${s.deviceId.slice(0, 5)}`}
-                      </option>
-                    ))
-                  )}
-                </select>
+              <select
+                value={selectedMicId}
+                onChange={(e) => handleChangeMic(e.target.value)}
+                disabled={loadingDevices || microphones.length === 0}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 truncate"
+              >
+                {microphones.length === 0 ? (
+                  <option value="">Tidak ada mikrofon terdeteksi</option>
+                ) : (
+                  microphones.map((m) => (
+                    <option key={m.deviceId} value={m.deviceId}>
+                      {m.label || `Mikrofon ${m.deviceId.slice(0, 5)}`}
+                    </option>
+                  ))
+                )}
+              </select>
+              {/* Realtime Mic Input Bar */}
+              <div className="flex items-center justify-between gap-2 pt-0.5">
+                <span className="text-[10px] text-slate-400 font-semibold">Volume Input:</span>
+                <div className="flex-1 h-2 bg-slate-900 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 transition-all duration-100 rounded-full"
+                    style={{ width: `${micOn ? Math.min(100, micVolume * 2) : 0}%` }}
+                  />
+                </div>
               </div>
             </div>
 
+            {/* 2. TERPISAH: AUDIO OUTPUT (SPEAKER) */}
+            <div className="p-3 rounded-2xl bg-slate-800/60 border border-slate-700/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                  <Volume2 className="w-3.5 h-3.5" />
+                  <span>Audio Output (Speaker)</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleTestSpeaker}
+                  className="text-[10px] text-amber-400 hover:text-amber-300 font-extrabold flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg active:scale-95 transition-all"
+                >
+                  <span>{audioTestPlaying ? "Memutar nada..." : "Uji Suara"}</span>
+                </button>
+              </div>
+              <select
+                value={selectedSpeakerId}
+                onChange={(e) => setSelectedSpeakerId(e.target.value)}
+                disabled={loadingDevices || speakers.length === 0}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 truncate"
+              >
+                {speakers.length === 0 ? (
+                  <option value="">Speaker default browser</option>
+                ) : (
+                  speakers.map((s) => (
+                    <option key={s.deviceId} value={s.deviceId}>
+                      {s.label || `Speaker ${s.deviceId.slice(0, 5)}`}
+                    </option>
+                  ))
+                )}
+              </select>
+              <p className="text-[10px] text-slate-400">
+                Klik <b>Uji Suara</b> untuk memastikan speaker aktif dan suara guru/teman terdengar jelas.
+              </p>
+            </div>
+
             {!isGuru && (
-              <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-300 flex items-start gap-2">
+              <div className="p-2.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-300 flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 text-blue-400 mt-0.5" />
                 <span>
-                  Siswa akan otomatis masuk dalam kondisi <b>mikrofon mati</b> agar ruang kelas kondusif. Anda dapat menyalakan mic setelah diizinkan guru.
+                  Siswa akan otomatis masuk dalam kondisi <b>mikrofon mati</b> agar kondusif. Anda dapat menyalakan mic kapan saja setelah masuk.
                 </span>
               </div>
             )}
           </div>
 
           {/* Tombol Aksi Bawah */}
-          <div className="pt-4 border-t border-slate-800 space-y-2">
+          <div className="pt-3 border-t border-slate-800 space-y-2">
             <Button
               type="button"
               onClick={handleConfirmJoin}
