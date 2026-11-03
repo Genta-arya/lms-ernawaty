@@ -99,14 +99,10 @@ export function AgoraMeetRoom({
         console.warn("Gagal subscribe ke remote track:", subErr)
       }
 
+      // Pastikan state selalu clone objek user agar React mendeteksi perubahan videoTrack
       setRemoteUsers((prev) => {
-        const index = prev.findIndex((u) => u.uid === user.uid)
-        if (index >= 0) {
-          const updated = [...prev]
-          updated[index] = { ...user }
-          return updated
-        }
-        return [...prev, user]
+        const filtered = prev.filter((u) => u.uid !== user.uid)
+        return [...filtered, user]
       })
 
       if (mediaType === "audio") {
@@ -114,9 +110,10 @@ export function AgoraMeetRoom({
       }
     })
 
-    client.on("user-unpublished", (user) => {
+    client.on("user-unpublished", (user, mediaType) => {
       setRemoteUsers((prev) => {
-        return prev.map((u) => (u.uid === user.uid ? { ...user } : u))
+        const filtered = prev.filter((u) => u.uid !== user.uid)
+        return [...filtered, user]
       })
     })
 
@@ -510,15 +507,16 @@ export function AgoraMeetRoom({
              NORMAL GALLERY MODE: Kisi-kisi Kolom Proporsional ala Zoom
              ========================================================================= */
           <div
-            className={`w-full max-w-6xl mx-auto h-full pb-28 pt-1 px-1 grid gap-3 sm:gap-4 overflow-y-auto no-scrollbar auto-rows-fr ${
+            className={`w-full max-w-6xl mx-auto h-full pb-36 pt-1 px-1 grid gap-3 sm:gap-4 overflow-y-auto overscroll-contain touch-pan-y no-scrollbar ${
               remoteUsers.length === 0
                 ? "grid-cols-1 max-w-2xl my-auto"
                 : remoteUsers.length === 1
-                ? "grid-cols-1 sm:grid-cols-2"
+                ? "grid-cols-1 sm:grid-cols-2 my-auto"
                 : remoteUsers.length === 2
                 ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
                 : "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
             }`}
+            style={{ WebkitOverflowScrolling: "touch" }}
           >
             {/* Video Lokal (Saya) */}
             <div className="relative rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800/80 overflow-hidden shadow-xl flex items-center justify-center aspect-video w-full">
@@ -700,12 +698,30 @@ export function AgoraMeetRoom({
 
 function RemoteUserVideoCard({ user, compact = false, isGuruHost = false, onMute, onKick }) {
   const containerRef = useRef(null)
-  const hasVideo = !!user.videoTrack
+  const [hasVideoTrack, setHasVideoTrack] = useState(!!user.videoTrack)
 
   useEffect(() => {
-    if (user.videoTrack && containerRef.current) {
-      containerRef.current.innerHTML = ""
-      user.videoTrack.play(containerRef.current)
+    let checkInterval = null
+    function mountTrack() {
+      if (user.videoTrack && containerRef.current) {
+        setHasVideoTrack(true)
+        containerRef.current.innerHTML = ""
+        user.videoTrack.play(containerRef.current)
+      } else {
+        setHasVideoTrack(false)
+      }
+    }
+
+    mountTrack()
+    // Polling kecil untuk memastikan track terpasang jika timing subscribe async
+    checkInterval = setInterval(() => {
+      if (user.videoTrack && containerRef.current && containerRef.current.childElementCount === 0) {
+        mountTrack()
+      }
+    }, 1000)
+
+    return () => {
+      if (checkInterval) clearInterval(checkInterval)
     }
   }, [user.videoTrack])
 
@@ -716,16 +732,20 @@ function RemoteUserVideoCard({ user, compact = false, isGuruHost = false, onMute
 
   return (
     <div
-      className={`relative rounded-2xl bg-slate-900 border border-slate-800/80 overflow-hidden shadow-xl flex items-center justify-center w-full group ${
+      className={`relative rounded-2xl bg-slate-900 border border-slate-800/80 overflow-hidden shadow-xl flex items-center justify-center w-full group shrink-0 ${
         compact ? "h-full aspect-video" : "aspect-video"
       }`}
     >
-      {hasVideo ? (
-        <div
-          ref={containerRef}
-          className="w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
-        />
-      ) : (
+      {/* Video Container (Selalu ada di DOM agar Agora SDK bisa memutarnya kapan saja) */}
+      <div
+        ref={containerRef}
+        className={`w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
+          hasVideoTrack ? "block" : "hidden"
+        }`}
+      />
+
+      {/* Placeholder Avatar saat kamera mati */}
+      {!hasVideoTrack && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 space-y-1">
           <div
             className={`rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-black ring-2 ring-indigo-500/20 ${
