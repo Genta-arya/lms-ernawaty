@@ -191,6 +191,24 @@ export function MateriList() {
                         </Badge>
                       )}
                     </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedMateriForDiskusi(m)}
+                        className="h-8 px-2.5 rounded-xl text-xs font-bold gap-1.5 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/70 hover:text-indigo-700 transition-all"
+                        title="Buka Forum Diskusi Materi"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Diskusi</span>
+                        {(forumCounts[m.id] || 0) > 0 && (
+                          <span className="min-w-4 h-4 px-1 rounded-full bg-indigo-600 text-white text-[10px] font-black flex items-center justify-center">
+                            {forumCounts[m.id]}
+                          </span>
+                        )}
+                      </Button>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         {m.status === "terbit" && (
