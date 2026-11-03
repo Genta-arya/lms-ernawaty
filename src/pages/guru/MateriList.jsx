@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { TableRowsLoading } from "@/components/ui/loading-skeletons"
 import { AiMateriGeneratorModal } from "@/components/materi/AiMateriGeneratorModal"
+import { ModalDiskusiMateri } from "@/components/materi/ModalDiskusiMateri"
+import { subscribeAllForumCounts } from "@/services/forumDiskusi"
 import {
   Table,
   TableHeader,
@@ -15,7 +17,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table"
-import { Plus, BookOpen, Sparkles, Edit, Trash2, ExternalLink, Wand2 } from "lucide-react"
+import { Plus, BookOpen, Sparkles, Edit, Trash2, ExternalLink, Wand2, MessageSquare } from "lucide-react"
 
 export function MateriList() {
   const navigate = useNavigate()
@@ -24,6 +26,8 @@ export function MateriList() {
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
   const [isAiModalOpen, setIsAiModalOpen] = useState(false)
+  const [selectedMateriForDiskusi, setSelectedMateriForDiskusi] = useState(null)
+  const [forumCounts, setForumCounts] = useState({})
 
   async function loadData() {
     try {
@@ -40,6 +44,12 @@ export function MateriList() {
     // Otomatis scroll ke atas saat pertama kali halaman kelola materi dibuka
     window.scrollTo({ top: 0, behavior: "smooth" })
     loadData()
+    const unsubCounts = subscribeAllForumCounts((counts) => {
+      setForumCounts(counts)
+    })
+    return () => {
+      if (typeof unsubCounts === "function") unsubCounts()
+    }
   }, [])
 
   function handleSeedTemplate() {
@@ -134,15 +144,16 @@ export function MateriList() {
                 <TableHead>Tingkat Sasaran</TableHead>
                 <TableHead>Bagian</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-center">Diskusi</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRowsLoading rows={4} cols={7} />
+                <TableRowsLoading rows={4} cols={8} />
               ) : materiList.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-xs">
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-xs">
                     <BookOpen className="w-8 h-8 opacity-40 mx-auto mb-2" />
                     Belum ada materi pembelajaran. Klik "Buat dari Template Teks Rekon" untuk memasukkan 3 modul awal sekaligus.
                   </TableCell>
@@ -249,6 +260,13 @@ export function MateriList() {
           }
         }}
         initialMapel="Bahasa Inggris"
+      />
+
+      {/* Modal Cek & Tanggapi Diskusi Materi */}
+      <ModalDiskusiMateri
+        isOpen={!!selectedMateriForDiskusi}
+        onClose={() => setSelectedMateriForDiskusi(null)}
+        materi={selectedMateriForDiskusi}
       />
     </div>
   )

@@ -115,3 +115,29 @@ export async function hapusDiskusi(diskusiId) {
   const docRef = doc(db, COLLECTION_NAME, diskusiId)
   await deleteDoc(docRef)
 }
+
+
+
+/**
+ * Berlangganan ringkasan jumlah diskusi untuk setiap materi
+ */
+export function subscribeAllForumCounts(callback) {
+  const q = query(collection(db, COLLECTION_NAME));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const counts = {};
+      snapshot.docs.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.materiId) {
+          counts[data.materiId] = (counts[data.materiId] || 0) + 1;
+        }
+      });
+      callback(counts);
+    },
+    (err) => {
+      console.error("Error subscribing to forum counts:", err);
+      callback({});
+    }
+  );
+}
