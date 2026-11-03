@@ -116,7 +116,7 @@ export function AgoraMeetRoom({
         if (muteTs > lastProcessedMuteRef.current) {
           lastProcessedMuteRef.current = muteTs
           if (localTracksRef.current.audioTrack && micOnRef.current) {
-            localTracksRef.current.audioTrack.setEnabled(false)
+            localTracksRef.current.audioTrack.setMuted(true)
             setMicOn(false)
           }
         }
@@ -127,7 +127,7 @@ export function AgoraMeetRoom({
         if (controls.muteAllTrigger > lastProcessedMuteRef.current) {
           lastProcessedMuteRef.current = controls.muteAllTrigger
           if (localTracksRef.current.audioTrack && micOnRef.current) {
-            localTracksRef.current.audioTrack.setEnabled(false)
+            localTracksRef.current.audioTrack.setMuted(true)
             setMicOn(false)
           }
         }
@@ -140,7 +140,7 @@ export function AgoraMeetRoom({
           lastProcessedUnmuteAskRef.current = askTs
           if (window.confirm("Guru pengajar meminta Anda menyalakan mikrofon. Nyalakan sekarang?")) {
             if (localTracksRef.current.audioTrack) {
-              localTracksRef.current.audioTrack.setEnabled(true)
+              localTracksRef.current.audioTrack.setMuted(false)
               setMicOn(true)
             }
           }
@@ -282,9 +282,6 @@ export function AgoraMeetRoom({
             microphoneId: initialSettings?.selectedMicId || undefined,
           })
           localTracksRef.current.audioTrack = audioTrack
-          if (!micOn) {
-            await audioTrack.setEnabled(false)
-          }
         } catch (mErr) {
           console.warn("Mikrofon tidak aktif:", mErr)
           setMicOn(false)
@@ -297,10 +294,7 @@ export function AgoraMeetRoom({
             cameraId: initialSettings?.selectedCamId || undefined,
           })
           localTracksRef.current.videoTrack = videoTrack
-          if (!cameraOn) {
-            await videoTrack.setEnabled(false)
-          }
-          if (localVideoRef.current && videoTrack && cameraOn) {
+          if (localVideoRef.current && cameraOn) {
             localVideoRef.current.innerHTML = ""
             videoTrack.play(localVideoRef.current)
           }
@@ -315,6 +309,22 @@ export function AgoraMeetRoom({
             await client.publish(tracksToPublish)
           } catch (pubErr) {
             console.warn("Gagal publish local track:", pubErr)
+          }
+        }
+
+        // Mute setelah dipublish agar WebRTC transceiver aktif terpasang
+        if (audioTrack && !micOn) {
+          try {
+            await audioTrack.setMuted(true)
+          } catch (e) {
+            console.warn("Gagal set initial audio mute:", e)
+          }
+        }
+        if (videoTrack && !cameraOn) {
+          try {
+            await videoTrack.setMuted(true)
+          } catch (e) {
+            console.warn("Gagal set initial video mute:", e)
           }
         }
 
@@ -445,12 +455,16 @@ export function AgoraMeetRoom({
   async function toggleMic() {
     const { audioTrack } = localTracksRef.current
     if (audioTrack) {
-      if (micOn) {
-        await audioTrack.setEnabled(false)
-        setMicOn(false)
-      } else {
-        await audioTrack.setEnabled(true)
-        setMicOn(true)
+      try {
+        if (micOn) {
+          await audioTrack.setMuted(true)
+          setMicOn(false)
+        } else {
+          await audioTrack.setMuted(false)
+          setMicOn(true)
+        }
+      } catch (err) {
+        console.warn("Gagal toggle mic:", err)
       }
     }
   }
@@ -459,16 +473,20 @@ export function AgoraMeetRoom({
   async function toggleCamera() {
     const { videoTrack } = localTracksRef.current
     if (videoTrack) {
-      if (cameraOn) {
-        await videoTrack.setEnabled(false)
-        setCameraOn(false)
-      } else {
-        await videoTrack.setEnabled(true)
-        setCameraOn(true)
-        if (localVideoRef.current) {
-          localVideoRef.current.innerHTML = ""
-          videoTrack.play(localVideoRef.current)
+      try {
+        if (cameraOn) {
+          await videoTrack.setMuted(true)
+          setCameraOn(false)
+        } else {
+          await videoTrack.setMuted(false)
+          setCameraOn(true)
+          if (localVideoRef.current) {
+            localVideoRef.current.innerHTML = ""
+            videoTrack.play(localVideoRef.current)
+          }
         }
+      } catch (err) {
+        console.warn("Gagal toggle camera:", err)
       }
     }
   }
@@ -555,6 +573,9 @@ export function AgoraMeetRoom({
       if (localTracksRef.current.videoTrack) {
         try {
           await client.publish(localTracksRef.current.videoTrack)
+          if (!cameraOn) {
+            await localTracksRef.current.videoTrack.setMuted(true)
+          }
         } catch (_) {}
         if (localVideoRef.current && cameraOn) {
           localVideoRef.current.innerHTML = ""

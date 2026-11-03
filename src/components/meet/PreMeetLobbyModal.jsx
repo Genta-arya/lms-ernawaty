@@ -70,7 +70,7 @@ export function PreMeetLobbyModal({
           aTrack = await AgoraRTC.createMicrophoneAudioTrack()
           localMicTrackRef.current = aTrack
           if (!isGuru) {
-            await aTrack.setEnabled(false)
+            await aTrack.setMuted(true)
           }
         } catch (aErr) {
           console.warn("Gagal init mic preview:", aErr)
@@ -155,7 +155,7 @@ export function PreMeetLobbyModal({
   async function handleToggleMic() {
     if (localMicTrackRef.current) {
       const nextState = !micOn
-      await localMicTrackRef.current.setEnabled(nextState)
+      await localMicTrackRef.current.setMuted(!nextState)
       setMicOn(nextState)
       if (!nextState) setMicVolume(0)
     }
