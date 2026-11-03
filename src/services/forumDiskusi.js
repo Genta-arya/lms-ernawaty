@@ -22,10 +22,10 @@ const COLLECTION_NAME = "forumDiskusi"
 export function subscribeForumByMateri(materiId, callback) {
   if (!materiId) return () => {}
 
+  // Gunakan filter where tanpa composite orderBy agar TIDAK memerlukan Firestore Composite Index
   const q = query(
     collection(db, COLLECTION_NAME),
-    where("materiId", "==", materiId),
-    orderBy("createdAt", "asc")
+    where("materiId", "==", materiId)
   )
 
   return onSnapshot(
@@ -35,6 +35,14 @@ export function subscribeForumByMateri(materiId, callback) {
         id: docSnap.id,
         ...docSnap.data(),
       }))
+
+      // Urutkan asc berdasarkan waktu di memori client
+      items.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt ? new Date(a.createdAt).getTime() : 0)
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt ? new Date(b.createdAt).getTime() : 0)
+        return timeA - timeB
+      })
+
       callback(items)
     },
     (err) => {
