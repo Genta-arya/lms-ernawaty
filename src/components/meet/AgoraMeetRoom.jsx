@@ -83,12 +83,30 @@ export function AgoraMeetRoom({
   const localTracksRef = useRef({ audioTrack: null, videoTrack: null })
   const screenTrackRef = useRef(null)
   const localVideoRef = useRef(null)
-  const localScreenShareRef = useRef(null)
-  const activeSharerVideoRef = useRef(null)
   const speakerViewVideoRef = useRef(null)
   const micOnRef = useRef(micOn)
+  const activeSharerRef = useRef(activeSharer)
+  const isScreenSharingRef = useRef(isScreenSharing)
   const lastProcessedMuteRef = useRef(Date.now() - 1000)
   const lastProcessedUnmuteAskRef = useRef(Date.now() - 1000)
+
+  useEffect(() => {
+    activeSharerRef.current = activeSharer
+  }, [activeSharer])
+
+  useEffect(() => {
+    isScreenSharingRef.current = isScreenSharing
+  }, [isScreenSharing])
+
+  useEffect(() => {
+    function handleBeforeUnload() {
+      if (isScreenSharingRef.current || activeSharerRef.current === userNama) {
+        setActiveScreenSharer(channelName, null).catch(() => {})
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [channelName, userNama])
 
   const presentationContainerRef = useRef(null)
   const [isFullscreenShare, setIsFullscreenShare] = useState(false)
@@ -291,8 +309,16 @@ export function AgoraMeetRoom({
   useEffect(() => {
     if (!channelName) return
     const unsub = subscribeMeetControls(channelName, (controls) => {
-      setActiveSharer(controls?.activeSharer || null)
+      const currentActiveSharer = controls?.activeSharer || null
+      setActiveSharer(currentActiveSharer)
       setSpotlightUserState(controls?.spotlightUser || null)
+
+      // Deteksi jika Firestore mencatat diri saya sedang sharing padahal tidak
+      if (isGuru && currentActiveSharer === userNama && !isScreenSharingRef.current) {
+        console.log("Mereset activeSharer orphan di Firestore...")
+        setActiveScreenSharer(channelName, null).catch(() => {})
+        setActiveSharer(null)
+      }
 
       // Cek apakah saya kena force kick
       const kickUntil = controls?.kickedUsers?.[userNama]
@@ -429,6 +455,14 @@ export function AgoraMeetRoom({
     })
 
     client.on("user-unpublished", (user, mediaType) => {
+      if (mediaType === "video" && user.uid === activeSharerRef.current) {
+        console.log("Sharer menghentikan publish video:", user.uid)
+        setActiveSharer(null)
+        handleResetZoom()
+        if (isGuru || user.uid === userNama) {
+          setActiveScreenSharer(channelName, null).catch(() => {})
+        }
+      }
       setRemoteUsers((prev) => {
         const filtered = prev.filter((u) => u.uid !== user.uid)
         return [
@@ -463,6 +497,12 @@ export function AgoraMeetRoom({
     })
 
     client.on("user-left", (user) => {
+      if (user.uid === activeSharerRef.current) {
+        console.log("Sharer keluar dari Agora channel:", user.uid)
+        setActiveSharer(null)
+        handleResetZoom()
+        setActiveScreenSharer(channelName, null).catch(() => {})
+      }
       setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid))
     })
 
@@ -576,18 +616,6 @@ export function AgoraMeetRoom({
     }
   }, [cameraOn, isScreenSharing, joined, activeSharer, viewMode])
 
-  // Play local screen share jika saya sedang berbagi layar (fit contain agar tidak terpotong)
-  useEffect(() => {
-    if (isScreenSharing && screenTrackRef.current && localScreenShareRef.current) {
-      try {
-        localScreenShareRef.current.innerHTML = ""
-        screenTrackRef.current.play(localScreenShareRef.current, { fit: "contain" })
-      } catch (e) {
-        console.warn("Local screen share play error:", e)
-      }
-    }
-  }, [isScreenSharing])
-
   // Play video di Speaker View jika aktif (fit cover proporsional)
   useEffect(() => {
     if (viewMode === "speaker" && speakerViewVideoRef.current) {
@@ -616,25 +644,10 @@ export function AgoraMeetRoom({
     }
   }, [viewMode, spotlightUser, pinnedUser, speakingUsers, remoteUsers, userNama, cameraOn])
 
-  // Share screen viewer untuk remote participants (fit contain agar landscape 16:9 utuh di hp portrait)
-  useEffect(() => {
-    if (activeSharer && activeSharer !== userNama && activeSharerVideoRef.current) {
-      const sharerUser = remoteUsers.find((u) => u.uid === activeSharer)
-      if (sharerUser?.videoTrack) {
-        try {
-          activeSharerVideoRef.current.innerHTML = ""
-          sharerUser.videoTrack.play(activeSharerVideoRef.current, { fit: "contain" })
-        } catch (e) {
-          console.warn("Active sharer video play error:", e)
-        }
-      }
-    }
-  }, [activeSharer, remoteUsers, userNama])
-
   async function leaveChannel() {
     try {
-      if (isScreenSharing) {
-        await setActiveScreenSharer(channelName, null)
+      if (isScreenSharingRef.current || activeSharerRef.current === userNama) {
+        await setActiveScreenSharer(channelName, null).catch(() => {})
       }
       const { audioTrack, videoTrack } = localTracksRef.current
       if (audioTrack) {
@@ -862,8 +875,10 @@ export function AgoraMeetRoom({
     await setSpotlightUser(channelName, spotlightUser === nama ? null : nama)
   }
 
-  // Cek apakah ada yang sedang share screen
-  const isSomeoneSharing = !!activeSharer
+  // Cek apakah ada yang sedang share screen (hanya aktif jika presenter benar-benar ada di room)
+  const isSomeoneSharing =
+    !!activeSharer &&
+    (activeSharer === userNama ? isScreenSharing : remoteUsers.some((u) => u.uid === activeSharer))
 
   // Siapa pembicara aktif di Speaker View
   const currentSpeakerUid =
@@ -1060,14 +1075,10 @@ export function AgoraMeetRoom({
                   }}
                 >
                   {activeSharer === userNama ? (
-                    <div
-                      ref={localScreenShareRef}
-                      className="w-full h-full flex items-center justify-center bg-black [&_video]:!object-contain [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_video]:!max-h-full [&_video]:!max-w-full [&_div]:!bg-transparent pointer-events-none"
-                    />
+                    <LocalScreenShareView screenTrack={screenTrackRef.current} />
                   ) : (
-                    <div
-                      ref={activeSharerVideoRef}
-                      className="w-full h-full flex items-center justify-center bg-black [&_video]:!object-contain [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_video]:!max-h-full [&_video]:!max-w-full [&_div]:!bg-transparent pointer-events-none"
+                    <RemoteScreenShareView
+                      sharerUser={remoteUsers.find((u) => u.uid === activeSharer)}
                     />
                   )}
                 </div>
@@ -1800,6 +1811,95 @@ export function AgoraMeetRoom({
       )}
     </div>,
     document.body
+  )
+}
+
+function RemoteScreenShareView({ sharerUser, fit = "contain" }) {
+  const containerRef = useRef(null)
+  const track = sharerUser?.videoTrack
+
+  useEffect(() => {
+    let timer1 = null
+    let timer2 = null
+
+    const playTrack = () => {
+      if (track && containerRef.current) {
+        try {
+          containerRef.current.innerHTML = ""
+          track.play(containerRef.current, { fit })
+        } catch (e) {
+          console.warn("Remote screen share play error:", e)
+        }
+      }
+    }
+
+    playTrack()
+    timer1 = setTimeout(playTrack, 200)
+    timer2 = setTimeout(playTrack, 600)
+
+    return () => {
+      if (timer1) clearTimeout(timer1)
+      if (timer2) clearTimeout(timer2)
+      if (track && containerRef.current) {
+        try {
+          track.stop()
+        } catch (_) {}
+      }
+    }
+  }, [track, sharerUser?.version, fit])
+
+  return (
+    <div className="w-full h-full relative flex items-center justify-center bg-black">
+      <div
+        ref={containerRef}
+        className="w-full h-full flex items-center justify-center bg-black [&_video]:!object-contain [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_video]:!max-h-full [&_video]:!max-w-full [&_div]:!bg-transparent pointer-events-none"
+      />
+      {!track && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/95 text-slate-400 space-y-2 z-10">
+          <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-semibold text-slate-300">
+            Menghubungkan ke presentasi {sharerUser?.uid || ""}...
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LocalScreenShareView({ screenTrack, fit = "contain" }) {
+  const containerRef = useRef(null)
+
+  useEffect(() => {
+    let timer = null
+    const play = () => {
+      if (screenTrack && containerRef.current) {
+        try {
+          containerRef.current.innerHTML = ""
+          screenTrack.play(containerRef.current, { fit })
+        } catch (e) {
+          console.warn("Local screen share play error:", e)
+        }
+      }
+    }
+
+    playTrack: play()
+    timer = setTimeout(play, 200)
+
+    return () => {
+      if (timer) clearTimeout(timer)
+      if (screenTrack && containerRef.current) {
+        try {
+          screenTrack.stop()
+        } catch (_) {}
+      }
+    }
+  }, [screenTrack, fit])
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full flex items-center justify-center bg-black [&_video]:!object-contain [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_video]:!max-h-full [&_video]:!max-w-full [&_div]:!bg-transparent pointer-events-none"
+    />
   )
 }
 
