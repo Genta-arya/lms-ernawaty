@@ -83,41 +83,46 @@ export function AgoraMeetRoom({
         // Gabung channel menggunakan userAccount (String nama)
         await client.join(appId, channelName, token, userNama)
 
-        // Buat local audio & video track
+        // Inisialisasi audio & video track secara mandiri & toleran
+        let audioTrack = null
+        let videoTrack = null
+
+        // 1. Coba dapatkan mikrofon
         try {
-          const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
-            {},
-            { encoderConfig: "480p_1" }
-          )
+          audioTrack = await AgoraRTC.createMicrophoneAudioTrack()
+          localTracksRef.current.audioTrack = audioTrack
+          if (!isGuru) {
+            await audioTrack.setEnabled(false)
+            setMicOn(false)
+          } else {
+            setMicOn(true)
+          }
+        } catch (mErr) {
+          console.warn("Izin mikrofon tidak aktif atau tidak tersedia:", mErr)
+          setMicOn(false)
+        }
 
-          localTracksRef.current = { audioTrack, videoTrack }
-
-          // Putar video lokal ke elemen DOM
+        // 2. Coba dapatkan kamera video
+        try {
+          videoTrack = await AgoraRTC.createCameraVideoTrack({ encoderConfig: "480p_1" })
+          localTracksRef.current.videoTrack = videoTrack
+          setCameraOn(true)
           if (localVideoRef.current && videoTrack) {
             localVideoRef.current.innerHTML = ""
             videoTrack.play(localVideoRef.current)
           }
+        } catch (vErr) {
+          console.warn("Izin kamera tidak aktif atau tidak tersedia:", vErr)
+          setCameraOn(false)
+        }
 
-          // Jika siswa, otomatis mute mic saat pertama masuk
-          if (!isGuru && audioTrack) {
-            await audioTrack.setEnabled(false)
-          }
-
-          // Publikasikan track ke channel
-          await client.publish([audioTrack, videoTrack])
-        } catch (deviceErr) {
-          console.warn("Kamera tidak dapat diakses, mencoba mic saja:", deviceErr)
+        // 3. Publikasikan track yang berhasil didapatkan (jika ada)
+        const tracksToPublish = [audioTrack, videoTrack].filter(Boolean)
+        if (tracksToPublish.length > 0) {
           try {
-            const audioTrack = await AgoraRTC.createMicrophoneAudioTrack()
-            localTracksRef.current.audioTrack = audioTrack
-            setCameraOn(false)
-            if (!isGuru && audioTrack) {
-              await audioTrack.setEnabled(false)
-            }
-            await client.publish([audioTrack])
-          } catch (micErr) {
-            console.error("Gagal akses mikrofon:", micErr)
-            setErrorMsg("Izin mikrofon/kamera tidak diberikan atau perangkat sedang digunakan aplikasi lain.")
+            await client.publish(tracksToPublish)
+          } catch (pubErr) {
+            console.warn("Gagal publish local track:", pubErr)
           }
         }
 
