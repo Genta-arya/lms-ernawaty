@@ -56,9 +56,9 @@ export function MeetChatDrawer({
   }
 
   return (
-    <div className="absolute top-16 right-3 sm:right-6 bottom-24 z-40 w-80 sm:w-96 bg-slate-900/95 border border-slate-700/80 rounded-3xl p-4 shadow-2xl backdrop-blur-2xl flex flex-col justify-between animate-in fade-in zoom-in-95">
+    <div className="fixed inset-x-2 sm:inset-auto top-14 sm:top-16 bottom-20 sm:bottom-24 sm:right-6 z-50 sm:w-96 bg-slate-900/98 sm:bg-slate-900/95 border border-slate-700/80 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-2xl backdrop-blur-2xl flex flex-col justify-between animate-in fade-in zoom-in-95">
       {/* Header Chat */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold">
             <MessageSquare className="w-3.5 h-3.5" />

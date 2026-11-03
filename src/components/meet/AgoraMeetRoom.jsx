@@ -79,10 +79,16 @@ export function AgoraMeetRoom({
   const localTracksRef = useRef({ audioTrack: null, videoTrack: null })
   const screenTrackRef = useRef(null)
   const localVideoRef = useRef(null)
+  const localScreenShareRef = useRef(null)
   const activeSharerVideoRef = useRef(null)
   const speakerViewVideoRef = useRef(null)
-  const lastProcessedMuteRef = useRef(0)
-  const lastProcessedUnmuteAskRef = useRef(0)
+  const micOnRef = useRef(micOn)
+  const lastProcessedMuteRef = useRef(Date.now() - 1000)
+  const lastProcessedUnmuteAskRef = useRef(Date.now() - 1000)
+
+  useEffect(() => {
+    micOnRef.current = micOn
+  }, [micOn])
 
   // Cek apakah saya sedang angkat tangan
   const isMyHandRaised = !!raisedHands[userNama]
@@ -99,7 +105,7 @@ export function AgoraMeetRoom({
       // Cek apakah saya kena force kick
       const kickUntil = controls?.kickedUsers?.[userNama]
       if (!isGuru && kickUntil && Date.now() < kickUntil) {
-        alert("Anda dikeluarkan dari sesi meet oleh guru pengajar.")
+        alert("Anda dikeluarkan dari sesi meet oleh guru pengajar. Anda dapat bergabung kembali setelah beberapa saat.")
         leaveChannel()
         return
       }
@@ -109,7 +115,7 @@ export function AgoraMeetRoom({
         const muteTs = controls.lastMutedUser.at || 0
         if (muteTs > lastProcessedMuteRef.current) {
           lastProcessedMuteRef.current = muteTs
-          if (localTracksRef.current.audioTrack && micOn) {
+          if (localTracksRef.current.audioTrack && micOnRef.current) {
             localTracksRef.current.audioTrack.setEnabled(false)
             setMicOn(false)
           }
@@ -120,7 +126,7 @@ export function AgoraMeetRoom({
       if (!isGuru && controls?.muteAllTrigger) {
         if (controls.muteAllTrigger > lastProcessedMuteRef.current) {
           lastProcessedMuteRef.current = controls.muteAllTrigger
-          if (localTracksRef.current.audioTrack && micOn) {
+          if (localTracksRef.current.audioTrack && micOnRef.current) {
             localTracksRef.current.audioTrack.setEnabled(false)
             setMicOn(false)
           }
@@ -142,12 +148,16 @@ export function AgoraMeetRoom({
       }
     })
     return () => unsub()
-  }, [channelName, userNama, isGuru, micOn])
+  }, [channelName, userNama, isGuru])
 
   // 2. Setup Agora Call
   useEffect(() => {
     let mounted = true
     document.body.style.overflow = "hidden"
+
+    AgoraRTC.onAudioAutoplayFailed = () => {
+      console.warn("Audio autoplay blocked by browser.")
+    }
 
     const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" })
     clientRef.current = client
@@ -163,7 +173,18 @@ export function AgoraMeetRoom({
     client.on("user-joined", (user) => {
       setRemoteUsers((prev) => {
         if (!prev.find((u) => u.uid === user.uid)) {
-          return [...prev, user]
+          return [
+            ...prev,
+            {
+              uid: user.uid,
+              rawUser: user,
+              videoTrack: user.videoTrack,
+              audioTrack: user.audioTrack,
+              hasAudio: user.hasAudio,
+              hasVideo: user.hasVideo,
+              version: Date.now(),
+            },
+          ]
         }
         return prev
       })
@@ -176,20 +197,46 @@ export function AgoraMeetRoom({
         console.warn("Gagal subscribe ke remote track:", subErr)
       }
 
+      if (mediaType === "audio") {
+        try {
+          user.audioTrack?.play()
+        } catch (aErr) {
+          console.warn("Gagal memutar remote audio track:", aErr)
+        }
+      }
+
       setRemoteUsers((prev) => {
         const filtered = prev.filter((u) => u.uid !== user.uid)
-        return [...filtered, { ...user, hasAudio: user.hasAudio, hasVideo: user.hasVideo }]
+        return [
+          ...filtered,
+          {
+            uid: user.uid,
+            rawUser: user,
+            videoTrack: user.videoTrack,
+            audioTrack: user.audioTrack,
+            hasAudio: user.hasAudio,
+            hasVideo: user.hasVideo,
+            version: Date.now(),
+          },
+        ]
       })
-
-      if (mediaType === "audio") {
-        user.audioTrack?.play()
-      }
     })
 
     client.on("user-unpublished", (user, mediaType) => {
       setRemoteUsers((prev) => {
         const filtered = prev.filter((u) => u.uid !== user.uid)
-        return [...filtered, { ...user, hasAudio: user.hasAudio, hasVideo: user.hasVideo }]
+        return [
+          ...filtered,
+          {
+            uid: user.uid,
+            rawUser: user,
+            videoTrack: user.videoTrack,
+            audioTrack: user.audioTrack,
+            hasAudio: user.hasAudio,
+            hasVideo: user.hasVideo,
+            version: Date.now(),
+          },
+        ]
       })
     })
 
@@ -197,7 +244,8 @@ export function AgoraMeetRoom({
       const activeMap = {}
       volumes.forEach((v) => {
         if (v.level > 5) {
-          activeMap[v.uid] = true
+          const uid = v.uid === 0 || v.uid === "0" ? userNama : v.uid
+          activeMap[uid] = true
         }
       })
       setSpeakingUsers(activeMap)
@@ -231,7 +279,7 @@ export function AgoraMeetRoom({
         // Mikrofon
         try {
           audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
-            cameraId: initialSettings?.selectedMicId || undefined,
+            microphoneId: initialSettings?.selectedMicId || undefined,
           })
           localTracksRef.current.audioTrack = audioTrack
           if (!micOn) {
@@ -292,7 +340,7 @@ export function AgoraMeetRoom({
     }
   }, [channelName, userNama])
 
-  // Pastikan video lokal selalu terputar di thumbnail
+  // Pastikan video lokal selalu terputar di thumbnail & gallery
   useEffect(() => {
     const vTrack = localTracksRef.current?.videoTrack
     if (vTrack && localVideoRef.current && cameraOn && !isScreenSharing) {
@@ -300,38 +348,62 @@ export function AgoraMeetRoom({
         localVideoRef.current.innerHTML = ""
         vTrack.play(localVideoRef.current)
       } catch (e) {
-        console.warn("Video play error:", e)
+        console.warn("Local video play error:", e)
       }
     }
   }, [cameraOn, isScreenSharing, joined, activeSharer, viewMode])
 
+  // Play local screen share jika saya sedang berbagi layar
+  useEffect(() => {
+    if (isScreenSharing && screenTrackRef.current && localScreenShareRef.current) {
+      try {
+        localScreenShareRef.current.innerHTML = ""
+        screenTrackRef.current.play(localScreenShareRef.current)
+      } catch (e) {
+        console.warn("Local screen share play error:", e)
+      }
+    }
+  }, [isScreenSharing])
+
   // Play video di Speaker View jika aktif
   useEffect(() => {
     if (viewMode === "speaker" && speakerViewVideoRef.current) {
-      const activeSpeakerUid = spotlightUser || pinnedUser || Object.keys(speakingUsers)[0]
+      const activeSpeakerUid = spotlightUser || pinnedUser || Object.keys(speakingUsers)[0] || userNama
       if (activeSpeakerUid === userNama) {
         const vTrack = localTracksRef.current?.videoTrack
         if (vTrack && cameraOn) {
-          speakerViewVideoRef.current.innerHTML = ""
-          vTrack.play(speakerViewVideoRef.current)
+          try {
+            speakerViewVideoRef.current.innerHTML = ""
+            vTrack.play(speakerViewVideoRef.current)
+          } catch (e) {
+            console.warn("Speaker view local play error:", e)
+          }
         }
       } else if (activeSpeakerUid) {
         const sUser = remoteUsers.find((u) => u.uid === activeSpeakerUid)
         if (sUser?.videoTrack) {
-          speakerViewVideoRef.current.innerHTML = ""
-          sUser.videoTrack.play(speakerViewVideoRef.current)
+          try {
+            speakerViewVideoRef.current.innerHTML = ""
+            sUser.videoTrack.play(speakerViewVideoRef.current)
+          } catch (e) {
+            console.warn("Speaker view remote play error:", e)
+          }
         }
       }
     }
   }, [viewMode, spotlightUser, pinnedUser, speakingUsers, remoteUsers, userNama, cameraOn])
 
-  // Share screen viewer
+  // Share screen viewer untuk remote participants
   useEffect(() => {
     if (activeSharer && activeSharer !== userNama && activeSharerVideoRef.current) {
       const sharerUser = remoteUsers.find((u) => u.uid === activeSharer)
       if (sharerUser?.videoTrack) {
-        activeSharerVideoRef.current.innerHTML = ""
-        sharerUser.videoTrack.play(activeSharerVideoRef.current)
+        try {
+          activeSharerVideoRef.current.innerHTML = ""
+          sharerUser.videoTrack.play(activeSharerVideoRef.current)
+        } catch (e) {
+          console.warn("Active sharer video play error:", e)
+        }
       }
     }
   }, [activeSharer, remoteUsers, userNama])
@@ -456,11 +528,6 @@ export function AgoraMeetRoom({
         await client.publish(screenTrack)
         await setActiveScreenSharer(channelName, userNama)
 
-        if (localVideoRef.current) {
-          localVideoRef.current.innerHTML = ""
-          screenTrack.play(localVideoRef.current)
-        }
-
         screenTrack.on("track-ended", async () => {
           await stopScreenSharing()
         })
@@ -477,14 +544,18 @@ export function AgoraMeetRoom({
   async function stopScreenSharing() {
     const client = clientRef.current
     if (screenTrackRef.current && client) {
-      await client.unpublish(screenTrackRef.current)
+      try {
+        await client.unpublish(screenTrackRef.current)
+      } catch (_) {}
       screenTrackRef.current.stop()
       screenTrackRef.current.close()
       screenTrackRef.current = null
       await setActiveScreenSharer(channelName, null)
 
       if (localTracksRef.current.videoTrack) {
-        await client.publish(localTracksRef.current.videoTrack)
+        try {
+          await client.publish(localTracksRef.current.videoTrack)
+        } catch (_) {}
         if (localVideoRef.current && cameraOn) {
           localVideoRef.current.innerHTML = ""
           localTracksRef.current.videoTrack.play(localVideoRef.current)
@@ -557,30 +628,30 @@ export function AgoraMeetRoom({
 
   return createPortal(
     <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[999999] bg-slate-950 flex flex-col text-white w-screen h-screen overflow-hidden animate-in fade-in duration-200">
-      {/* Top Bar Header ala Zoom */}
-      <div className="p-3 sm:p-4 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between gap-3 backdrop-blur-md shrink-0">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-md">
-            <Video className="w-4 h-4" />
+      {/* Top Bar Header Responsif ala Zoom */}
+      <div className="h-14 sm:h-16 px-2.5 sm:px-4 py-2 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between gap-2 sm:gap-3 backdrop-blur-md shrink-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-md shrink-0">
+            <Video className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </div>
           <div className="min-w-0">
-            <h2 className="font-extrabold text-xs sm:text-sm text-slate-100 truncate">
+            <h2 className="font-extrabold text-xs sm:text-sm text-slate-100 truncate max-w-[130px] sm:max-w-xs md:max-w-md">
               {judulSesi}
             </h2>
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-bold text-emerald-400">Meet LSM</span>
-              <span>&bull;</span>
-              <span>{remoteUsers.length + 1} Peserta Terhubung</span>
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-400">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="font-bold text-emerald-400 hidden sm:inline">Meet LSM</span>
+              <span className="hidden sm:inline">&bull;</span>
+              <span>{remoteUsers.length + 1} Peserta</span>
             </div>
           </div>
         </div>
 
         {/* Info & Action Zoom Bar Atas */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Sinyal Jaringan */}
           <div
-            className="flex items-center gap-1 px-2 py-1 rounded-xl bg-slate-800 border border-slate-700 text-[10px] font-bold"
+            className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-xl bg-slate-800 border border-slate-700 text-[10px] font-bold"
             title={`Kualitas Jaringan: ${networkQuality <= 2 ? "Bagus" : networkQuality === 3 ? "Sedang" : "Buruk"}`}
           >
             <Signal
@@ -601,10 +672,10 @@ export function AgoraMeetRoom({
           <button
             type="button"
             onClick={() => setViewMode(viewMode === "gallery" ? "speaker" : "gallery")}
-            className="p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-slate-700 bg-slate-800 text-slate-300 hover:text-white transition-all"
+            className="w-8 h-8 sm:w-auto p-1 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-slate-700 bg-slate-800 text-slate-300 hover:text-white transition-all"
             title={`Ganti ke ${viewMode === "gallery" ? "Speaker View" : "Gallery View"}`}
           >
-            <LayoutGrid className="w-4 h-4 text-blue-400" />
+            <LayoutGrid className="w-4 h-4 text-blue-400 shrink-0" />
             <span className="text-[11px] hidden sm:inline">
               {viewMode === "gallery" ? "Gallery" : "Speaker"}
             </span>
@@ -617,14 +688,14 @@ export function AgoraMeetRoom({
               setShowChat(!showChat)
               if (showParticipantList) setShowParticipantList(false)
             }}
-            className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+            className={`w-8 h-8 sm:w-auto p-1 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
               showChat
                 ? "bg-blue-600 border-blue-500 text-white"
                 : "bg-slate-800 border-slate-700 text-slate-300 hover:text-white"
             }`}
             title="Chat Kelas"
           >
-            <MessageSquare className="w-4 h-4" />
+            <MessageSquare className="w-4 h-4 shrink-0" />
             <span className="text-[11px] hidden sm:inline">Chat</span>
           </button>
 
@@ -635,14 +706,14 @@ export function AgoraMeetRoom({
               setShowParticipantList(!showParticipantList)
               if (showChat) setShowChat(false)
             }}
-            className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all relative ${
+            className={`w-8 h-8 sm:w-auto p-1 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all relative ${
               showParticipantList
                 ? "bg-blue-600 border-blue-500 text-white"
                 : "bg-slate-800 border-slate-700 text-slate-300 hover:text-white"
             }`}
             title="Kelola Peserta"
           >
-            <Users className="w-4 h-4" />
+            <Users className="w-4 h-4 shrink-0" />
             <span className="text-[11px] hidden sm:inline">{remoteUsers.length + 1}</span>
             {Object.keys(raisedHands).length > 0 && (
               <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 text-black text-[9px] font-black rounded-full flex items-center justify-center animate-bounce">
@@ -654,7 +725,7 @@ export function AgoraMeetRoom({
       </div>
 
       {/* Main Body */}
-      <div className="relative flex-1 p-2 sm:p-4 overflow-hidden flex flex-col justify-between">
+      <div className="relative flex-1 p-2 sm:p-4 overflow-hidden flex flex-col justify-between min-h-0">
         {connecting ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center space-y-3">
             <div className="w-12 h-12 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
@@ -675,74 +746,115 @@ export function AgoraMeetRoom({
           </div>
         ) : isSomeoneSharing ? (
           /* =========================================================================
-             ZOOM SCREEN SHARE MODE
+             ZOOM SCREEN SHARE MODE (RESPONSIF MOBILE & DESKTOP)
              ========================================================================= */
-          <div className="flex-1 flex flex-col h-full gap-3 overflow-hidden pb-20">
-            <div className="flex-1 relative rounded-2xl bg-black border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center min-h-[300px]">
+          <div className="flex-1 flex flex-col h-full gap-2 sm:gap-3 overflow-hidden pb-16 sm:pb-20 min-h-0">
+            {/* Layar Utama Presentasi */}
+            <div className="flex-1 relative rounded-xl sm:rounded-2xl bg-black border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center min-h-[220px] sm:min-h-[340px]">
               {activeSharer === userNama ? (
-                <div ref={localVideoRef} className="w-full h-full object-contain" />
+                <div
+                  ref={localScreenShareRef}
+                  className="w-full h-full [&>div]:w-full [&>div]:h-full [&>div>video]:object-contain"
+                />
               ) : (
-                <div ref={activeSharerVideoRef} className="w-full h-full object-contain" />
+                <div
+                  ref={activeSharerVideoRef}
+                  className="w-full h-full [&>div]:w-full [&>div]:h-full [&>div>video]:object-contain"
+                />
               )}
-              <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-400 flex items-center gap-2 border border-emerald-500/30">
+              <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-emerald-400 flex items-center gap-1.5 sm:gap-2 border border-emerald-500/30">
                 <Monitor className="w-3.5 h-3.5" />
-                <span>Presentasi Layar: {activeSharer === userNama ? "Layar Anda" : activeSharer}</span>
+                <span>Presentasi: {activeSharer === userNama ? "Layar Anda" : activeSharer}</span>
               </div>
+              {isGuru && activeSharer !== userNama && (
+                <button
+                  type="button"
+                  onClick={handleHentikanShareScreenMurid}
+                  className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 bg-rose-600/90 hover:bg-rose-600 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold flex items-center gap-1 shadow-lg"
+                >
+                  <MonitorOff className="w-3.5 h-3.5" />
+                  <span>Hentikan Layar</span>
+                </button>
+              )}
             </div>
 
             {/* Strip Thumbnail Bawah */}
-            <div className="h-28 sm:h-32 flex items-center gap-2.5 overflow-x-auto pb-1 shrink-0 no-scrollbar">
-              <div className="relative rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center">
-                {!isScreenSharing && (
-                  <div
-                    ref={localVideoRef}
-                    className="w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
-                  />
-                )}
-                {(!cameraOn || isScreenSharing) && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
-                    <div className="w-8 h-8 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-bold text-xs ring-1 ring-blue-500/20">
-                      {userNama.charAt(0).toUpperCase()}
-                    </div>
+            <div className="h-20 sm:h-28 flex items-center gap-2 overflow-x-auto pb-1 shrink-0 no-scrollbar">
+              {/* Thumbnail Saya */}
+              <div className="relative rounded-xl sm:rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center">
+                {isScreenSharing ? (
+                  <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
+                    <Monitor className="w-5 h-5 text-emerald-400" />
+                    <span className="text-[10px] font-bold text-slate-300">Layar Anda</span>
                   </div>
+                ) : (
+                  <>
+                    <div
+                      ref={localVideoRef}
+                      className={`w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
+                        cameraOn ? "opacity-100" : "opacity-0 pointer-events-none"
+                      }`}
+                    />
+                    {!cameraOn && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-bold text-xs ring-1 ring-blue-500/20">
+                          {userNama.charAt(0).toUpperCase()}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
-                <div className="absolute bottom-1.5 left-1.5 bg-black/60 px-2 py-0.5 rounded-lg text-[10px] font-bold text-white flex items-center gap-1">
+                <div className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-bold text-white flex items-center gap-1">
                   <span>{userNama}</span>
                   {!micOn && <MicOff className="w-2.5 h-2.5 text-rose-400" />}
                 </div>
               </div>
 
-              {remoteUsers.map((user) => (
-                <div
-                  key={user.uid}
-                  className="relative rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center"
-                >
-                  <RemoteUserVideoCard
-                    user={user}
-                    compact={true}
-                    isSpeaking={speakingUsers[user.uid]}
-                    isHandRaised={!!raisedHands[user.uid]}
-                  />
-                </div>
-              ))}
+              {/* Thumbnail Peserta Lain */}
+              {remoteUsers.map((u) => {
+                const isSharer = u.uid === activeSharer
+                return (
+                  <div
+                    key={u.uid}
+                    className="relative rounded-xl sm:rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center"
+                  >
+                    {isSharer ? (
+                      <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
+                        <Monitor className="w-5 h-5 text-emerald-400 animate-pulse" />
+                        <span className="text-[10px] font-bold text-slate-300 truncate max-w-[90px]">
+                          {u.uid}
+                        </span>
+                        <span className="text-[8px] text-emerald-400 font-semibold">Berbagi Layar</span>
+                      </div>
+                    ) : (
+                      <RemoteUserVideoCard
+                        user={u}
+                        compact={true}
+                        isSpeaking={speakingUsers[u.uid]}
+                        isHandRaised={!!raisedHands[u.uid]}
+                      />
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         ) : viewMode === "speaker" ? (
           /* =========================================================================
              SPEAKER VIEW MODE ALA ZOOM
              ========================================================================= */
-          <div className="flex-1 flex flex-col h-full gap-3 overflow-hidden pb-20">
+          <div className="flex-1 flex flex-col h-full gap-2 sm:gap-3 overflow-hidden pb-16 sm:pb-20 min-h-0">
             {/* Layar Utama Speaker */}
-            <div className="flex-1 relative rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center min-h-[300px]">
+            <div className="flex-1 relative rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center min-h-[220px] sm:min-h-[340px]">
               <div
                 ref={speakerViewVideoRef}
                 className="w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
               />
-              <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 border border-white/10">
+              <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-white flex items-center gap-1.5 sm:gap-2 border border-white/10">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Fokus Pembicara: {currentSpeakerUid === userNama ? `${userNama} (Anda)` : currentSpeakerUid}</span>
+                <span>Fokus: {currentSpeakerUid === userNama ? `${userNama} (Anda)` : currentSpeakerUid}</span>
                 {spotlightUser === currentSpeakerUid && (
-                  <Badge className="bg-amber-500/20 text-amber-300 border-none text-[9px] px-1.5 py-0 font-black">
+                  <Badge className="bg-amber-500/20 text-amber-300 border-none text-[8px] sm:text-[9px] px-1.5 py-0 font-black">
                     Spotlight
                   </Badge>
                 )}
@@ -750,50 +862,73 @@ export function AgoraMeetRoom({
             </div>
 
             {/* Filmstrip Strip Bawah */}
-            <div className="h-24 sm:h-28 flex items-center gap-2.5 overflow-x-auto pb-1 shrink-0 no-scrollbar">
+            <div className="h-20 sm:h-28 flex items-center gap-2 overflow-x-auto pb-1 shrink-0 no-scrollbar">
               <div
                 onClick={() => setPinnedUser(userNama)}
-                className={`relative rounded-2xl bg-slate-900 border overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center cursor-pointer ${
+                className={`relative rounded-xl sm:rounded-2xl bg-slate-900 border overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center cursor-pointer ${
                   currentSpeakerUid === userNama ? "ring-2 ring-blue-500" : "border-slate-800"
                 }`}
               >
-                <div
-                  ref={localVideoRef}
-                  className="w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
-                />
-                {!cameraOn && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
-                    <div className="w-7 h-7 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-bold text-xs">
-                      {userNama.charAt(0).toUpperCase()}
-                    </div>
+                {currentSpeakerUid === userNama ? (
+                  <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
+                    <Sparkles className="w-5 h-5 text-blue-400 animate-pulse" />
+                    <span className="text-[10px] font-bold text-slate-300">{userNama}</span>
+                    <span className="text-[8px] text-blue-400 font-semibold">Di Layar Utama</span>
                   </div>
+                ) : (
+                  <>
+                    <div
+                      ref={localVideoRef}
+                      className={`w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
+                        cameraOn ? "opacity-100" : "opacity-0 pointer-events-none"
+                      }`}
+                    />
+                    {!cameraOn && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-bold text-xs">
+                          {userNama.charAt(0).toUpperCase()}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
                 <div className="absolute bottom-1 left-1 bg-black/60 px-1.5 py-0.5 rounded text-[9px] font-bold text-white">
                   {userNama} (Saya)
                 </div>
               </div>
 
-              {remoteUsers.map((u) => (
-                <div
-                  key={u.uid}
-                  onClick={() => setPinnedUser(u.uid)}
-                  className={`relative rounded-2xl bg-slate-900 border overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center cursor-pointer ${
-                    currentSpeakerUid === u.uid ? "ring-2 ring-blue-500" : "border-slate-800"
-                  }`}
-                >
-                  <RemoteUserVideoCard
-                    user={u}
-                    compact={true}
-                    isSpeaking={speakingUsers[u.uid]}
-                    isHandRaised={!!raisedHands[u.uid]}
-                  />
-                </div>
-              ))}
+              {remoteUsers.map((u) => {
+                const isActiveOnStage = currentSpeakerUid === u.uid
+                return (
+                  <div
+                    key={u.uid}
+                    onClick={() => setPinnedUser(u.uid)}
+                    className={`relative rounded-xl sm:rounded-2xl bg-slate-900 border overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center cursor-pointer ${
+                      isActiveOnStage ? "ring-2 ring-blue-500" : "border-slate-800"
+                    }`}
+                  >
+                    {isActiveOnStage ? (
+                      <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
+                        <Sparkles className="w-5 h-5 text-blue-400 animate-pulse" />
+                        <span className="text-[10px] font-bold text-slate-300 truncate max-w-[90px]">{u.uid}</span>
+                        <span className="text-[8px] text-blue-400 font-semibold">Di Layar Utama</span>
+                      </div>
+                    ) : (
+                      <RemoteUserVideoCard
+                        user={u}
+                        compact={true}
+                        isSpeaking={speakingUsers[u.uid]}
+                        isHandRaised={!!raisedHands[u.uid]}
+                      />
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         ) : (
           /* =========================================================================
-             GALLERY VIEW MODE (Sesuai Sketsa Ganjil/Genap)
+             GALLERY VIEW MODE (RESPONSIF MOBILE / TABLET / DESKTOP)
              ========================================================================= */
           (() => {
             const totalParticipants = 1 + remoteUsers.length
@@ -806,96 +941,106 @@ export function AgoraMeetRoom({
 
             return (
               <div
-                className={`w-full max-w-5xl mx-auto h-full pb-36 pt-1 px-1 grid gap-3 sm:gap-4 overflow-y-auto overscroll-contain touch-pan-y no-scrollbar ${
-                  totalParticipants === 1
-                    ? "grid-cols-1 max-w-2xl my-auto"
-                    : "grid-cols-2 my-auto"
-                }`}
+                className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar py-2 sm:py-3 px-1 sm:px-3 min-h-0"
                 style={{ WebkitOverflowScrolling: "touch" }}
               >
-                {participants.map((p, idx) => {
-                  const isLastOddItem = isOddGreaterThanOne && idx === totalParticipants - 1
-                  const wrapperClass = isLastOddItem ? "col-span-2 w-full" : "col-span-1 w-full"
+                <div
+                  className={`w-full max-w-5xl mx-auto pb-24 sm:pb-28 grid gap-2 sm:gap-3.5 ${
+                    totalParticipants === 1
+                      ? "grid-cols-1 max-w-xl m-auto"
+                      : "grid-cols-2"
+                  }`}
+                >
+                  {participants.map((p, idx) => {
+                    const isLastOddItem = isOddGreaterThanOne && idx === totalParticipants - 1
+                    const wrapperClass = isLastOddItem ? "col-span-2 w-full" : "col-span-1 w-full"
 
-                  if (p.isLocal) {
-                    const isSpeaking = speakingUsers[userNama]
-                    const handRaised = isMyHandRaised
+                    if (p.isLocal) {
+                      const isSpeaking = speakingUsers[userNama]
+                      const handRaised = isMyHandRaised
 
-                    return (
-                      <div key="local-user" className={wrapperClass}>
-                        <div
-                          className={`relative rounded-2xl sm:rounded-3xl bg-slate-900 border overflow-hidden shadow-xl flex items-center justify-center w-full transition-all duration-200 ${
-                            isSpeaking
-                              ? "ring-2 ring-emerald-400 border-emerald-400"
-                              : "border-slate-800/80"
-                          } ${
-                            isLastOddItem ? "aspect-[21/9] sm:aspect-[24/9] max-h-[38vh]" : "aspect-video"
-                          }`}
-                        >
+                      return (
+                        <div key="local-user" className={wrapperClass}>
                           <div
-                            ref={localVideoRef}
-                            className="w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
-                          />
-                          {!cameraOn && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 space-y-2">
-                              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-black text-lg sm:text-xl ring-2 ring-blue-500/20">
-                                {userNama.charAt(0).toUpperCase()}
+                            className={`relative rounded-xl sm:rounded-2xl bg-slate-900 border overflow-hidden shadow-xl flex items-center justify-center w-full transition-all duration-200 ${
+                              isSpeaking
+                                ? "ring-2 ring-emerald-400 border-emerald-400"
+                                : "border-slate-800/80"
+                            } ${
+                              isLastOddItem
+                                ? "aspect-[16/9] sm:aspect-[21/9] max-h-[34vh]"
+                                : "aspect-[4/3] sm:aspect-video"
+                            }`}
+                          >
+                            <div
+                              ref={localVideoRef}
+                              className={`w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
+                                cameraOn && !isScreenSharing ? "opacity-100" : "opacity-0 pointer-events-none"
+                              }`}
+                            />
+                            {(!cameraOn || isScreenSharing) && (
+                              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 space-y-1 sm:space-y-2">
+                                <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-black text-sm sm:text-xl ring-2 ring-blue-500/20">
+                                  {userNama.charAt(0).toUpperCase()}
+                                </div>
+                                <span className="text-[10px] sm:text-xs font-semibold text-slate-400">
+                                  {isScreenSharing ? "Berbagi Layar" : "Kamera Dinonaktifkan"}
+                                </span>
                               </div>
-                              <span className="text-xs font-semibold">Kamera Dinonaktifkan</span>
-                            </div>
-                          )}
+                            )}
 
-                          {/* Ikon Angkat Tangan */}
-                          {handRaised && (
-                            <div className="absolute top-3 left-3 bg-amber-500 text-black px-2 py-1 rounded-xl font-black text-[11px] flex items-center gap-1 shadow-lg animate-bounce">
-                              <Hand className="w-3.5 h-3.5 fill-black" />
-                              <span>Angkat Tangan</span>
-                            </div>
-                          )}
+                            {/* Ikon Angkat Tangan */}
+                            {handRaised && (
+                              <div className="absolute top-2 left-2 bg-amber-500 text-black px-2 py-0.5 rounded-lg font-black text-[10px] flex items-center gap-1 shadow-lg animate-bounce">
+                                <Hand className="w-3 h-3 fill-black" />
+                                <span>Angkat Tangan</span>
+                              </div>
+                            )}
 
-                          <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 shadow-md">
-                            <span>{userNama} (Saya)</span>
-                            {isSpeaking ? (
-                              <span className="flex items-center gap-1 text-emerald-400 font-extrabold text-[11px]">
-                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                                <Mic className="w-3.5 h-3.5" />
-                              </span>
-                            ) : !micOn ? (
-                              <MicOff className="w-3.5 h-3.5 text-rose-400" />
-                            ) : null}
+                            <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-xl text-[10px] sm:text-xs font-bold text-white flex items-center gap-1.5 shadow-md">
+                              <span>{userNama} (Saya)</span>
+                              {isSpeaking ? (
+                                <span className="flex items-center gap-1 text-emerald-400 font-extrabold text-[10px]">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                                  <Mic className="w-3 h-3" />
+                                </span>
+                              ) : !micOn ? (
+                                <MicOff className="w-3 h-3 text-rose-400" />
+                              ) : null}
+                            </div>
                           </div>
                         </div>
+                      )
+                    }
+
+                    return (
+                      <div key={p.uid} className={wrapperClass}>
+                        <RemoteUserVideoCard
+                          user={p.user}
+                          isSpeaking={speakingUsers[p.uid]}
+                          isHandRaised={!!raisedHands[p.uid]}
+                          isSpotlight={spotlightUser === p.uid}
+                          isGuruHost={isGuru}
+                          isFullSpan={isLastOddItem}
+                          onMute={() => handleMuteMurid(p.uid)}
+                          onAskUnmute={() => handleAskUnmuteMurid(p.uid)}
+                          onSpotlight={() => handleSetSpotlight(p.uid)}
+                          onKick={() => handleKickMurid(p.uid)}
+                        />
                       </div>
                     )
-                  }
-
-                  return (
-                    <div key={p.uid} className={wrapperClass}>
-                      <RemoteUserVideoCard
-                        user={p.user}
-                        isSpeaking={speakingUsers[p.uid]}
-                        isHandRaised={!!raisedHands[p.uid]}
-                        isSpotlight={spotlightUser === p.uid}
-                        isGuruHost={isGuru}
-                        isFullSpan={isLastOddItem}
-                        onMute={() => handleMuteMurid(p.uid)}
-                        onAskUnmute={() => handleAskUnmuteMurid(p.uid)}
-                        onSpotlight={() => handleSetSpotlight(p.uid)}
-                        onKick={() => handleKickMurid(p.uid)}
-                      />
-                    </div>
-                  )
-                })}
+                  })}
+                </div>
               </div>
             )
           })()
         )}
 
         {/* =========================================================================
-            PANEL KELOLA PARTICIPANTS (ZOOM ROSTER & HOST CONTROLS)
+            PANEL KELOLA PARTICIPANTS (RESPONSIF MOBILE / DESKTOP)
             ========================================================================= */}
         {showParticipantList && (
-          <div className="absolute top-16 right-3 sm:right-6 bottom-24 z-40 w-72 sm:w-88 bg-slate-900/95 border border-slate-700/80 rounded-3xl p-4 shadow-2xl backdrop-blur-2xl flex flex-col justify-between animate-in fade-in zoom-in-95 space-y-3">
+          <div className="fixed inset-x-2 sm:inset-auto top-14 sm:top-16 bottom-20 sm:bottom-24 sm:right-6 z-50 sm:w-88 bg-slate-900/98 sm:bg-slate-900/95 border border-slate-700/80 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-2xl backdrop-blur-2xl flex flex-col justify-between animate-in fade-in zoom-in-95 space-y-3">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div>
                 <span className="text-xs font-extrabold text-slate-200">
@@ -1032,7 +1177,7 @@ export function AgoraMeetRoom({
           </div>
         )}
 
-        {/* Drawer Chat */}
+        {/* Drawer Chat (Responsif Mobile & Desktop) */}
         {showChat && (
           <MeetChatDrawer
             channelName={channelName}
@@ -1043,14 +1188,14 @@ export function AgoraMeetRoom({
         )}
 
         {/* =========================================================================
-            FLOATING OVERLAY CONTROLS PILL ALA ZOOM MEETING
+            FLOATING OVERLAY CONTROLS PILL ALA ZOOM (RESPONSIF MOBILE 100%)
             ========================================================================= */}
         {!connecting && !errorMsg && (
-          <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[9999999] pointer-events-auto max-w-[95vw]">
-            <div className="flex items-center gap-1.5 sm:gap-3 p-1.5 sm:p-2.5 px-3 sm:px-5 rounded-full bg-slate-900/90 hover:bg-slate-900/98 border border-white/15 shadow-2xl backdrop-blur-2xl transition-all ring-1 ring-black/40 relative">
+          <div className="fixed bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-[9999999] pointer-events-auto max-w-[98vw]">
+            <div className="flex items-center gap-1 sm:gap-2.5 p-1 sm:p-2 px-2 sm:px-4 rounded-full bg-slate-900/95 sm:bg-slate-900/90 hover:bg-slate-900/98 border border-white/15 shadow-2xl backdrop-blur-2xl transition-all ring-1 ring-black/40 relative">
               {/* Device Selector Popover Menu */}
               {showDeviceMenu && (
-                <div className="absolute bottom-16 left-2 bg-slate-900 border border-slate-700 rounded-2xl p-3 shadow-2xl backdrop-blur-xl w-64 text-xs space-y-2.5 z-50 animate-in fade-in zoom-in-95">
+                <div className="absolute bottom-14 sm:bottom-16 left-0 sm:left-2 bg-slate-900 border border-slate-700 rounded-2xl p-3 shadow-2xl backdrop-blur-xl w-60 sm:w-64 max-w-[90vw] text-xs space-y-2.5 z-50 animate-in fade-in zoom-in-95">
                   <span className="font-extrabold text-[11px] text-slate-300 block border-b border-slate-800 pb-1">
                     Pilih Perangkat Cepat
                   </span>
@@ -1088,22 +1233,22 @@ export function AgoraMeetRoom({
                 <button
                   type="button"
                   onClick={toggleMic}
-                  className={`p-2.5 sm:p-3 rounded-l-full transition-all active:scale-95 shadow-md ${
+                  className={`h-8 sm:h-10 px-2 sm:px-3 rounded-l-full flex items-center justify-center transition-all active:scale-95 shadow-md ${
                     micOn
                       ? "bg-white/10 hover:bg-white/20 text-white"
                       : "bg-rose-600 hover:bg-rose-700 text-white ring-2 ring-rose-400/50"
                   }`}
                   title={micOn ? "Matikan Mikrofon" : "Nyalakan Mikrofon"}
                 >
-                  {micOn ? <Mic className="w-4 h-4 sm:w-5 sm:h-5" /> : <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  {micOn ? <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <MicOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowDeviceMenu(!showDeviceMenu)}
-                  className="p-2.5 sm:p-3 rounded-r-full bg-white/10 hover:bg-white/20 border-l border-white/10 text-slate-300"
+                  className="h-8 sm:h-10 px-1 sm:px-1.5 rounded-r-full bg-white/10 hover:bg-white/20 border-l border-white/10 text-slate-300 flex items-center justify-center"
                   title="Ganti Perangkat"
                 >
-                  <ChevronUp className="w-3.5 h-3.5" />
+                  <ChevronUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </button>
               </div>
 
@@ -1111,14 +1256,14 @@ export function AgoraMeetRoom({
               <button
                 type="button"
                 onClick={toggleCamera}
-                className={`p-2.5 sm:p-3 rounded-full transition-all active:scale-95 shadow-md ${
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-md ${
                   cameraOn
                     ? "bg-white/10 hover:bg-white/20 text-white"
                     : "bg-rose-600 hover:bg-rose-700 text-white ring-2 ring-rose-400/50"
                 }`}
                 title={cameraOn ? "Matikan Kamera" : "Nyalakan Kamera"}
               >
-                {cameraOn ? <Video className="w-4 h-4 sm:w-5 sm:h-5" /> : <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />}
+                {cameraOn ? <Video className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <VideoOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
               </button>
 
               {/* Screen Sharing Toggle */}
@@ -1126,7 +1271,7 @@ export function AgoraMeetRoom({
                 type="button"
                 onClick={toggleScreenShare}
                 disabled={activeSharer && activeSharer !== userNama}
-                className={`p-2.5 sm:p-3 rounded-full transition-all active:scale-95 shadow-md ${
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-md ${
                   isScreenSharing
                     ? "bg-indigo-600 text-white ring-2 ring-indigo-400/60"
                     : activeSharer && activeSharer !== userNama
@@ -1141,33 +1286,33 @@ export function AgoraMeetRoom({
                     : "Bagikan Layar (Screen Share)"
                 }
               >
-                <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Monitor className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
 
               {/* Angkat Tangan (Raise Hand) */}
               <button
                 type="button"
                 onClick={handleToggleRaiseHand}
-                className={`p-2.5 sm:p-3 rounded-full transition-all active:scale-95 shadow-md ${
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-md ${
                   isMyHandRaised
                     ? "bg-amber-500 text-black ring-2 ring-amber-300 font-black animate-pulse"
                     : "bg-white/10 hover:bg-white/20 text-white"
                 }`}
                 title={isMyHandRaised ? "Turunkan Tangan" : "Angkat Tangan"}
               >
-                <Hand className={`w-4 h-4 sm:w-5 sm:h-5 ${isMyHandRaised ? "fill-black" : ""}`} />
+                <Hand className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isMyHandRaised ? "fill-black" : ""}`} />
               </button>
 
-              <div className="w-[1px] h-6 bg-white/15 my-auto mx-0.5" />
+              <div className="w-[1px] h-5 sm:h-6 bg-white/15 my-auto mx-0.5" />
 
               {/* Leave Call Button */}
               <button
                 type="button"
                 onClick={leaveChannel}
-                className="p-2.5 sm:p-3 px-3.5 sm:px-5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-lg shadow-rose-600/30 transition-all active:scale-95"
+                className="h-8 sm:h-10 px-2.5 sm:px-4 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-rose-600/30 transition-all active:scale-95 shrink-0"
                 title="Tinggalkan Sesi Meet"
               >
-                <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />
+                <PhoneOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Keluar</span>
               </button>
             </div>
@@ -1193,31 +1338,18 @@ function RemoteUserVideoCard({
   onKick,
 }) {
   const containerRef = useRef(null)
-  const [hasVideoTrack, setHasVideoTrack] = useState(!!user.videoTrack)
+  const track = user.videoTrack
 
   useEffect(() => {
-    let checkInterval = null
-    function mountTrack() {
-      if (user.videoTrack && containerRef.current) {
-        setHasVideoTrack(true)
+    if (track && containerRef.current) {
+      try {
         containerRef.current.innerHTML = ""
-        user.videoTrack.play(containerRef.current)
-      } else {
-        setHasVideoTrack(false)
+        track.play(containerRef.current)
+      } catch (err) {
+        console.warn("Remote video track play error:", err)
       }
     }
-
-    mountTrack()
-    checkInterval = setInterval(() => {
-      if (user.videoTrack && containerRef.current && containerRef.current.childElementCount === 0) {
-        mountTrack()
-      }
-    }, 1000)
-
-    return () => {
-      if (checkInterval) clearInterval(checkInterval)
-    }
-  }, [user.videoTrack])
+  }, [track, user.version, user.hasVideo])
 
   const displayName =
     typeof user.uid === "string" && isNaN(Number(user.uid))
@@ -1226,7 +1358,7 @@ function RemoteUserVideoCard({
 
   return (
     <div
-      className={`relative rounded-2xl bg-slate-900 border overflow-hidden shadow-xl flex items-center justify-center w-full group shrink-0 transition-all duration-200 ${
+      className={`relative rounded-xl sm:rounded-2xl bg-slate-900 border overflow-hidden shadow-xl flex items-center justify-center w-full group shrink-0 transition-all duration-200 ${
         isSpeaking
           ? "ring-2 ring-emerald-400 border-emerald-400"
           : isSpotlight
@@ -1236,27 +1368,28 @@ function RemoteUserVideoCard({
         compact
           ? "h-full aspect-video"
           : isFullSpan
-          ? "aspect-[21/9] sm:aspect-[24/9] max-h-[38vh]"
-          : "aspect-video"
+          ? "aspect-[16/9] sm:aspect-[21/9] max-h-[34vh]"
+          : "aspect-[4/3] sm:aspect-video"
       }`}
     >
+      {/* Video element container is always present in DOM to allow seamless Agora playback */}
       <div
         ref={containerRef}
         className={`w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
-          hasVideoTrack ? "block" : "hidden"
+          user.hasVideo && track ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       />
 
-      {!hasVideoTrack && (
+      {(!user.hasVideo || !track) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 space-y-1">
           <div
             className={`rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-black ring-2 ring-indigo-500/20 ${
-              compact ? "w-8 h-8 text-xs" : "w-14 h-14 text-lg"
+              compact ? "w-7 h-7 sm:w-8 sm:h-8 text-[11px]" : "w-11 h-11 sm:w-16 sm:h-16 text-sm sm:text-xl"
             }`}
           >
             {displayName.charAt(0).toUpperCase()}
           </div>
-          <span className="text-[11px] font-semibold text-slate-400 truncate max-w-[90%]">
+          <span className="text-[10px] sm:text-xs font-semibold text-slate-300 truncate max-w-[85%] text-center">
             {displayName}
           </span>
         </div>
@@ -1264,35 +1397,35 @@ function RemoteUserVideoCard({
 
       {/* Badge Angkat Tangan */}
       {isHandRaised && (
-        <div className="absolute top-2 left-2 bg-amber-500 text-black px-2 py-0.5 rounded-lg font-black text-[10px] flex items-center gap-1 shadow-md animate-bounce">
-          <Hand className="w-3 h-3 fill-black" />
+        <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-amber-500 text-black px-1.5 py-0.5 rounded-lg font-black text-[9px] sm:text-[10px] flex items-center gap-1 shadow-md animate-bounce">
+          <Hand className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-black" />
           <span>Tangan Terangkat</span>
         </div>
       )}
 
       {/* Label Nama Peserta & Indikator Suara */}
-      <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-xl text-[11px] font-bold text-white flex items-center gap-1.5 shadow-md">
-        <span className="truncate max-w-[120px]">{displayName}</span>
+      <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-xl text-[10px] sm:text-[11px] font-bold text-white flex items-center gap-1.5 shadow-md max-w-[85%]">
+        <span className="truncate">{displayName}</span>
         {isSpeaking ? (
-          <span className="flex items-center gap-1 text-emerald-400 font-extrabold text-[10px]">
+          <span className="flex items-center gap-1 text-emerald-400 font-extrabold text-[9px] sm:text-[10px] shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-            <Mic className="w-3 h-3" />
+            <Mic className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
           </span>
         ) : !user.hasAudio ? (
-          <MicOff className="w-3 h-3 text-rose-400" />
+          <MicOff className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-rose-400 shrink-0" />
         ) : null}
       </div>
 
       {/* Host Action Hover Buttons */}
       {isGuruHost && !compact && (
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/70 backdrop-blur-md p-1 rounded-xl border border-white/10">
+        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/70 backdrop-blur-md p-1 rounded-xl border border-white/10 z-10">
           <button
             type="button"
             onClick={onMute}
             className="p-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[10px]"
             title="Mute Peserta"
           >
-            <VolumeX className="w-3.5 h-3.5" />
+            <VolumeX className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </button>
           <button
             type="button"
@@ -1300,7 +1433,7 @@ function RemoteUserVideoCard({
             className="p-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px]"
             title="Minta Unmute"
           >
-            <Mic className="w-3.5 h-3.5" />
+            <Mic className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </button>
           <button
             type="button"
@@ -1310,7 +1443,7 @@ function RemoteUserVideoCard({
             }`}
             title="Spotlight Peserta"
           >
-            <Pin className="w-3.5 h-3.5" />
+            <Pin className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </button>
           <button
             type="button"
@@ -1318,7 +1451,7 @@ function RemoteUserVideoCard({
             className="p-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px]"
             title="Keluarkan Peserta"
           >
-            <UserX className="w-3.5 h-3.5" />
+            <UserX className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </button>
         </div>
       )}
