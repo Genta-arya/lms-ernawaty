@@ -1,3 +1,4 @@
+import { encryptChatMessage, decryptChatMessage } from "@/services/cryptoChat"
 import {
   collection,
   doc,
@@ -34,13 +35,16 @@ export async function sendPesanKelas({
     setTypingStatusKelas(kelasId, myId, "", false).catch(() => {})
   }
 
+  // Enkripsi pesan ruang kelas secara End-to-End dengan kunci kelasId rahasia
+  const encryptedPesan = await encryptChatMessage(cleanPesan, `kelas_${kelasId}`)
+
   return await addDoc(collection(db, "chatKelas"), {
     kelasId,
     pengirimUid: pengirimUid || null,
     pengirimNisn: pengirimNisn || null,
     pengirimNama: pengirimNama || "Siswa",
     pengirimFotoUrl: pengirimFotoUrl || null,
-    pesan: cleanPesan,
+    pesan: encryptedPesan,
     createdAt: serverTimestamp(),
   })
 }
@@ -85,7 +89,17 @@ export function subscribePesanKelas(kelasId, callback) {
         return timeA - timeB
       })
 
-      callback(messages)
+      // Dekripsi seluruh pesan kelas secara realtime
+      Promise.all(
+        messages.map(async (m) => {
+          const decrypted = await decryptChatMessage(m.pesan, `kelas_${kelasId}`)
+          return { ...m, pesan: decrypted }
+        })
+      ).then((decryptedList) => {
+        callback(decryptedList)
+      }).catch(() => {
+        callback(messages)
+      })
     },
     (err) => {
       console.warn("Realtime chat kelas error:", err)

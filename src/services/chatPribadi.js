@@ -1,3 +1,4 @@
+import { encryptChatMessage, decryptChatMessage } from "@/services/cryptoChat"
 import {
   collection,
   doc,
@@ -104,6 +105,9 @@ export async function sendPesanPribadi({
   const pNisn = pengirimNisn || (typeof pengirimId === "string" && !pengirimId.includes("-") && pengirimId.length <= 15 ? pengirimId : null)
   const rNisn = penerimaNisn || (typeof penerimaId === "string" && !penerimaId.includes("-") && penerimaId.length <= 15 ? penerimaId : null)
 
+  // Enkripsi pesan secara End-to-End menggunakan kunci chatId rahasia
+  const encryptedPesan = await encryptChatMessage(cleanPesan, chatId)
+
   const docRef = await addDoc(collection(db, "chatPribadi"), {
     chatId,
     participants: [String(pengirimId), String(penerimaId)],
@@ -113,7 +117,7 @@ export async function sendPesanPribadi({
     penerimaNisn: rNisn,
     pengirimNama: pengirimNama || "Siswa",
     pengirimFotoUrl: pengirimFotoUrl || null,
-    pesan: cleanPesan,
+    pesan: encryptedPesan,
     dibaca: false, // Default belum dibaca
     createdAt: serverTimestamp(),
   })
@@ -177,7 +181,17 @@ export function subscribePesanPribadi(chatId, callback) {
         return timeA - timeB
       })
 
-      callback(messages)
+      // Dekripsi seluruh pesan E2EE secara realtime sebelum dikirim ke UI
+      Promise.all(
+        messages.map(async (m) => {
+          const decrypted = await decryptChatMessage(m.pesan, chatId)
+          return { ...m, pesan: decrypted }
+        })
+      ).then((decryptedList) => {
+        callback(decryptedList)
+      }).catch(() => {
+        callback(messages)
+      })
     },
     (err) => {
       console.warn("Realtime chat pribadi error:", err)

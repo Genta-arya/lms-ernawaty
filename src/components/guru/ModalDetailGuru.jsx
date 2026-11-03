@@ -137,3 +137,4 @@ export function ModalDetailGuru({ isOpen, onClose, guruData }) {
     </Dialog>
   )
 }
+

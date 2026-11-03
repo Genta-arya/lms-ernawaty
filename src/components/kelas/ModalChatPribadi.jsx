@@ -18,6 +18,7 @@ import {
   X,
   Check,
   CheckCheck,
+  Lock,
 } from "lucide-react"
 
 export function ModalChatPribadi({ targetMurid, onClose }) {
@@ -198,6 +199,16 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
 
         {/* Isi Pesan Chat */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 bg-gradient-to-b from-slate-50/30 via-white to-slate-50/20">
+          {/* WhatsApp-style E2EE Security Banner */}
+          <div className="mx-auto max-w-sm p-2.5 rounded-2xl bg-amber-50/90 border border-amber-200/80 shadow-2xs text-center space-y-1">
+            <div className="inline-flex items-center justify-center gap-1.5 text-[11px] font-extrabold text-amber-800">
+              <Lock className="w-3.5 h-3.5 text-amber-600" />
+              <span>Enkripsi End-to-End (E2EE) Aktif</span>
+            </div>
+            <p className="text-[10px] text-amber-900/80 leading-relaxed">
+              Pesan dan obrolan pribadi Anda dilindungi enkripsi end-to-end. Tidak seorang pun di luar obrolan ini, bahkan sistem database, yang dapat membacanya.
+            </p>
+          </div>
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
               <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center mb-2 border border-indigo-100">
