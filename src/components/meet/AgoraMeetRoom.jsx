@@ -1292,9 +1292,6 @@ export function AgoraMeetRoom({
                 <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
                   Peserta Lainnya ({remoteUsers.length})
                 </span>
-                <span className="text-[10px] text-slate-500 hidden sm:inline">
-                  Klik untuk pin ke layar utama
-                </span>
               </div>
 
               {/* Strip Peserta Bawah (Scrollable horizontal & responsive) */}
