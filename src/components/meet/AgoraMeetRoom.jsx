@@ -505,50 +505,76 @@ export function AgoraMeetRoom({
         ) : (
           /* =========================================================================
              NORMAL GALLERY MODE: Kisi-kisi Kolom Proporsional ala Zoom
+             - Total 1: 1 kolom centered (max-w-2xl)
+             - Total genap (2, 4, 6...): grid-cols-2 (semua peserta col-span-1)
+             - Total ganjil > 1 (3, 5...): grid-cols-2, peserta terakhir col-span-2 (full lebar bawah sesuai sketsa)
+             Berlaku konsisten di mobile, tablet, dan desktop.
              ========================================================================= */
-          <div
-            className={`w-full max-w-6xl mx-auto h-full pb-36 pt-1 px-1 grid gap-3 sm:gap-4 overflow-y-auto overscroll-contain touch-pan-y no-scrollbar ${
-              remoteUsers.length === 0
-                ? "grid-cols-1 max-w-2xl my-auto"
-                : remoteUsers.length === 1
-                ? "grid-cols-1 sm:grid-cols-2 my-auto"
-                : remoteUsers.length === 2
-                ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
-                : "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-            }`}
-            style={{ WebkitOverflowScrolling: "touch" }}
-          >
-            {/* Video Lokal (Saya) */}
-            <div className="relative rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800/80 overflow-hidden shadow-xl flex items-center justify-center aspect-video w-full">
-              <div
-                ref={localVideoRef}
-                className="w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
-              />
-              {!cameraOn && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 space-y-2">
-                  <div className="w-16 h-16 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-black text-xl ring-2 ring-blue-500/20">
-                    {userNama.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="text-xs font-semibold">Kamera Dinonaktifkan</span>
-                </div>
-              )}
-              <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 shadow-md">
-                <span>{userNama} (Saya)</span>
-                {!micOn && <MicOff className="w-3.5 h-3.5 text-rose-400" />}
-              </div>
-            </div>
+          (() => {
+            const totalParticipants = 1 + remoteUsers.length
+            const isOddGreaterThanOne = totalParticipants % 2 !== 0 && totalParticipants > 1
 
-            {/* Video Remote Users */}
-            {remoteUsers.map((user) => (
-              <RemoteUserVideoCard
-                key={user.uid}
-                user={user}
-                isGuruHost={isGuru}
-                onMute={() => handleMuteMurid(user.uid)}
-                onKick={() => handleKickMurid(user.uid)}
-              />
-            ))}
-          </div>
+            // Buat array seragam: item pertama adalah local user (saya), berikutnya remote users
+            const participants = [
+              { isLocal: true, uid: userNama, name: userNama },
+              ...remoteUsers.map((u) => ({ isLocal: false, user: u, uid: u.uid })),
+            ]
+
+            return (
+              <div
+                className={`w-full max-w-5xl mx-auto h-full pb-36 pt-1 px-1 grid gap-3 sm:gap-4 overflow-y-auto overscroll-contain touch-pan-y no-scrollbar ${
+                  totalParticipants === 1
+                    ? "grid-cols-1 max-w-2xl my-auto"
+                    : "grid-cols-2 my-auto"
+                }`}
+                style={{ WebkitOverflowScrolling: "touch" }}
+              >
+                {participants.map((p, idx) => {
+                  const isLastOddItem = isOddGreaterThanOne && idx === totalParticipants - 1
+                  const wrapperClass = isLastOddItem ? "col-span-2 w-full" : "col-span-1 w-full"
+
+                  if (p.isLocal) {
+                    return (
+                      <div key="local-user" className={wrapperClass}>
+                        <div className={`relative rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800/80 overflow-hidden shadow-xl flex items-center justify-center w-full ${
+                          isLastOddItem ? "aspect-[21/9] sm:aspect-[24/9] max-h-[38vh]" : "aspect-video"
+                        }`}>
+                          <div
+                            ref={localVideoRef}
+                            className="w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
+                          />
+                          {!cameraOn && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 space-y-2">
+                              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-black text-lg sm:text-xl ring-2 ring-blue-500/20">
+                                {userNama.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="text-xs font-semibold">Kamera Dinonaktifkan</span>
+                            </div>
+                          )}
+                          <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 shadow-md">
+                            <span>{userNama} (Saya)</span>
+                            {!micOn && <MicOff className="w-3.5 h-3.5 text-rose-400" />}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div key={p.uid} className={wrapperClass}>
+                      <RemoteUserVideoCard
+                        user={p.user}
+                        isGuruHost={isGuru}
+                        isFullSpan={isLastOddItem}
+                        onMute={() => handleMuteMurid(p.uid)}
+                        onKick={() => handleKickMurid(p.uid)}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()
         )}
 
         {/* =========================================================================
@@ -696,7 +722,7 @@ export function AgoraMeetRoom({
   )
 }
 
-function RemoteUserVideoCard({ user, compact = false, isGuruHost = false, onMute, onKick }) {
+function RemoteUserVideoCard({ user, compact = false, isFullSpan = false, isGuruHost = false, onMute, onKick }) {
   const containerRef = useRef(null)
   const [hasVideoTrack, setHasVideoTrack] = useState(!!user.videoTrack)
 
@@ -733,7 +759,11 @@ function RemoteUserVideoCard({ user, compact = false, isGuruHost = false, onMute
   return (
     <div
       className={`relative rounded-2xl bg-slate-900 border border-slate-800/80 overflow-hidden shadow-xl flex items-center justify-center w-full group shrink-0 ${
-        compact ? "h-full aspect-video" : "aspect-video"
+        compact
+          ? "h-full aspect-video"
+          : isFullSpan
+          ? "aspect-[21/9] sm:aspect-[24/9] max-h-[38vh]"
+          : "aspect-video"
       }`}
     >
       {/* Video Container (Selalu ada di DOM agar Agora SDK bisa memutarnya kapan saja) */}
