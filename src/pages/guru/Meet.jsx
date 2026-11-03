@@ -43,6 +43,22 @@ export function GuruMeet() {
   const [waktuMulai, setWaktuMulai] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
+  // Cek konflik: sesi aktif di kelas yang sama pada hari yang sama
+  const targetKelas = kelasList.find((k) => k.id === selectedKelasId)
+  const targetDate = waktuMulai ? new Date(waktuMulai) : new Date()
+  const conflictingActiveSession = sesiList.find((s) => {
+    if (s.status !== "berlangsung") return false
+    const matchClass =
+      s.kelasId === selectedKelasId || s.kelasId === "semua" || selectedKelasId === "semua"
+    if (!matchClass) return false
+    const sDate = s.waktuMulai?.toDate ? s.waktuMulai.toDate() : new Date(s.waktuMulai || s.createdAt)
+    return (
+      sDate.getFullYear() === targetDate.getFullYear() &&
+      sDate.getMonth() === targetDate.getMonth() &&
+      sDate.getDate() === targetDate.getDate()
+    )
+  })
+
   useEffect(() => {
     async function loadKelas() {
       try {
@@ -67,6 +83,15 @@ export function GuruMeet() {
   async function handleBuatSesi(e) {
     e.preventDefault()
     if (!judul.trim() || !selectedKelasId || submitting) return
+
+    if (conflictingActiveSession) {
+      alert(
+        `Tidak dapat membuat sesi baru: Masih ada sesi tatap muka yang aktif (LIVE BERLANGSUNG) untuk kelas ${
+          targetKelas?.nama || "ini"
+        } pada hari yang sama ("${conflictingActiveSession.judul}"). Harap selesaikan atau akhiri sesi tersebut terlebih dahulu.`
+      )
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -96,6 +121,26 @@ export function GuruMeet() {
   }
 
   async function handleMulaiSesi(sesi) {
+    const alreadyLive = sesiList.find((s) => {
+      if (s.id === sesi.id || s.status !== "berlangsung") return false
+      const matchClass =
+        s.kelasId === sesi.kelasId || s.kelasId === "semua" || sesi.kelasId === "semua"
+      if (!matchClass) return false
+      const sDate = s.waktuMulai?.toDate ? s.waktuMulai.toDate() : new Date(s.waktuMulai || s.createdAt)
+      const tDate = sesi.waktuMulai?.toDate ? sesi.waktuMulai.toDate() : new Date(sesi.waktuMulai || Date.now())
+      return (
+        sDate.getFullYear() === tDate.getFullYear() &&
+        sDate.getMonth() === tDate.getMonth() &&
+        sDate.getDate() === tDate.getDate()
+      )
+    })
+    if (alreadyLive) {
+      alert(
+        `Tidak dapat memulai sesi. Masih ada sesi tatap muka lain yang sedang aktif di kelas ${sesi.kelasNama}: "${alreadyLive.judul}". Mohon akhiri sesi tersebut terlebih dahulu.`
+      )
+      return
+    }
+
     try {
       await updateStatusSesiMeet(sesi.id, "berlangsung")
       setActiveMeetSession(sesi)
@@ -221,6 +266,35 @@ export function GuruMeet() {
             </div>
           </div>
 
+          {/* Banner Peringatan jika Ada Sesi Aktif di Kelas & Hari yang Sama */}
+          {conflictingActiveSession && (
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5 animate-in fade-in">
+              <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="font-bold text-amber-950">
+                  Perhatian: Masih Ada Sesi Aktif di Hari yang Sama
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Kelas <b>{targetKelas?.nama || "terpilih"}</b> sudah memiliki sesi tatap muka yang berstatus{" "}
+                  <span className="font-bold text-emerald-700 bg-emerald-100 px-1 py-0.5 rounded">LIVE BERLANGSUNG</span> yaitu{" "}
+                  <b>"{conflictingActiveSession.judul}"</b>. Anda hanya dapat memiliki 1 sesi aktif per kelas di hari yang sama.
+                </p>
+                <div className="pt-1 flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleAkhiriSesi(conflictingActiveSession.id)}
+                    className="h-7 text-[11px] font-bold border-amber-300 text-amber-900 hover:bg-amber-100 rounded-lg gap-1"
+                  >
+                    <Square className="w-3 h-3 text-rose-600 fill-rose-600" />
+                    <span>Akhiri Sesi "{conflictingActiveSession.judul}" Sekarang</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2 pt-2">
             <Button
               type="button"
@@ -234,8 +308,8 @@ export function GuruMeet() {
             <Button
               type="submit"
               size="sm"
-              disabled={submitting}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold h-9 px-5"
+              disabled={submitting || !!conflictingActiveSession}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold h-9 px-5 disabled:opacity-50"
             >
               {submitting ? "Membuat..." : "Simpan Jadwal"}
             </Button>
@@ -396,9 +470,22 @@ export function GuruMeet() {
           userNama={profileData?.nama || "Guru Pengajar"}
           isGuru={true}
           initialSettings={meetInitialSettings}
-          onLeave={() => {
+          onLeave={async () => {
+            const currentSession = activeMeetSession
             setActiveMeetSession(null)
             setMeetInitialSettings(null)
+            if (
+              currentSession &&
+              window.confirm(
+                "Apakah Anda ingin menyelesaikan (mengakhiri) sesi tatap muka ini agar tidak berstatus 'LIVE BERLANGSUNG' lagi?"
+              )
+            ) {
+              try {
+                await updateStatusSesiMeet(currentSession.id, "selesai")
+              } catch (e) {
+                console.error("Gagal update status selesai:", e)
+              }
+            }
           }}
         />
       )}
