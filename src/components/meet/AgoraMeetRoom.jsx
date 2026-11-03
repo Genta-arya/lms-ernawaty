@@ -38,6 +38,9 @@ import {
   ChevronUp,
   RotateCcw,
   X,
+  ZoomIn,
+  ZoomOut,
+  UserCheck,
 } from "lucide-react"
 
 export function AgoraMeetRoom({
@@ -90,6 +93,176 @@ export function AgoraMeetRoom({
   const presentationContainerRef = useRef(null)
   const [isFullscreenShare, setIsFullscreenShare] = useState(false)
   const [dismissRotateTip, setDismissRotateTip] = useState(false)
+
+  // Zoom & Pan state untuk Berbagi Layar (Share Screen)
+  const [zoomLevel, setZoomLevel] = useState(1)
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const isDraggingRef = useRef(false)
+  const dragStartRef = useRef({ x: 0, y: 0 })
+  const touchDistanceRef = useRef(null)
+
+  // Pop-up Notifikasi Peserta Bergabung
+  const [joinedToast, setJoinedToast] = useState(null)
+  const toastTimeoutRef = useRef(null)
+  const hasInitialJoinFinishedRef = useRef(false)
+
+  // Suara lonceng lembut saat peserta bergabung
+  function playJoinChime() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext
+      if (!AudioCtx) return
+      const ctx = new AudioCtx()
+      const now = ctx.currentTime
+
+      const osc1 = ctx.createOscillator()
+      const gain1 = ctx.createGain()
+      osc1.type = "sine"
+      osc1.frequency.setValueAtTime(523.25, now) // C5
+      gain1.gain.setValueAtTime(0.08, now)
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3)
+      osc1.connect(gain1)
+      gain1.connect(ctx.destination)
+      osc1.start(now)
+      osc1.stop(now + 0.3)
+
+      const osc2 = ctx.createOscillator()
+      const gain2 = ctx.createGain()
+      osc2.type = "sine"
+      osc2.frequency.setValueAtTime(659.25, now + 0.12) // E5
+      gain2.gain.setValueAtTime(0.08, now + 0.12)
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45)
+      osc2.connect(gain2)
+      gain2.connect(ctx.destination)
+      osc2.start(now + 0.12)
+      osc2.stop(now + 0.45)
+
+      setTimeout(() => {
+        try {
+          ctx.close()
+        } catch (_) {}
+      }, 600)
+    } catch (_) {}
+  }
+
+  function showJoinNotification(name) {
+    playJoinChime()
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current)
+    }
+    setJoinedToast({ id: Date.now(), name })
+    toastTimeoutRef.current = setTimeout(() => {
+      setJoinedToast(null)
+    }, 4500)
+  }
+
+  function handleZoomIn() {
+    setZoomLevel((prev) => Math.min(3.5, Number((prev + 0.25).toFixed(2))))
+  }
+
+  function handleZoomOut() {
+    setZoomLevel((prev) => {
+      const next = Math.max(1, Number((prev - 0.25).toFixed(2)))
+      if (next === 1) {
+        setPanOffset({ x: 0, y: 0 })
+      }
+      return next
+    })
+  }
+
+  function handleResetZoom() {
+    setZoomLevel(1)
+    setPanOffset({ x: 0, y: 0 })
+  }
+
+  function handleWheel(e) {
+    if (e.ctrlKey || isFullscreenShare) {
+      e.preventDefault()
+      if (e.deltaY < 0) {
+        handleZoomIn()
+      } else if (e.deltaY > 0) {
+        handleZoomOut()
+      }
+    }
+  }
+
+  function handleMouseDown(e) {
+    if (zoomLevel > 1) {
+      setIsDragging(true)
+      isDraggingRef.current = true
+      dragStartRef.current = {
+        x: e.clientX - panOffset.x,
+        y: e.clientY - panOffset.y,
+      }
+    }
+  }
+
+  function handleMouseMove(e) {
+    if (isDraggingRef.current && zoomLevel > 1) {
+      setPanOffset({
+        x: e.clientX - dragStartRef.current.x,
+        y: e.clientY - dragStartRef.current.y,
+      })
+    }
+  }
+
+  function handleMouseUp() {
+    setIsDragging(false)
+    isDraggingRef.current = false
+  }
+
+  function handleTouchStart(e) {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      )
+      touchDistanceRef.current = dist
+    } else if (e.touches.length === 1 && zoomLevel > 1) {
+      isDraggingRef.current = true
+      dragStartRef.current = {
+        x: e.touches[0].clientX - panOffset.x,
+        y: e.touches[0].clientY - panOffset.y,
+      }
+    }
+  }
+
+  function handleTouchMove(e) {
+    if (e.touches.length === 2 && touchDistanceRef.current) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      )
+      const factor = dist / touchDistanceRef.current
+      touchDistanceRef.current = dist
+      setZoomLevel((prev) => {
+        const next = Math.max(1, Math.min(3.5, Number((prev * factor).toFixed(2))))
+        if (next === 1) setPanOffset({ x: 0, y: 0 })
+        return next
+      })
+    } else if (e.touches.length === 1 && isDraggingRef.current && zoomLevel > 1) {
+      setPanOffset({
+        x: e.touches[0].clientX - dragStartRef.current.x,
+        y: e.touches[0].clientY - dragStartRef.current.y,
+      })
+    }
+  }
+
+  function handleTouchEnd(e) {
+    if (e.touches.length < 2) {
+      touchDistanceRef.current = null
+    }
+    if (e.touches.length === 0) {
+      isDraggingRef.current = false
+    }
+  }
+
+  // Reset zoom saat presentasi berhenti
+  useEffect(() => {
+    if (!activeSharer) {
+      handleResetZoom()
+    }
+  }, [activeSharer])
 
   function toggleFullscreenShare() {
     if (!presentationContainerRef.current) return
@@ -194,6 +367,13 @@ export function AgoraMeetRoom({
     })
 
     client.on("user-joined", (user) => {
+      if (hasInitialJoinFinishedRef.current) {
+        const nama =
+          typeof user.uid === "string" && isNaN(Number(user.uid))
+            ? user.uid
+            : `Peserta #${String(user.uid).slice(-4)}`
+        showJoinNotification(nama)
+      }
       setRemoteUsers((prev) => {
         if (!prev.find((u) => u.uid === user.uid)) {
           return [
@@ -358,6 +538,12 @@ export function AgoraMeetRoom({
         if (mounted) {
           setJoined(true)
           setConnecting(false)
+          // Beri jeda 2.5 detik agar peserta yang sudah ada di room tidak memicu notifikasi beruntun saat baru masuk
+          setTimeout(() => {
+            if (mounted) {
+              hasInitialJoinFinishedRef.current = true
+            }
+          }, 2500)
         }
       } catch (err) {
         console.error("Gagal bergabung ke sesi Meet LSM:", err)
@@ -688,6 +874,31 @@ export function AgoraMeetRoom({
 
   return createPortal(
     <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[999999] bg-slate-950 flex flex-col text-white w-full h-[100dvh] max-h-[100dvh] overflow-hidden animate-in fade-in duration-200 select-none">
+      {/* Pop-up Notifikasi Peserta Baru Bergabung */}
+      {joinedToast && (
+        <div className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[9999999] pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-slate-900/95 border border-emerald-500/40 text-white px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl shadow-2xl backdrop-blur-xl flex items-center gap-3 ring-1 ring-emerald-500/20 max-w-[90vw]">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <UserCheck className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+            </div>
+            <div className="min-w-0 pr-1">
+              <div className="text-[11px] sm:text-xs font-extrabold text-slate-100 flex items-center gap-1.5">
+                <span className="truncate max-w-[170px] sm:max-w-xs">{joinedToast.name}</span>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-emerald-400">bergabung</span>
+              </div>
+              <p className="text-[9px] sm:text-[10px] text-slate-400">Peserta baru telah masuk ke ruang meet</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setJoinedToast(null)}
+              className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+              title="Tutup"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* Top Bar Header Responsif ala Zoom */}
       <div className="h-14 sm:h-16 px-2.5 sm:px-4 py-2 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between gap-2 sm:gap-3 backdrop-blur-md shrink-0">
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
@@ -826,17 +1037,41 @@ export function AgoraMeetRoom({
               ref={presentationContainerRef}
               className="w-full max-w-5xl mx-auto aspect-video max-h-[60vh] sm:max-h-none sm:aspect-auto sm:flex-1 relative rounded-xl sm:rounded-2xl bg-black border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center shrink-0 min-h-[180px] sm:min-h-[300px]"
             >
-              {activeSharer === userNama ? (
+              {/* Zoom & Pan Wrapper */}
+              <div
+                className="w-full h-full overflow-hidden relative flex items-center justify-center select-none"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onWheel={handleWheel}
+              >
                 <div
-                  ref={localScreenShareRef}
-                  className="w-full h-full flex items-center justify-center bg-black [&_video]:!object-contain [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_video]:!max-h-full [&_video]:!max-w-full [&_div]:!bg-transparent"
-                />
-              ) : (
-                <div
-                  ref={activeSharerVideoRef}
-                  className="w-full h-full flex items-center justify-center bg-black [&_video]:!object-contain [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_video]:!max-h-full [&_video]:!max-w-full [&_div]:!bg-transparent"
-                />
-              )}
+                  className={`w-full h-full flex items-center justify-center ${
+                    zoomLevel > 1 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : ""
+                  }`}
+                  style={{
+                    transform: `scale(${zoomLevel}) translate(${panOffset.x / zoomLevel}px, ${panOffset.y / zoomLevel}px)`,
+                    transformOrigin: "center center",
+                    transition: isDragging || touchDistanceRef.current ? "none" : "transform 0.15s ease-out",
+                  }}
+                >
+                  {activeSharer === userNama ? (
+                    <div
+                      ref={localScreenShareRef}
+                      className="w-full h-full flex items-center justify-center bg-black [&_video]:!object-contain [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_video]:!max-h-full [&_video]:!max-w-full [&_div]:!bg-transparent pointer-events-none"
+                    />
+                  ) : (
+                    <div
+                      ref={activeSharerVideoRef}
+                      className="w-full h-full flex items-center justify-center bg-black [&_video]:!object-contain [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_video]:!max-h-full [&_video]:!max-w-full [&_div]:!bg-transparent pointer-events-none"
+                    />
+                  )}
+                </div>
+              </div>
 
               {/* Badge info presenter */}
               <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-black/75 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-emerald-400 flex items-center gap-1.5 sm:gap-2 border border-emerald-500/30 z-10">
@@ -844,12 +1079,19 @@ export function AgoraMeetRoom({
                 <span>Presentasi: {activeSharer === userNama ? "Layar Anda" : activeSharer}</span>
               </div>
 
+              {/* Indikator Mode Zoom Aktif */}
+              {zoomLevel > 1 && (
+                <div className="absolute top-11 sm:top-12 left-2.5 sm:left-3 bg-black/80 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[9px] sm:text-[10px] text-emerald-300 font-bold border border-emerald-500/30 shadow-lg z-10 animate-in fade-in">
+                  Mode Zoom Aktif • Geser layar untuk menjelajah
+                </div>
+              )}
+
               {/* Action Buttons: Fullscreen & Stop Share */}
               <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 flex items-center gap-1.5 z-10">
                 <button
                   type="button"
                   onClick={toggleFullscreenShare}
-                  className="bg-black/70 hover:bg-black/90 text-white p-1.5 rounded-xl text-xs font-bold border border-white/20 backdrop-blur-md shadow-md"
+                  className="bg-black/70 hover:bg-black/90 text-white p-1.5 rounded-xl text-xs font-bold border border-white/20 backdrop-blur-md shadow-md active:scale-95 transition-all"
                   title={isFullscreenShare ? "Keluar Layar Penuh" : "Layar Penuh"}
                 >
                   {isFullscreenShare ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -858,7 +1100,7 @@ export function AgoraMeetRoom({
                   <button
                     type="button"
                     onClick={handleHentikanShareScreenMurid}
-                    className="bg-rose-600/90 hover:bg-rose-600 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold flex items-center gap-1 shadow-lg"
+                    className="bg-rose-600/90 hover:bg-rose-600 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold flex items-center gap-1 shadow-lg active:scale-95 transition-all"
                   >
                     <MonitorOff className="w-3.5 h-3.5" />
                     <span>Hentikan</span>
@@ -866,8 +1108,40 @@ export function AgoraMeetRoom({
                 )}
               </div>
 
+              {/* Kontrol Zoom In / Zoom Out saat Presentasi & Layar Penuh */}
+              <div className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 flex items-center gap-1 bg-black/80 backdrop-blur-md p-1 sm:p-1.5 rounded-xl border border-white/20 shadow-2xl z-20">
+                <button
+                  type="button"
+                  onClick={handleZoomOut}
+                  disabled={zoomLevel <= 1}
+                  className="p-1 sm:p-1.5 rounded-lg text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-95"
+                  title="Zoom Out (-)"
+                >
+                  <ZoomOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetZoom}
+                  className={`px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-mono font-bold transition-all ${
+                    zoomLevel > 1 ? "bg-emerald-500/25 text-emerald-400 hover:bg-emerald-500/35" : "text-slate-300"
+                  }`}
+                  title="Klik untuk reset zoom (100%)"
+                >
+                  {Math.round(zoomLevel * 100)}%
+                </button>
+                <button
+                  type="button"
+                  onClick={handleZoomIn}
+                  disabled={zoomLevel >= 3.5}
+                  className="p-1 sm:p-1.5 rounded-lg text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-95"
+                  title="Zoom In (+)"
+                >
+                  <ZoomIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </button>
+              </div>
+
               {/* Petunjuk Rotasi Mobile (Bisa di-close siswa) */}
-              {!dismissRotateTip && (
+              {!dismissRotateTip && zoomLevel <= 1 && (
                 <div className="flex sm:hidden absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md pl-2.5 pr-1.5 py-1 rounded-full border border-white/15 text-[10px] text-slate-200 items-center gap-1.5 shadow-xl z-20 animate-in fade-in slide-in-from-bottom-2">
                   <RotateCcw className="w-3 h-3 text-blue-400 shrink-0" />
                   <span className="truncate max-w-[200px]">Bisa putar HP untuk layar penuh</span>
@@ -891,9 +1165,6 @@ export function AgoraMeetRoom({
               <div className="flex items-center justify-between px-1">
                 <span className="text-[10px] sm:text-xs font-bold text-slate-400">
                   Peserta Kelas ({remoteUsers.length + 1})
-                </span>
-                <span className="text-[9px] text-slate-500 hidden sm:inline">
-                  Scroll horizontal untuk melihat peserta lainnya
                 </span>
               </div>
               <div className="h-20 sm:h-28 flex items-center gap-2 overflow-x-auto pb-1 shrink-0 no-scrollbar touch-pan-x">
