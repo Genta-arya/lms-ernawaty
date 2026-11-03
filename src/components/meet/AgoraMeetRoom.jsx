@@ -288,8 +288,8 @@ export function AgoraMeetRoom({
         </div>
       </div>
 
-      {/* Main Video Grid */}
-      <div className="flex-1 p-3 sm:p-5 overflow-y-auto flex items-center justify-center">
+      {/* Main Video Area with Floating Overlay Controls */}
+      <div className="relative flex-1 p-3 sm:p-5 overflow-hidden flex items-center justify-center">
         {connecting ? (
           <div className="text-center space-y-3">
             <div className="w-12 h-12 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
@@ -313,7 +313,7 @@ export function AgoraMeetRoom({
           </div>
         ) : (
           <div
-            className={`w-full max-w-6xl h-full grid gap-3 sm:gap-4 ${
+            className={`w-full max-w-6xl h-full pb-20 grid gap-3 sm:gap-4 overflow-y-auto no-scrollbar ${
               remoteUsers.length === 0
                 ? "grid-cols-1"
                 : remoteUsers.length === 1
@@ -322,7 +322,7 @@ export function AgoraMeetRoom({
             }`}
           >
             {/* Video Lokal (Saya) */}
-            <div className="relative rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl flex items-center justify-center min-h-[220px]">
+            <div className="relative rounded-3xl bg-slate-900 border border-slate-800/80 overflow-hidden shadow-2xl flex items-center justify-center min-h-[220px]">
               <div
                 ref={localVideoRef}
                 className="w-full h-full min-h-[220px] bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
@@ -335,9 +335,9 @@ export function AgoraMeetRoom({
                   <span className="text-xs font-semibold">Kamera Dinonaktifkan</span>
                 </div>
               )}
-              <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-xl text-[11px] font-bold text-white flex items-center gap-1.5 shadow-xs">
+              <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 shadow-md">
                 <span>{userNama} (Saya)</span>
-                {!micOn && <MicOff className="w-3 h-3 text-rose-400" />}
+                {!micOn && <MicOff className="w-3.5 h-3.5 text-rose-400" />}
               </div>
             </div>
 
@@ -347,61 +347,68 @@ export function AgoraMeetRoom({
             ))}
           </div>
         )}
-      </div>
 
-      {/* Bottom Control Bar */}
-      <div className="p-4 bg-slate-900/95 border-t border-slate-800 flex items-center justify-center gap-3 sm:gap-4 shrink-0 backdrop-blur-lg">
-        {/* Mic Toggle */}
-        <button
-          type="button"
-          onClick={toggleMic}
-          className={`p-3.5 rounded-2xl transition-all shadow-md ${
-            micOn
-              ? "bg-slate-800 hover:bg-slate-700 text-white"
-              : "bg-rose-600 hover:bg-rose-700 text-white ring-2 ring-rose-400"
-          }`}
-          title={micOn ? "Matikan Mikrofon" : "Nyalakan Mikrofon"}
-        >
-          {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-        </button>
+        {/* Floating Overlay Controls Pill (Mengambang Modern ala Zoom/Meet) */}
+        {!connecting && !errorMsg && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30">
+            <div className="flex items-center gap-2.5 sm:gap-3.5 p-2 sm:p-2.5 px-3.5 sm:px-5 rounded-full bg-slate-900/85 hover:bg-slate-900/95 border border-white/10 shadow-2xl backdrop-blur-xl transition-all">
+              {/* Mic Toggle */}
+              <button
+                type="button"
+                onClick={toggleMic}
+                className={`p-3 sm:p-3.5 rounded-full transition-all active:scale-95 shadow-md ${
+                  micOn
+                    ? "bg-white/10 hover:bg-white/20 text-white"
+                    : "bg-rose-600 hover:bg-rose-700 text-white ring-2 ring-rose-400/50"
+                }`}
+                title={micOn ? "Matikan Mikrofon" : "Nyalakan Mikrofon"}
+              >
+                {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+              </button>
 
-        {/* Camera Toggle */}
-        <button
-          type="button"
-          onClick={toggleCamera}
-          className={`p-3.5 rounded-2xl transition-all shadow-md ${
-            cameraOn
-              ? "bg-slate-800 hover:bg-slate-700 text-white"
-              : "bg-rose-600 hover:bg-rose-700 text-white ring-2 ring-rose-400"
-          }`}
-          title={cameraOn ? "Matikan Kamera" : "Nyalakan Kamera"}
-        >
-          {cameraOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-        </button>
+              {/* Camera Toggle */}
+              <button
+                type="button"
+                onClick={toggleCamera}
+                className={`p-3 sm:p-3.5 rounded-full transition-all active:scale-95 shadow-md ${
+                  cameraOn
+                    ? "bg-white/10 hover:bg-white/20 text-white"
+                    : "bg-rose-600 hover:bg-rose-700 text-white ring-2 ring-rose-400/50"
+                }`}
+                title={cameraOn ? "Matikan Kamera" : "Nyalakan Kamera"}
+              >
+                {cameraOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+              </button>
 
-        {/* Screen Sharing Toggle */}
-        <button
-          type="button"
-          onClick={toggleScreenShare}
-          className={`p-3.5 rounded-2xl transition-all shadow-md ${
-            isScreenSharing
-              ? "bg-indigo-600 text-white ring-2 ring-indigo-400"
-              : "bg-slate-800 hover:bg-slate-700 text-white"
-          }`}
-          title={isScreenSharing ? "Berhenti Berbagi Layar" : "Bagikan Layar"}
-        >
-          <Monitor className="w-5 h-5" />
-        </button>
+              {/* Screen Sharing Toggle */}
+              <button
+                type="button"
+                onClick={toggleScreenShare}
+                className={`p-3 sm:p-3.5 rounded-full transition-all active:scale-95 shadow-md ${
+                  isScreenSharing
+                    ? "bg-indigo-600 text-white ring-2 ring-indigo-400/60"
+                    : "bg-white/10 hover:bg-white/20 text-white"
+                }`}
+                title={isScreenSharing ? "Berhenti Berbagi Layar" : "Bagikan Layar"}
+              >
+                <Monitor className="w-5 h-5" />
+              </button>
 
-        {/* Leave Call Button */}
-        <button
-          type="button"
-          onClick={leaveChannel}
-          className="p-3.5 px-6 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-rose-600/30 transition-all active:scale-95 ml-2"
-        >
-          <PhoneOff className="w-5 h-5" />
-          <span className="hidden sm:inline">Tinggalkan Sesi</span>
-        </button>
+              <div className="w-[1px] h-6 bg-white/15 my-auto mx-0.5" />
+
+              {/* Leave Call Button */}
+              <button
+                type="button"
+                onClick={leaveChannel}
+                className="p-3 sm:p-3.5 px-4 sm:px-5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-rose-600/30 transition-all active:scale-95"
+                title="Tinggalkan Sesi Meet"
+              >
+                <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline">Keluar</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body
