@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { subscribeSesiMeetByKelas } from "@/services/meet"
 import { AgoraMeetRoom } from "@/components/meet/AgoraMeetRoom"
+import { PreMeetLobbyModal } from "@/components/meet/PreMeetLobbyModal"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -15,7 +16,9 @@ import {
 export function BannerMeetMurid({ kelasId }) {
   const { currentUser, profileData } = useAuth()
   const [sesiList, setSesiList] = useState([])
+  const [lobbyMeet, setLobbyMeet] = useState(null)
   const [activeMeet, setActiveMeet] = useState(null)
+  const [meetInitialSettings, setMeetInitialSettings] = useState(null)
 
   useEffect(() => {
     if (!kelasId) return
@@ -85,7 +88,7 @@ export function BannerMeetMurid({ kelasId }) {
             {isLive ? (
               <Button
                 type="button"
-                onClick={() => setActiveMeet(currentSesi)}
+                onClick={() => setLobbyMeet(currentSesi)}
                 className="w-full sm:w-auto bg-white text-emerald-800 hover:bg-emerald-50 font-black text-xs rounded-2xl h-10 px-5 gap-2 shadow-md active:scale-95"
               >
                 <Play className="w-4 h-4 fill-emerald-800" />
@@ -100,6 +103,21 @@ export function BannerMeetMurid({ kelasId }) {
         </div>
       </div>
 
+      {/* Layar Preview Pra-Meet Sebelum Masuk */}
+      {lobbyMeet && (
+        <PreMeetLobbyModal
+          judulSesi={lobbyMeet.judul}
+          userNama={profileData?.nama || currentUser?.displayName || "Siswa"}
+          isGuru={false}
+          onJoin={(settings) => {
+            setMeetInitialSettings(settings)
+            setActiveMeet(lobbyMeet)
+            setLobbyMeet(null)
+          }}
+          onCancel={() => setLobbyMeet(null)}
+        />
+      )}
+
       {/* Ruang Meet Agora Siswa */}
       {activeMeet && (
         <AgoraMeetRoom
@@ -107,7 +125,11 @@ export function BannerMeetMurid({ kelasId }) {
           judulSesi={activeMeet.judul}
           userNama={profileData?.nama || currentUser?.displayName || "Siswa"}
           isGuru={false}
-          onLeave={() => setActiveMeet(null)}
+          initialSettings={meetInitialSettings}
+          onLeave={() => {
+            setActiveMeet(null)
+            setMeetInitialSettings(null)
+          }}
         />
       )}
     </>

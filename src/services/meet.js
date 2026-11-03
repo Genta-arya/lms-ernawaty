@@ -249,3 +249,135 @@ export async function forceKickUser(channelName, targetUserAccount) {
     })
   })
 }
+
+/**
+ * Guru melakukan force mute kepada semua murid sekaligus
+ */
+export async function forceMuteAllUsers(channelName) {
+  if (!channelName) return
+  const docRef = doc(db, "meetControls", channelName)
+  const { setDoc } = await import("firebase/firestore")
+  await updateDoc(docRef, {
+    muteAllTrigger: Date.now(),
+    updatedAt: serverTimestamp(),
+  }).catch(async () => {
+    await setDoc(docRef, {
+      channelName,
+      activeSharer: null,
+      muteAllTrigger: Date.now(),
+      updatedAt: serverTimestamp(),
+    })
+  })
+}
+
+/**
+ * Guru meminta peserta tertentu untuk menyalakan mikrofon (minta unmute)
+ */
+export async function askUserToUnmute(channelName, targetUserAccount) {
+  if (!channelName || !targetUserAccount) return
+  const docRef = doc(db, "meetControls", channelName)
+  const { setDoc } = await import("firebase/firestore")
+  await updateDoc(docRef, {
+    askUnmuteUser: { user: targetUserAccount, at: Date.now() },
+    updatedAt: serverTimestamp(),
+  }).catch(async () => {
+    await setDoc(docRef, {
+      channelName,
+      activeSharer: null,
+      askUnmuteUser: { user: targetUserAccount, at: Date.now() },
+      updatedAt: serverTimestamp(),
+    })
+  })
+}
+
+/**
+ * Mengubah status angkat tangan (raise hand) peserta
+ */
+export async function toggleRaiseHand(channelName, userAccount, isRaised) {
+  if (!channelName || !userAccount) return
+  const docRef = doc(db, "meetControls", channelName)
+  const { setDoc } = await import("firebase/firestore")
+  await updateDoc(docRef, {
+    [`raisedHands.${userAccount}`]: isRaised ? Date.now() : null,
+    updatedAt: serverTimestamp(),
+  }).catch(async () => {
+    await setDoc(docRef, {
+      channelName,
+      raisedHands: isRaised ? { [userAccount]: Date.now() } : {},
+      updatedAt: serverTimestamp(),
+    })
+  })
+}
+
+/**
+ * Guru mengubah izin berbagi layar bagi murid (allow/disallow)
+ */
+export async function updateScreenSharePermission(channelName, allowStudents) {
+  if (!channelName) return
+  const docRef = doc(db, "meetControls", channelName)
+  const { setDoc } = await import("firebase/firestore")
+  await updateDoc(docRef, {
+    allowStudentScreenShare: !!allowStudents,
+    updatedAt: serverTimestamp(),
+  }).catch(async () => {
+    await setDoc(docRef, {
+      channelName,
+      allowStudentScreenShare: !!allowStudents,
+      updatedAt: serverTimestamp(),
+    })
+  })
+}
+
+/**
+ * Guru mengatur spotlight peserta tertentu untuk semua penonton
+ */
+export async function setSpotlightUser(channelName, userAccount) {
+  if (!channelName) return
+  const docRef = doc(db, "meetControls", channelName)
+  const { setDoc } = await import("firebase/firestore")
+  await updateDoc(docRef, {
+    spotlightUser: userAccount || null,
+    updatedAt: serverTimestamp(),
+  }).catch(async () => {
+    await setDoc(docRef, {
+      channelName,
+      spotlightUser: userAccount || null,
+      updatedAt: serverTimestamp(),
+    })
+  })
+}
+
+/**
+ * Mengirim pesan chat dalam meet
+ */
+export async function sendMeetMessage(channelName, { senderNama, senderRole, text }) {
+  if (!channelName || !text?.trim()) return
+  const colRef = collection(db, "meetControls", channelName, "messages")
+  await addDoc(colRef, {
+    senderNama,
+    senderRole: senderRole || "murid",
+    text: text.trim(),
+    createdAt: serverTimestamp(),
+  })
+}
+
+/**
+ * Berlangganan pesan chat dalam meet
+ */
+export function subscribeMeetMessages(channelName, callback) {
+  if (!channelName) return () => {}
+  const colRef = collection(db, "meetControls", channelName, "messages")
+  const q = query(colRef, orderBy("createdAt", "asc"), limit(100))
+  return onSnapshot(
+    q,
+    (snap) => {
+      const msgs = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      callback(msgs)
+    },
+    (err) => {
+      console.warn("Gagal listen meet messages:", err)
+      callback([])
+    }
+  )
+}
+

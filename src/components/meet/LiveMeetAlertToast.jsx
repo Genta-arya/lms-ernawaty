@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useAuth } from "@/context/AuthContext"
 import { subscribeSesiMeetByKelas } from "@/services/meet"
 import { AgoraMeetRoom } from "@/components/meet/AgoraMeetRoom"
+import { PreMeetLobbyModal } from "@/components/meet/PreMeetLobbyModal"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Video, ArrowRight, Sparkles } from "lucide-react"
@@ -9,7 +10,9 @@ import { Video, ArrowRight, Sparkles } from "lucide-react"
 export function LiveMeetAlertToast() {
   const { currentUser, profileData, role } = useAuth()
   const [activeSession, setActiveSession] = useState(null)
+  const [inLobby, setInLobby] = useState(false)
   const [inCall, setInCall] = useState(false)
+  const [meetInitialSettings, setMeetInitialSettings] = useState(null)
 
   // Hanya pantau jika yang login adalah murid dan sudah memiliki kelas
   const kelasId = profileData?.kelasId
@@ -65,7 +68,7 @@ export function LiveMeetAlertToast() {
           <div className="pt-1">
             <Button
               type="button"
-              onClick={() => setInCall(true)}
+              onClick={() => setInLobby(true)}
               className="w-full bg-white text-emerald-900 hover:bg-emerald-50 font-black text-xs rounded-2xl h-9 shadow-md flex items-center justify-center gap-2 active:scale-98 transition-all"
             >
               <span>Masuk & Gabung Sekarang</span>
@@ -75,6 +78,21 @@ export function LiveMeetAlertToast() {
         </div>
       </div>
 
+      {/* Lobby Pre-Meet Preview */}
+      {inLobby && (
+        <PreMeetLobbyModal
+          judulSesi={activeSession.judul}
+          userNama={profileData?.nama || currentUser?.displayName || "Siswa"}
+          isGuru={false}
+          onJoin={(settings) => {
+            setMeetInitialSettings(settings)
+            setInCall(true)
+            setInLobby(false)
+          }}
+          onCancel={() => setInLobby(false)}
+        />
+      )}
+
       {/* Ruang Meet Agora jika murid menekan Gabung */}
       {inCall && (
         <AgoraMeetRoom
@@ -82,7 +100,11 @@ export function LiveMeetAlertToast() {
           judulSesi={activeSession.judul}
           userNama={profileData?.nama || currentUser?.displayName || "Siswa"}
           isGuru={false}
-          onLeave={() => setInCall(false)}
+          initialSettings={meetInitialSettings}
+          onLeave={() => {
+            setInCall(false)
+            setMeetInitialSettings(null)
+          }}
         />
       )}
     </>

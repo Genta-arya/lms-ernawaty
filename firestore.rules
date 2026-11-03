@@ -187,6 +187,11 @@ service cloud.firestore {
 
     match /meetControls/{id} {
       allow read, write: if signedIn();
+
+      // Subcollection pesan chat dalam meet
+      match /messages/{msgId} {
+        allow read, write: if signedIn();
+      }
     }
 
     match /sesiMeet/{id} {

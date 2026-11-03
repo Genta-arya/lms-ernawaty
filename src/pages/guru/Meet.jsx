@@ -8,6 +8,7 @@ import {
   deleteSesiMeet,
 } from "@/services/meet"
 import { AgoraMeetRoom } from "@/components/meet/AgoraMeetRoom"
+import { PreMeetLobbyModal } from "@/components/meet/PreMeetLobbyModal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +32,8 @@ export function GuruMeet() {
   const [loading, setLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [activeMeetSession, setActiveMeetSession] = useState(null)
+  const [lobbyMeetSession, setLobbyMeetSession] = useState(null)
+  const [meetInitialSettings, setMeetInitialSettings] = useState(null)
 
   // Form State
   const [judul, setJudul] = useState("")
@@ -319,7 +322,7 @@ export function GuruMeet() {
                           <Button
                             type="button"
                             size="sm"
-                            onClick={() => setActiveMeetSession(sesi)}
+                            onClick={() => setLobbyMeetSession(sesi)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl h-8 px-3 gap-1 shadow-xs"
                           >
                             <Video className="w-3.5 h-3.5" />
@@ -369,6 +372,21 @@ export function GuruMeet() {
         )}
       </div>
 
+      {/* Layar Preview Pra-Meet Sebelum Masuk */}
+      {lobbyMeetSession && (
+        <PreMeetLobbyModal
+          judulSesi={lobbyMeetSession.judul}
+          userNama={profileData?.nama || "Guru Pengajar"}
+          isGuru={true}
+          onJoin={(settings) => {
+            setMeetInitialSettings(settings)
+            setActiveMeetSession(lobbyMeetSession)
+            setLobbyMeetSession(null)
+          }}
+          onCancel={() => setLobbyMeetSession(null)}
+        />
+      )}
+
       {/* Layar Video Meet Agora Fullscreen jika aktif */}
       {activeMeetSession && (
         <AgoraMeetRoom
@@ -376,7 +394,11 @@ export function GuruMeet() {
           judulSesi={activeMeetSession.judul}
           userNama={profileData?.nama || "Guru Pengajar"}
           isGuru={true}
-          onLeave={() => setActiveMeetSession(null)}
+          initialSettings={meetInitialSettings}
+          onLeave={() => {
+            setActiveMeetSession(null)
+            setMeetInitialSettings(null)
+          }}
         />
       )}
     </div>
