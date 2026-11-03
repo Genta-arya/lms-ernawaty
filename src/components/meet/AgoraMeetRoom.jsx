@@ -968,8 +968,8 @@ export function AgoraMeetRoom({
              SPEAKER VIEW MODE ALA ZOOM (RESPONSIF MOBILE & DESKTOP - PROPORSIONAL)
              ========================================================================= */
           <div className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar p-2 sm:p-4 flex flex-col gap-2 sm:gap-3.5 min-h-0">
-            {/* Layar Utama Speaker */}
-            <div className="w-full max-w-4xl mx-auto aspect-video max-h-[46vh] sm:max-h-[62vh] relative rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center shrink-0">
+            {/* Layar Utama Speaker (Proporsional 16:9, tidak melar di desktop) */}
+            <div className="w-full max-w-4xl lg:max-w-5xl mx-auto aspect-video max-h-[46vh] sm:max-h-[58vh] relative rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center shrink-0">
               <div
                 ref={speakerViewVideoRef}
                 className="w-full h-full bg-black [&_video]:!object-cover [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_div]:!bg-transparent"
@@ -986,7 +986,7 @@ export function AgoraMeetRoom({
             </div>
 
             {/* Area Peserta Lain */}
-            <div className="w-full max-w-4xl mx-auto flex-1 min-h-0 flex flex-col space-y-1.5">
+            <div className="w-full max-w-4xl lg:max-w-5xl mx-auto flex-1 min-h-0 flex flex-col space-y-1.5">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
                   Peserta Lainnya ({remoteUsers.length})
@@ -1068,39 +1068,42 @@ export function AgoraMeetRoom({
               ...remoteUsers.map((u) => ({ isLocal: false, user: u, uid: u.uid })),
             ]
 
-            let gridLayoutClass = "grid-cols-2 sm:grid-cols-2 max-w-4xl mx-auto"
+            let gridLayoutClass = "grid-cols-2 md:grid-cols-2 max-w-4xl mx-auto"
             if (totalParticipants === 1) {
-              gridLayoutClass = "grid-cols-1 max-w-xl mx-auto"
+              gridLayoutClass = "grid-cols-1 max-w-2xl mx-auto"
             } else if (totalParticipants === 3) {
-              // Di Mobile: 2 kolom (baris bawah melebar penuh sesuai sketsa)
-              // Di Desktop: 3 kolom sejajar (sm:grid-cols-3) dengan aspek 16:9 simetris & rapi!
-              gridLayoutClass = "grid-cols-2 sm:grid-cols-3 max-w-5xl mx-auto"
-            } else if (totalParticipants >= 5) {
-              gridLayoutClass = "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto"
+              // Di Mobile: 2 kolom (2 di atas, 1 di bawah sesuai sketsa)
+              // Di Desktop (layar md/lg): 3 kolom sejajar (md:grid-cols-3) dengan aspek 16:9 simetris & rapi!
+              gridLayoutClass = "grid-cols-2 md:grid-cols-3 max-w-5xl lg:max-w-6xl mx-auto"
+            } else if (totalParticipants === 4) {
+              gridLayoutClass = "grid-cols-2 md:grid-cols-2 max-w-4xl lg:max-w-5xl mx-auto"
+            } else if (totalParticipants === 5 || totalParticipants === 6) {
+              gridLayoutClass = "grid-cols-2 md:grid-cols-3 max-w-5xl lg:max-w-6xl mx-auto"
+            } else if (totalParticipants >= 7) {
+              gridLayoutClass = "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl lg:max-w-7xl mx-auto"
             }
 
             return (
               <div
-                className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar py-2 sm:py-3 px-1.5 sm:px-3 min-h-0"
+                className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar py-2 sm:py-3 px-1.5 sm:px-3 min-h-0 flex flex-col"
                 style={{ WebkitOverflowScrolling: "touch" }}
               >
-                <div className={`w-full pb-4 sm:pb-6 grid gap-2 sm:gap-3.5 ${gridLayoutClass}`}>
+                <div className={`w-full my-auto pb-4 sm:pb-6 grid gap-2 sm:gap-3.5 ${gridLayoutClass}`}>
                   {participants.map((p, idx) => {
-                    const isLastOddItem = isOdd && idx === totalParticipants - 1
+                    const isLastOddOnMobile = totalParticipants % 2 !== 0 && totalParticipants > 1 && idx === totalParticipants - 1
 
-                    let wrapperClass = "col-span-1 w-full"
-                    let aspectClass = "aspect-[4/3] sm:aspect-video"
+                    // Di Desktop (layar md dan lg): SEMUA kartu selalu col-span-1 dan aspect-video 16:9!
+                    // TIDAK ADA kartu yang memanjang atau melar di layar desktop/lg!
+                    // Di Mobile: jika peserta ganjil (misal 3), kartu terakhir col-span-2 max-w-md mx-auto
+                    let wrapperClass = "col-span-1 md:col-span-1 w-full"
+                    let aspectClass = "aspect-[4/3] md:aspect-video"
 
                     if (totalParticipants === 1) {
                       wrapperClass = "col-span-1 w-full"
-                      aspectClass = "aspect-[4/3] sm:aspect-video max-h-[68vh]"
-                    } else if (isLastOddItem) {
-                      wrapperClass = totalParticipants === 3
-                        ? "col-span-2 sm:col-span-1 w-full"
-                        : "col-span-2 sm:col-span-1 sm:col-start-2 w-full"
-                      aspectClass = totalParticipants === 3
-                        ? "aspect-[16/9] sm:aspect-video"
-                        : "aspect-[16/9] sm:aspect-video"
+                      aspectClass = "aspect-[4/3] md:aspect-video max-h-[68vh]"
+                    } else if (isLastOddOnMobile) {
+                      wrapperClass = "col-span-2 md:col-span-1 w-full max-w-md md:max-w-none mx-auto"
+                      aspectClass = "aspect-[16/9] md:aspect-video"
                     }
 
                     if (p.isLocal) {
