@@ -159,3 +159,90 @@ export function subscribeAllSesiMeetGuru(callback) {
     }
   )
 }
+
+
+/**
+ * Berlangganan status kontrol realtime (screen sharing, mute, kick) untuk channel sesi meet
+ */
+export function subscribeMeetControls(channelName, callback) {
+  if (!channelName) return () => {}
+  const docRef = doc(db, "meetControls", channelName)
+  return onSnapshot(
+    docRef,
+    (snap) => {
+      if (snap.exists()) {
+        callback(snap.data())
+      } else {
+        callback({ activeSharer: null, mutedUsers: [], kickedUsers: [] })
+      }
+    },
+    (err) => {
+      console.warn("Gagal listen meet controls:", err)
+      callback({ activeSharer: null, mutedUsers: [], kickedUsers: [] })
+    }
+  )
+}
+
+/**
+ * Set status screen sharer aktif di channel
+ */
+export async function setActiveScreenSharer(channelName, userAccount) {
+  if (!channelName) return
+  const docRef = doc(db, "meetControls", channelName)
+  await updateDoc(docRef, {
+    activeSharer: userAccount || null,
+    updatedAt: serverTimestamp(),
+  }).catch(async () => {
+    // Jika belum ada dokumennya, set baru
+    const { setDoc } = await import("firebase/firestore")
+    await setDoc(docRef, {
+      channelName,
+      activeSharer: userAccount || null,
+      mutedUsers: [],
+      kickedUsers: [],
+      updatedAt: serverTimestamp(),
+    })
+  })
+}
+
+/**
+ * Guru melakukan force mute kepada peserta tertentu
+ */
+export async function forceMuteUser(channelName, targetUserAccount) {
+  if (!channelName || !targetUserAccount) return
+  const docRef = doc(db, "meetControls", channelName)
+  const { arrayUnion, setDoc } = await import("firebase/firestore")
+  await updateDoc(docRef, {
+    mutedUsers: arrayUnion(targetUserAccount),
+    updatedAt: serverTimestamp(),
+  }).catch(async () => {
+    await setDoc(docRef, {
+      channelName,
+      activeSharer: null,
+      mutedUsers: [targetUserAccount],
+      kickedUsers: [],
+      updatedAt: serverTimestamp(),
+    })
+  })
+}
+
+/**
+ * Guru melakukan kick (keluarkan) peserta dari sesi meet
+ */
+export async function forceKickUser(channelName, targetUserAccount) {
+  if (!channelName || !targetUserAccount) return
+  const docRef = doc(db, "meetControls", channelName)
+  const { arrayUnion, setDoc } = await import("firebase/firestore")
+  await updateDoc(docRef, {
+    kickedUsers: arrayUnion(targetUserAccount),
+    updatedAt: serverTimestamp(),
+  }).catch(async () => {
+    await setDoc(docRef, {
+      channelName,
+      activeSharer: null,
+      mutedUsers: [],
+      kickedUsers: [targetUserAccount],
+      updatedAt: serverTimestamp(),
+    })
+  })
+}

@@ -184,6 +184,11 @@ service cloud.firestore {
 
 
 
+
+    match /meetControls/{id} {
+      allow read, write: if signedIn();
+    }
+
     match /sesiMeet/{id} {
       // Semua pengguna login dapat membaca status sesi meet
       allow read: if signedIn();
