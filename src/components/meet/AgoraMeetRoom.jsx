@@ -39,6 +39,7 @@ import {
   Signal,
   Settings,
   ChevronUp,
+  RotateCcw,
 } from "lucide-react"
 
 export function AgoraMeetRoom({
@@ -89,6 +90,28 @@ export function AgoraMeetRoom({
   const micOnRef = useRef(micOn)
   const lastProcessedMuteRef = useRef(Date.now() - 1000)
   const lastProcessedUnmuteAskRef = useRef(Date.now() - 1000)
+
+  const presentationContainerRef = useRef(null)
+  const [isFullscreenShare, setIsFullscreenShare] = useState(false)
+
+  function toggleFullscreenShare() {
+    if (!presentationContainerRef.current) return
+    if (!document.fullscreenElement) {
+      presentationContainerRef.current.requestFullscreen?.().catch(() => {})
+      setIsFullscreenShare(true)
+    } else {
+      document.exitFullscreen?.().catch(() => {})
+      setIsFullscreenShare(false)
+    }
+  }
+
+  useEffect(() => {
+    function onFsChange() {
+      setIsFullscreenShare(!!document.fullscreenElement)
+    }
+    document.addEventListener("fullscreenchange", onFsChange)
+    return () => document.removeEventListener("fullscreenchange", onFsChange)
+  }, [])
 
   useEffect(() => {
     micOnRef.current = micOn
@@ -375,19 +398,19 @@ export function AgoraMeetRoom({
     }
   }, [cameraOn, isScreenSharing, joined, activeSharer, viewMode])
 
-  // Play local screen share jika saya sedang berbagi layar
+  // Play local screen share jika saya sedang berbagi layar (fit contain agar tidak terpotong)
   useEffect(() => {
     if (isScreenSharing && screenTrackRef.current && localScreenShareRef.current) {
       try {
         localScreenShareRef.current.innerHTML = ""
-        screenTrackRef.current.play(localScreenShareRef.current)
+        screenTrackRef.current.play(localScreenShareRef.current, { fit: "contain" })
       } catch (e) {
         console.warn("Local screen share play error:", e)
       }
     }
   }, [isScreenSharing])
 
-  // Play video di Speaker View jika aktif
+  // Play video di Speaker View jika aktif (fit cover proporsional)
   useEffect(() => {
     if (viewMode === "speaker" && speakerViewVideoRef.current) {
       const activeSpeakerUid = spotlightUser || pinnedUser || Object.keys(speakingUsers)[0] || userNama
@@ -396,7 +419,7 @@ export function AgoraMeetRoom({
         if (vTrack && cameraOn) {
           try {
             speakerViewVideoRef.current.innerHTML = ""
-            vTrack.play(speakerViewVideoRef.current)
+            vTrack.play(speakerViewVideoRef.current, { fit: "cover" })
           } catch (e) {
             console.warn("Speaker view local play error:", e)
           }
@@ -406,7 +429,7 @@ export function AgoraMeetRoom({
         if (sUser?.videoTrack) {
           try {
             speakerViewVideoRef.current.innerHTML = ""
-            sUser.videoTrack.play(speakerViewVideoRef.current)
+            sUser.videoTrack.play(speakerViewVideoRef.current, { fit: "cover" })
           } catch (e) {
             console.warn("Speaker view remote play error:", e)
           }
@@ -415,14 +438,14 @@ export function AgoraMeetRoom({
     }
   }, [viewMode, spotlightUser, pinnedUser, speakingUsers, remoteUsers, userNama, cameraOn])
 
-  // Share screen viewer untuk remote participants
+  // Share screen viewer untuk remote participants (fit contain agar landscape 16:9 utuh di hp portrait)
   useEffect(() => {
     if (activeSharer && activeSharer !== userNama && activeSharerVideoRef.current) {
       const sharerUser = remoteUsers.find((u) => u.uid === activeSharer)
       if (sharerUser?.videoTrack) {
         try {
           activeSharerVideoRef.current.innerHTML = ""
-          sharerUser.videoTrack.play(activeSharerVideoRef.current)
+          sharerUser.videoTrack.play(activeSharerVideoRef.current, { fit: "contain" })
         } catch (e) {
           console.warn("Active sharer video play error:", e)
         }
@@ -729,18 +752,35 @@ export function AgoraMeetRoom({
             </span>
           </div>
 
-          {/* Toggle View Mode: Gallery vs Speaker */}
-          <button
-            type="button"
-            onClick={() => setViewMode(viewMode === "gallery" ? "speaker" : "gallery")}
-            className="w-8 h-8 sm:w-auto p-1 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-slate-700 bg-slate-800 text-slate-300 hover:text-white transition-all"
-            title={`Ganti ke ${viewMode === "gallery" ? "Speaker View" : "Gallery View"}`}
-          >
-            <LayoutGrid className="w-4 h-4 text-blue-400 shrink-0" />
-            <span className="text-[11px] hidden sm:inline">
-              {viewMode === "gallery" ? "Gallery" : "Speaker"}
-            </span>
-          </button>
+          {/* Switcher Mode Tampilan: Gallery vs Speaker */}
+          <div className="flex items-center bg-slate-800/90 rounded-xl p-0.5 border border-slate-700 shadow-sm shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode("gallery")}
+              className={`px-2 sm:px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                viewMode === "gallery"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+              title="Tampilan Kisi (Gallery View)"
+            >
+              <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-[11px] hidden sm:inline">Gallery</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("speaker")}
+              className={`px-2 sm:px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                viewMode === "speaker"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+              title="Tampilan Pembicara (Speaker View)"
+            >
+              <Maximize2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-[11px] hidden sm:inline">Speaker</span>
+            </button>
+          </div>
 
           {/* Tombol Chat */}
           <button
@@ -807,40 +847,63 @@ export function AgoraMeetRoom({
           </div>
         ) : isSomeoneSharing ? (
           /* =========================================================================
-             ZOOM SCREEN SHARE MODE (RESPONSIF MOBILE & DESKTOP)
+             ZOOM SCREEN SHARE MODE (RESPONSIF MOBILE & DESKTOP - ZERO CROP)
              ========================================================================= */
           <div className="flex-1 flex flex-col h-full p-2 sm:p-4 gap-2 sm:gap-3 overflow-hidden min-h-0">
             {/* Layar Utama Presentasi */}
-            <div className="flex-1 relative rounded-xl sm:rounded-2xl bg-black border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center min-h-[220px] sm:min-h-[340px]">
+            <div
+              ref={presentationContainerRef}
+              className="w-full aspect-video sm:aspect-auto sm:flex-1 relative rounded-xl sm:rounded-2xl bg-black border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center min-h-[200px] sm:min-h-[320px]"
+            >
               {activeSharer === userNama ? (
                 <div
                   ref={localScreenShareRef}
-                  className="w-full h-full [&>div]:w-full [&>div]:h-full [&>div>video]:object-contain"
+                  className="w-full h-full flex items-center justify-center bg-black [&_video]:!object-contain [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_video]:!max-h-full [&_video]:!max-w-full [&_div]:!bg-transparent"
                 />
               ) : (
                 <div
                   ref={activeSharerVideoRef}
-                  className="w-full h-full [&>div]:w-full [&>div]:h-full [&>div>video]:object-contain"
+                  className="w-full h-full flex items-center justify-center bg-black [&_video]:!object-contain [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_video]:!max-h-full [&_video]:!max-w-full [&_div]:!bg-transparent"
                 />
               )}
-              <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-emerald-400 flex items-center gap-1.5 sm:gap-2 border border-emerald-500/30">
+
+              {/* Badge info presenter */}
+              <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-black/75 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-emerald-400 flex items-center gap-1.5 sm:gap-2 border border-emerald-500/30 z-10">
                 <Monitor className="w-3.5 h-3.5" />
                 <span>Presentasi: {activeSharer === userNama ? "Layar Anda" : activeSharer}</span>
               </div>
-              {isGuru && activeSharer !== userNama && (
+
+              {/* Action Buttons: Fullscreen & Stop Share */}
+              <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 flex items-center gap-1.5 z-10">
                 <button
                   type="button"
-                  onClick={handleHentikanShareScreenMurid}
-                  className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 bg-rose-600/90 hover:bg-rose-600 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold flex items-center gap-1 shadow-lg"
+                  onClick={toggleFullscreenShare}
+                  className="bg-black/70 hover:bg-black/90 text-white p-1.5 rounded-xl text-xs font-bold border border-white/20 backdrop-blur-md shadow-md"
+                  title={isFullscreenShare ? "Keluar Layar Penuh" : "Layar Penuh"}
                 >
-                  <MonitorOff className="w-3.5 h-3.5" />
-                  <span>Hentikan Layar</span>
+                  {isFullscreenShare ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                 </button>
-              )}
+                {isGuru && activeSharer !== userNama && (
+                  <button
+                    type="button"
+                    onClick={handleHentikanShareScreenMurid}
+                    className="bg-rose-600/90 hover:bg-rose-600 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold flex items-center gap-1 shadow-lg"
+                  >
+                    <MonitorOff className="w-3.5 h-3.5" />
+                    <span>Hentikan</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Petunjuk Rotasi Mobile */}
+              <div className="flex sm:hidden absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/75 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/10 text-[9px] text-slate-300 items-center gap-1 pointer-events-none z-10">
+                <RotateCcw className="w-2.5 h-2.5 text-blue-400" />
+                <span>Bisa putar HP landscape untuk layar lebih besar</span>
+              </div>
             </div>
 
             {/* Strip Thumbnail Bawah */}
-            <div className="h-20 sm:h-28 flex items-center gap-2 overflow-x-auto pb-1 shrink-0 no-scrollbar">
+            <div className="h-20 sm:h-28 flex items-center gap-2 overflow-x-auto pb-1 shrink-0 no-scrollbar touch-pan-x">
               {/* Thumbnail Saya */}
               <div className="relative rounded-xl sm:rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center">
                 {isScreenSharing ? (
@@ -852,8 +915,8 @@ export function AgoraMeetRoom({
                   <>
                     <div
                       ref={localVideoRef}
-                      className={`w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
-                        cameraOn ? "opacity-100" : "opacity-0 pointer-events-none"
+                      className={`w-full h-full bg-black -scale-x-100 pointer-events-none [&_video]:!object-cover [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_div]:!bg-transparent ${
+                        cameraOn ? "opacity-100" : "opacity-0"
                       }`}
                     />
                     {!cameraOn && (
@@ -902,16 +965,16 @@ export function AgoraMeetRoom({
           </div>
         ) : viewMode === "speaker" ? (
           /* =========================================================================
-             SPEAKER VIEW MODE ALA ZOOM
+             SPEAKER VIEW MODE ALA ZOOM (RESPONSIF MOBILE & DESKTOP - PROPORSIONAL)
              ========================================================================= */
-          <div className="flex-1 flex flex-col h-full p-2 sm:p-4 gap-2 sm:gap-3 overflow-hidden min-h-0">
+          <div className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar p-2 sm:p-4 flex flex-col gap-2 sm:gap-3.5 min-h-0">
             {/* Layar Utama Speaker */}
-            <div className="flex-1 relative rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center min-h-[220px] sm:min-h-[340px]">
+            <div className="w-full max-w-4xl mx-auto aspect-video max-h-[46vh] sm:max-h-[62vh] relative rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center shrink-0">
               <div
                 ref={speakerViewVideoRef}
-                className="w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
+                className="w-full h-full bg-black [&_video]:!object-cover [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_div]:!bg-transparent"
               />
-              <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-white flex items-center gap-1.5 sm:gap-2 border border-white/10">
+              <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-white flex items-center gap-1.5 sm:gap-2 border border-white/10 z-10">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span>Fokus: {currentSpeakerUid === userNama ? `${userNama} (Anda)` : currentSpeakerUid}</span>
                 {spotlightUser === currentSpeakerUid && (
@@ -922,69 +985,74 @@ export function AgoraMeetRoom({
               </div>
             </div>
 
-            {/* Filmstrip Strip Bawah */}
-            <div className="h-20 sm:h-28 flex items-center gap-2 overflow-x-auto pb-1 shrink-0 no-scrollbar">
-              <div
-                onClick={() => setPinnedUser(userNama)}
-                className={`relative rounded-xl sm:rounded-2xl bg-slate-900 border overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center cursor-pointer ${
-                  currentSpeakerUid === userNama ? "ring-2 ring-blue-500" : "border-slate-800"
-                }`}
-              >
-                {currentSpeakerUid === userNama ? (
-                  <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
-                    <Sparkles className="w-5 h-5 text-blue-400 animate-pulse" />
-                    <span className="text-[10px] font-bold text-slate-300">{userNama}</span>
-                    <span className="text-[8px] text-blue-400 font-semibold">Di Layar Utama</span>
-                  </div>
-                ) : (
-                  <>
-                    <div
-                      ref={localVideoRef}
-                      className={`w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
-                        cameraOn ? "opacity-100" : "opacity-0 pointer-events-none"
-                      }`}
-                    />
-                    {!cameraOn && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-bold text-xs">
-                          {userNama.charAt(0).toUpperCase()}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-                <div className="absolute bottom-1 left-1 bg-black/60 px-1.5 py-0.5 rounded text-[9px] font-bold text-white">
-                  {userNama} (Saya)
-                </div>
+            {/* Area Peserta Lain */}
+            <div className="w-full max-w-4xl mx-auto flex-1 min-h-0 flex flex-col space-y-1.5">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
+                  Peserta Lainnya ({remoteUsers.length})
+                </span>
+                <span className="text-[10px] text-slate-500 hidden sm:inline">
+                  Klik untuk pin ke layar utama
+                </span>
               </div>
 
-              {remoteUsers.map((u) => {
-                const isActiveOnStage = currentSpeakerUid === u.uid
-                return (
+              {/* Strip Peserta Bawah (Scrollable horizontal & responsive) */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 shrink-0 no-scrollbar touch-pan-x">
+                {/* Thumbnail Saya */}
+                <div
+                  onClick={() => setPinnedUser(userNama)}
+                  className={`relative rounded-xl sm:rounded-2xl bg-slate-900 border overflow-hidden shadow-md h-20 sm:h-28 aspect-video shrink-0 flex items-center justify-center cursor-pointer transition-all ${
+                    currentSpeakerUid === userNama ? "ring-2 ring-blue-500" : "border-slate-800"
+                  }`}
+                >
                   <div
-                    key={u.uid}
-                    onClick={() => setPinnedUser(u.uid)}
-                    className={`relative rounded-xl sm:rounded-2xl bg-slate-900 border overflow-hidden shadow-md h-full aspect-video shrink-0 flex items-center justify-center cursor-pointer ${
-                      isActiveOnStage ? "ring-2 ring-blue-500" : "border-slate-800"
+                    ref={localVideoRef}
+                    className={`w-full h-full bg-black -scale-x-100 pointer-events-none [&_video]:!object-cover [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_div]:!bg-transparent ${
+                      cameraOn && !isScreenSharing ? "opacity-100" : "opacity-0"
                     }`}
-                  >
-                    {isActiveOnStage ? (
-                      <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
-                        <Sparkles className="w-5 h-5 text-blue-400 animate-pulse" />
-                        <span className="text-[10px] font-bold text-slate-300 truncate max-w-[90px]">{u.uid}</span>
-                        <span className="text-[8px] text-blue-400 font-semibold">Di Layar Utama</span>
+                  />
+                  {(!cameraOn || isScreenSharing) && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center font-bold text-xs ring-1 ring-blue-500/20">
+                        {userNama.charAt(0).toUpperCase()}
                       </div>
-                    ) : (
-                      <RemoteUserVideoCard
-                        user={u}
-                        compact={true}
-                        isSpeaking={speakingUsers[u.uid]}
-                        isHandRaised={!!raisedHands[u.uid]}
-                      />
-                    )}
+                    </div>
+                  )}
+                  <div className="absolute bottom-1 left-1 bg-black/60 px-1.5 py-0.5 rounded text-[9px] font-bold text-white flex items-center gap-1">
+                    <span>{userNama} (Saya)</span>
+                    {!micOn && <MicOff className="w-2.5 h-2.5 text-rose-400" />}
                   </div>
-                )
-              })}
+                </div>
+
+                {/* Thumbnail Peserta Lain */}
+                {remoteUsers.map((u) => {
+                  const isActiveOnStage = currentSpeakerUid === u.uid
+                  return (
+                    <div
+                      key={u.uid}
+                      onClick={() => setPinnedUser(u.uid)}
+                      className={`relative rounded-xl sm:rounded-2xl bg-slate-900 border overflow-hidden shadow-md h-20 sm:h-28 aspect-video shrink-0 flex items-center justify-center cursor-pointer transition-all ${
+                        isActiveOnStage ? "ring-2 ring-blue-500" : "border-slate-800"
+                      }`}
+                    >
+                      {isActiveOnStage ? (
+                        <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
+                          <Sparkles className="w-5 h-5 text-blue-400 animate-pulse" />
+                          <span className="text-[10px] font-bold text-slate-300 truncate max-w-[90px]">{u.uid}</span>
+                          <span className="text-[8px] text-blue-400 font-semibold">Di Layar Utama</span>
+                        </div>
+                      ) : (
+                        <RemoteUserVideoCard
+                          user={u}
+                          compact={true}
+                          isSpeaking={speakingUsers[u.uid]}
+                          isHandRaised={!!raisedHands[u.uid]}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         ) : (
@@ -993,28 +1061,47 @@ export function AgoraMeetRoom({
              ========================================================================= */
           (() => {
             const totalParticipants = 1 + remoteUsers.length
-            const isOddGreaterThanOne = totalParticipants % 2 !== 0 && totalParticipants > 1
+            const isOdd = totalParticipants % 2 !== 0 && totalParticipants > 1
 
             const participants = [
               { isLocal: true, uid: userNama, name: userNama },
               ...remoteUsers.map((u) => ({ isLocal: false, user: u, uid: u.uid })),
             ]
 
+            let gridLayoutClass = "grid-cols-2 sm:grid-cols-2 max-w-4xl mx-auto"
+            if (totalParticipants === 1) {
+              gridLayoutClass = "grid-cols-1 max-w-xl mx-auto"
+            } else if (totalParticipants === 3) {
+              // Di Mobile: 2 kolom (baris bawah melebar penuh sesuai sketsa)
+              // Di Desktop: 3 kolom sejajar (sm:grid-cols-3) dengan aspek 16:9 simetris & rapi!
+              gridLayoutClass = "grid-cols-2 sm:grid-cols-3 max-w-5xl mx-auto"
+            } else if (totalParticipants >= 5) {
+              gridLayoutClass = "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto"
+            }
+
             return (
               <div
                 className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar py-2 sm:py-3 px-1.5 sm:px-3 min-h-0"
                 style={{ WebkitOverflowScrolling: "touch" }}
               >
-                <div
-                  className={`w-full max-w-5xl mx-auto pb-4 sm:pb-6 grid gap-2 sm:gap-3.5 ${
-                    totalParticipants === 1
-                      ? "grid-cols-1 max-w-xl m-auto"
-                      : "grid-cols-2"
-                  }`}
-                >
+                <div className={`w-full pb-4 sm:pb-6 grid gap-2 sm:gap-3.5 ${gridLayoutClass}`}>
                   {participants.map((p, idx) => {
-                    const isLastOddItem = isOddGreaterThanOne && idx === totalParticipants - 1
-                    const wrapperClass = isLastOddItem ? "col-span-2 w-full" : "col-span-1 w-full"
+                    const isLastOddItem = isOdd && idx === totalParticipants - 1
+
+                    let wrapperClass = "col-span-1 w-full"
+                    let aspectClass = "aspect-[4/3] sm:aspect-video"
+
+                    if (totalParticipants === 1) {
+                      wrapperClass = "col-span-1 w-full"
+                      aspectClass = "aspect-[4/3] sm:aspect-video max-h-[68vh]"
+                    } else if (isLastOddItem) {
+                      wrapperClass = totalParticipants === 3
+                        ? "col-span-2 sm:col-span-1 w-full"
+                        : "col-span-2 sm:col-span-1 sm:col-start-2 w-full"
+                      aspectClass = totalParticipants === 3
+                        ? "aspect-[16/9] sm:aspect-video"
+                        : "aspect-[16/9] sm:aspect-video"
+                    }
 
                     if (p.isLocal) {
                       const isSpeaking = speakingUsers[userNama]
@@ -1027,15 +1114,11 @@ export function AgoraMeetRoom({
                               isSpeaking
                                 ? "ring-2 ring-emerald-400 border-emerald-400"
                                 : "border-slate-800/80"
-                            } ${
-                              isLastOddItem
-                                ? "aspect-[16/9] sm:aspect-[21/9] max-h-[34vh]"
-                                : "aspect-[4/3] sm:aspect-video"
-                            }`}
+                            } ${aspectClass}`}
                           >
                             <div
                               ref={localVideoRef}
-                              className={`w-full h-full bg-black pointer-events-none [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
+                              className={`w-full h-full bg-black -scale-x-100 pointer-events-none [&_video]:!object-cover [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_div]:!bg-transparent ${
                                 cameraOn && !isScreenSharing ? "opacity-100" : "opacity-0"
                               }`}
                             />
@@ -1082,7 +1165,7 @@ export function AgoraMeetRoom({
                           isHandRaised={!!raisedHands[p.uid]}
                           isSpotlight={spotlightUser === p.uid}
                           isGuruHost={isGuru}
-                          isFullSpan={isLastOddItem}
+                          aspectClass={aspectClass}
                           onMute={() => handleMuteMurid(p.uid)}
                           onAskUnmute={() => handleAskUnmuteMurid(p.uid)}
                           onSpotlight={() => handleSetSpotlight(p.uid)}
@@ -1442,7 +1525,7 @@ export function AgoraMeetRoom({
 function RemoteUserVideoCard({
   user,
   compact = false,
-  isFullSpan = false,
+  aspectClass = "aspect-[4/3] sm:aspect-video",
   isSpeaking = false,
   isHandRaised = false,
   isSpotlight = false,
@@ -1459,7 +1542,7 @@ function RemoteUserVideoCard({
     if (track && containerRef.current) {
       try {
         containerRef.current.innerHTML = ""
-        track.play(containerRef.current)
+        track.play(containerRef.current, { fit: "cover" })
       } catch (err) {
         console.warn("Remote video track play error:", err)
       }
@@ -1479,18 +1562,12 @@ function RemoteUserVideoCard({
           : isSpotlight
           ? "ring-2 ring-amber-400 border-amber-400"
           : "border-slate-800/80"
-      } ${
-        compact
-          ? "h-full aspect-video"
-          : isFullSpan
-          ? "aspect-[16/9] sm:aspect-[21/9] max-h-[34vh]"
-          : "aspect-[4/3] sm:aspect-video"
-      }`}
+      } ${compact ? "h-full aspect-video" : aspectClass}`}
     >
       {/* Video element container is always present in DOM to allow seamless Agora playback */}
       <div
         ref={containerRef}
-        className={`w-full h-full bg-black pointer-events-none [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
+        className={`w-full h-full bg-black pointer-events-none [&_video]:!object-cover [&_video]:!object-center [&_video]:!w-full [&_video]:!h-full [&_div]:!bg-transparent ${
           user.hasVideo && track ? "opacity-100" : "opacity-0"
         }`}
       />
