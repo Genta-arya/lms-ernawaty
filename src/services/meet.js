@@ -22,26 +22,20 @@ const AGORA_APP_ID = "5960c48ec498439798df7c0d1249ae4d"
  * Mengambil token Agora RTC dari serverless function
  */
 export async function fetchAgoraToken(channelName, uid = 0, role = "publisher") {
-  try {
-    const res = await fetch("/api/agora-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channelName, uid, role }),
-    })
-    if (!res.ok) {
-      throw new Error("Gagal mengambil token Agora dari server")
-    }
-    const data = await res.json()
-    return data
-  } catch (err) {
-    console.warn("Fallback token fetch:", err)
-    return {
-      appId: AGORA_APP_ID,
-      token: null, // Null token jika Agora project tidak mewajibkan token
-      channelName,
-      uid,
-    }
+  const res = await fetch("/api/agora-token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channelName, uid, role }),
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.error || `Server token error (${res.status})`)
   }
+  const data = await res.json()
+  if (!data.token) {
+    throw new Error("Token Agora kosong atau gagal dibuat oleh server.")
+  }
+  return data
 }
 
 /**
@@ -61,9 +55,9 @@ export async function createSesiMeet({
     throw new Error("Judul, kelas sasaran, dan guru pengampu wajib diisi.")
   }
 
-  // Generate channelName unik berbasis random string & timestamp
+  // Generate channelName unik berbasis alphanumeric tanpa karakter ilegal
   const randomStr = Math.random().toString(36).substring(2, 8)
-  const channelName = `meet_${kelasId}_${Date.now()}_${randomStr}`
+  const channelName = `meet_${kelasId.replace(/[^a-zA-Z0-9]/g, "")}_${Date.now()}_${randomStr}`
 
   const docRef = await addDoc(collection(db, COLLECTION_NAME), {
     judul: judul.trim(),
@@ -125,7 +119,6 @@ export function subscribeSesiMeetByKelas(kelasId, callback) {
     q,
     (snap) => {
       const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      // Sort in-memory: yang 'berlangsung' di atas, lalu berdasarkan waktuMulai desc
       items.sort((a, b) => {
         if (a.status === "berlangsung" && b.status !== "berlangsung") return -1
         if (b.status === "berlangsung" && a.status !== "berlangsung") return 1
