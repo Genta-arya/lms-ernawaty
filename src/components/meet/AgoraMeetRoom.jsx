@@ -688,7 +688,7 @@ export function AgoraMeetRoom({
     userNama
 
   return createPortal(
-    <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[999999] bg-slate-950 flex flex-col text-white w-screen h-screen overflow-hidden animate-in fade-in duration-200">
+    <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[999999] bg-slate-950 flex flex-col text-white w-full h-[100dvh] max-h-[100dvh] overflow-hidden animate-in fade-in duration-200 select-none">
       {/* Top Bar Header Responsif ala Zoom */}
       <div className="h-14 sm:h-16 px-2.5 sm:px-4 py-2 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between gap-2 sm:gap-3 backdrop-blur-md shrink-0">
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
@@ -785,8 +785,8 @@ export function AgoraMeetRoom({
         </div>
       </div>
 
-      {/* Main Body */}
-      <div className="relative flex-1 p-2 sm:p-4 overflow-hidden flex flex-col justify-between min-h-0">
+      {/* Main Video Stage Area */}
+      <div className="relative flex-1 min-h-0 w-full overflow-hidden flex flex-col">
         {connecting ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center space-y-3">
             <div className="w-12 h-12 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
@@ -809,7 +809,7 @@ export function AgoraMeetRoom({
           /* =========================================================================
              ZOOM SCREEN SHARE MODE (RESPONSIF MOBILE & DESKTOP)
              ========================================================================= */
-          <div className="flex-1 flex flex-col h-full gap-2 sm:gap-3 overflow-hidden pb-16 sm:pb-20 min-h-0">
+          <div className="flex-1 flex flex-col h-full p-2 sm:p-4 gap-2 sm:gap-3 overflow-hidden min-h-0">
             {/* Layar Utama Presentasi */}
             <div className="flex-1 relative rounded-xl sm:rounded-2xl bg-black border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center min-h-[220px] sm:min-h-[340px]">
               {activeSharer === userNama ? (
@@ -904,7 +904,7 @@ export function AgoraMeetRoom({
           /* =========================================================================
              SPEAKER VIEW MODE ALA ZOOM
              ========================================================================= */
-          <div className="flex-1 flex flex-col h-full gap-2 sm:gap-3 overflow-hidden pb-16 sm:pb-20 min-h-0">
+          <div className="flex-1 flex flex-col h-full p-2 sm:p-4 gap-2 sm:gap-3 overflow-hidden min-h-0">
             {/* Layar Utama Speaker */}
             <div className="flex-1 relative rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl flex items-center justify-center min-h-[220px] sm:min-h-[340px]">
               <div
@@ -1002,11 +1002,11 @@ export function AgoraMeetRoom({
 
             return (
               <div
-                className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar py-2 sm:py-3 px-1 sm:px-3 min-h-0"
+                className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar py-2 sm:py-3 px-1.5 sm:px-3 min-h-0"
                 style={{ WebkitOverflowScrolling: "touch" }}
               >
                 <div
-                  className={`w-full max-w-5xl mx-auto pb-24 sm:pb-28 grid gap-2 sm:gap-3.5 ${
+                  className={`w-full max-w-5xl mx-auto pb-4 sm:pb-6 grid gap-2 sm:gap-3.5 ${
                     totalParticipants === 1
                       ? "grid-cols-1 max-w-xl m-auto"
                       : "grid-cols-2"
@@ -1035,8 +1035,8 @@ export function AgoraMeetRoom({
                           >
                             <div
                               ref={localVideoRef}
-                              className={`w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
-                                cameraOn && !isScreenSharing ? "opacity-100" : "opacity-0 pointer-events-none"
+                              className={`w-full h-full bg-black pointer-events-none [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
+                                cameraOn && !isScreenSharing ? "opacity-100" : "opacity-0"
                               }`}
                             />
                             {(!cameraOn || isScreenSharing) && (
@@ -1101,7 +1101,7 @@ export function AgoraMeetRoom({
             PANEL KELOLA PARTICIPANTS (RESPONSIF MOBILE / DESKTOP)
             ========================================================================= */}
         {showParticipantList && (
-          <div className="fixed inset-x-2 sm:inset-auto top-14 sm:top-16 bottom-20 sm:bottom-24 sm:right-6 z-50 sm:w-88 bg-slate-900/98 sm:bg-slate-900/95 border border-slate-700/80 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-2xl backdrop-blur-2xl flex flex-col justify-between animate-in fade-in zoom-in-95 space-y-3">
+          <div className="fixed inset-x-2 sm:inset-auto top-14 sm:top-16 bottom-16 sm:bottom-20 sm:right-6 z-50 sm:w-88 bg-slate-900/98 sm:bg-slate-900/95 border border-slate-700/80 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-2xl backdrop-blur-2xl flex flex-col justify-between animate-in fade-in zoom-in-95 space-y-3">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div>
                 <span className="text-xs font-extrabold text-slate-200">
@@ -1247,105 +1247,112 @@ export function AgoraMeetRoom({
             onClose={() => setShowChat(false)}
           />
         )}
+      </div>
 
-        {/* =========================================================================
-            FLOATING OVERLAY CONTROLS PILL ALA ZOOM (RESPONSIF MOBILE 100%)
-            ========================================================================= */}
-        {!connecting && !errorMsg && (
-          <div className="fixed bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-[9999999] pointer-events-auto max-w-[98vw]">
-            <div className="flex items-center gap-1 sm:gap-2.5 p-1 sm:p-2 px-2 sm:px-4 rounded-full bg-slate-900/95 sm:bg-slate-900/90 hover:bg-slate-900/98 border border-white/15 shadow-2xl backdrop-blur-2xl transition-all ring-1 ring-black/40 relative">
-              {/* Device Selector Popover Menu (Terpisah Audio Input & Audio Output) */}
-              {showDeviceMenu && (
-                <div className="absolute bottom-14 sm:bottom-16 left-0 sm:left-2 bg-slate-900 border border-slate-700 rounded-2xl p-3 shadow-2xl backdrop-blur-xl w-64 sm:w-72 max-w-[92vw] text-xs space-y-3 z-50 animate-in fade-in zoom-in-95">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                    <span className="font-extrabold text-[11px] text-slate-200">
-                      Pengaturan Audio
+      {/* =========================================================================
+          DOCKED BOTTOM CONTROLS BAR (SOLID FIXED FOOTER ALA ZOOM - BUKAN MELAYANG)
+          ========================================================================= */}
+      {!connecting && !errorMsg && (
+        <div className="shrink-0 w-full bg-slate-900/98 sm:bg-slate-900 border-t border-slate-800/90 py-2 sm:py-2.5 px-2 sm:px-6 relative z-40 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          <div className="max-w-4xl mx-auto flex items-center justify-between gap-1.5 sm:gap-4 relative">
+            {/* Device Selector Popover Menu (opens UPWARDS above bottom bar) */}
+            {showDeviceMenu && (
+              <div className="absolute bottom-full mb-3 left-0 sm:left-2 bg-slate-900 border border-slate-700/90 rounded-2xl p-3 sm:p-4 shadow-2xl backdrop-blur-xl w-72 sm:w-80 max-w-[94vw] text-xs space-y-3 z-50 animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="font-extrabold text-xs text-slate-200 flex items-center gap-1.5">
+                    <Settings className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Pengaturan Audio</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeviceMenu(false)}
+                    className="text-slate-400 hover:text-white text-xs p-1 rounded-md hover:bg-slate-800"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* 1. TERPISAH: AUDIO INPUT (MIKROFON) */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                    <Mic className="w-3 h-3" />
+                    <span>Audio Input (Mikrofon)</span>
+                  </span>
+                  <select
+                    value={selectedMicId}
+                    onChange={(e) => handleSwitchMic(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-[11px] text-slate-200 truncate focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  >
+                    {availableMics.length === 0 ? (
+                      <option value="">Tidak ada mikrofon terdeteksi</option>
+                    ) : (
+                      availableMics.map((m) => (
+                        <option key={m.deviceId} value={m.deviceId}>
+                          {m.label || `Mikrofon ${m.deviceId.slice(0, 5)}`}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                {/* 2. TERPISAH: AUDIO OUTPUT (SPEAKER) */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                      <Volume2 className="w-3 h-3" />
+                      <span>Audio Output (Speaker)</span>
                     </span>
                     <button
                       type="button"
-                      onClick={() => setShowDeviceMenu(false)}
-                      className="text-slate-400 hover:text-white text-xs px-1"
+                      onClick={handleTestSpeaker}
+                      className="text-[9px] text-amber-400 hover:text-amber-300 font-extrabold flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded-md active:scale-95 transition-all"
                     >
-                      ✕
+                      <span>{testingSpeaker ? "Memutar..." : "Uji Suara"}</span>
                     </button>
                   </div>
-
-                  {/* 1. TERPISAH: AUDIO INPUT (MIKROFON) */}
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                      <Mic className="w-3 h-3" />
-                      <span>Audio Input (Mikrofon)</span>
-                    </span>
-                    <select
-                      value={selectedMicId}
-                      onChange={(e) => handleSwitchMic(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-[11px] text-slate-200 truncate focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                    >
-                      {availableMics.length === 0 ? (
-                        <option value="">Tidak ada mikrofon terdeteksi</option>
-                      ) : (
-                        availableMics.map((m) => (
-                          <option key={m.deviceId} value={m.deviceId}>
-                            {m.label || `Mikrofon ${m.deviceId.slice(0, 5)}`}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-
-                  {/* 2. TERPISAH: AUDIO OUTPUT (SPEAKER) */}
-                  <div className="space-y-1.5 pt-1.5 border-t border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-amber-400 flex items-center gap-1">
-                        <Volume2 className="w-3 h-3" />
-                        <span>Audio Output (Speaker)</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleTestSpeaker}
-                        className="text-[9px] text-amber-400 hover:text-amber-300 font-extrabold flex items-center gap-0.5 bg-amber-500/10 px-1.5 py-0.5 rounded active:scale-95 transition-all"
-                      >
-                        <span>{testingSpeaker ? "Memutar..." : "Uji Suara"}</span>
-                      </button>
-                    </div>
-                    <select
-                      value={selectedSpeakerId}
-                      onChange={(e) => handleSwitchSpeaker(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-[11px] text-slate-200 truncate focus:outline-none focus:ring-1 focus:ring-amber-500"
-                    >
-                      {availableSpeakers.length === 0 ? (
-                        <option value="">Speaker default sistem</option>
-                      ) : (
-                        availableSpeakers.map((s) => (
-                          <option key={s.deviceId} value={s.deviceId}>
-                            {s.label || `Speaker ${s.deviceId.slice(0, 5)}`}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
+                  <select
+                    value={selectedSpeakerId}
+                    onChange={(e) => handleSwitchSpeaker(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-[11px] text-slate-200 truncate focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  >
+                    {availableSpeakers.length === 0 ? (
+                      <option value="">Speaker default sistem</option>
+                    ) : (
+                      availableSpeakers.map((s) => (
+                        <option key={s.deviceId} value={s.deviceId}>
+                          {s.label || `Speaker ${s.deviceId.slice(0, 5)}`}
+                        </option>
+                      ))
+                    )}
+                  </select>
                 </div>
-              )}
+              </div>
+            )}
 
+            {/* Action Buttons: Left / Center group */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5">
               {/* Mic Toggle + Switch Device */}
-              <div className="flex items-center">
+              <div className="flex items-center bg-slate-800/90 rounded-xl sm:rounded-2xl p-0.5 border border-slate-700/60 shadow-sm">
                 <button
                   type="button"
                   onClick={toggleMic}
-                  className={`h-8 sm:h-10 px-2 sm:px-3 rounded-l-full flex items-center justify-center transition-all active:scale-95 shadow-md ${
+                  className={`h-8 sm:h-9 px-2 sm:px-3 rounded-lg sm:rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
                     micOn
-                      ? "bg-white/10 hover:bg-white/20 text-white"
-                      : "bg-rose-600 hover:bg-rose-700 text-white ring-2 ring-rose-400/50"
+                      ? "bg-slate-700/60 hover:bg-slate-700 text-white"
+                      : "bg-rose-600 hover:bg-rose-700 text-white shadow-sm"
                   }`}
                   title={micOn ? "Matikan Mikrofon" : "Nyalakan Mikrofon"}
                 >
-                  {micOn ? <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <MicOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                  {micOn ? <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" /> : <MicOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                  <span className="text-[11px] font-semibold hidden md:inline">
+                    {micOn ? "Mute" : "Unmute"}
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowDeviceMenu(!showDeviceMenu)}
-                  className="h-8 sm:h-10 px-1 sm:px-1.5 rounded-r-full bg-white/10 hover:bg-white/20 border-l border-white/10 text-slate-300 flex items-center justify-center"
-                  title="Ganti Perangkat"
+                  className="h-8 sm:h-9 px-1.5 rounded-r-lg sm:rounded-r-xl hover:bg-slate-700/50 text-slate-400 hover:text-white flex items-center justify-center"
+                  title="Pengaturan Audio"
                 >
                   <ChevronUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </button>
@@ -1355,14 +1362,17 @@ export function AgoraMeetRoom({
               <button
                 type="button"
                 onClick={toggleCamera}
-                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-md ${
+                className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl sm:rounded-2xl flex items-center justify-center gap-1.5 transition-all active:scale-95 border ${
                   cameraOn
-                    ? "bg-white/10 hover:bg-white/20 text-white"
-                    : "bg-rose-600 hover:bg-rose-700 text-white ring-2 ring-rose-400/50"
+                    ? "bg-slate-800/90 hover:bg-slate-700/90 border-slate-700/60 text-white"
+                    : "bg-rose-600 hover:bg-rose-700 border-rose-500 text-white shadow-sm"
                 }`}
                 title={cameraOn ? "Matikan Kamera" : "Nyalakan Kamera"}
               >
-                {cameraOn ? <Video className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <VideoOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                {cameraOn ? <Video className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400" /> : <VideoOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                <span className="text-[11px] font-semibold hidden md:inline">
+                  {cameraOn ? "Stop Video" : "Start Video"}
+                </span>
               </button>
 
               {/* Screen Sharing Toggle */}
@@ -1370,54 +1380,60 @@ export function AgoraMeetRoom({
                 type="button"
                 onClick={toggleScreenShare}
                 disabled={activeSharer && activeSharer !== userNama}
-                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-md ${
+                className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl sm:rounded-2xl flex items-center justify-center gap-1.5 transition-all active:scale-95 border ${
                   isScreenSharing
-                    ? "bg-indigo-600 text-white ring-2 ring-indigo-400/60"
+                    ? "bg-indigo-600 border-indigo-500 text-white shadow-sm ring-1 ring-indigo-400/50"
                     : activeSharer && activeSharer !== userNama
-                    ? "bg-slate-800 text-slate-500 cursor-not-allowed opacity-50"
-                    : "bg-white/10 hover:bg-white/20 text-white"
+                    ? "bg-slate-800/50 border-slate-800 text-slate-500 cursor-not-allowed opacity-50"
+                    : "bg-slate-800/90 hover:bg-slate-700/90 border-slate-700/60 text-white"
                 }`}
                 title={
                   activeSharer && activeSharer !== userNama
                     ? `${activeSharer} sedang berbagi layar`
                     : isScreenSharing
                     ? "Hentikan Berbagi Layar"
-                    : "Bagikan Layar (Screen Share)"
+                    : "Bagikan Layar"
                 }
               >
-                <Monitor className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <Monitor className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400" />
+                <span className="text-[11px] font-semibold hidden md:inline">
+                  {isScreenSharing ? "Stop Share" : "Share Screen"}
+                </span>
               </button>
 
               {/* Angkat Tangan (Raise Hand) */}
               <button
                 type="button"
                 onClick={handleToggleRaiseHand}
-                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-md ${
+                className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl sm:rounded-2xl flex items-center justify-center gap-1.5 transition-all active:scale-95 border ${
                   isMyHandRaised
-                    ? "bg-amber-500 text-black ring-2 ring-amber-300 font-black animate-pulse"
-                    : "bg-white/10 hover:bg-white/20 text-white"
+                    ? "bg-amber-500 border-amber-400 text-black font-black animate-pulse"
+                    : "bg-slate-800/90 hover:bg-slate-700/90 border-slate-700/60 text-white"
                 }`}
                 title={isMyHandRaised ? "Turunkan Tangan" : "Angkat Tangan"}
               >
-                <Hand className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isMyHandRaised ? "fill-black" : ""}`} />
+                <Hand className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isMyHandRaised ? "fill-black" : "text-amber-400"}`} />
+                <span className="text-[11px] font-semibold hidden md:inline">
+                  {isMyHandRaised ? "Turunkan" : "Angkat Tangan"}
+                </span>
               </button>
+            </div>
 
-              <div className="w-[1px] h-5 sm:h-6 bg-white/15 my-auto mx-0.5" />
-
-              {/* Leave Call Button */}
+            {/* Right Action: Leave Call Button */}
+            <div className="shrink-0">
               <button
                 type="button"
                 onClick={leaveChannel}
-                className="h-8 sm:h-10 px-2.5 sm:px-4 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-rose-600/30 transition-all active:scale-95 shrink-0"
+                className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl sm:rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-rose-900/30 transition-all active:scale-95"
                 title="Tinggalkan Sesi Meet"
               >
                 <PhoneOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Keluar</span>
+                <span>Keluar</span>
               </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>,
     document.body
   )
@@ -1474,8 +1490,8 @@ function RemoteUserVideoCard({
       {/* Video element container is always present in DOM to allow seamless Agora playback */}
       <div
         ref={containerRef}
-        className={`w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
-          user.hasVideo && track ? "opacity-100" : "opacity-0 pointer-events-none"
+        className={`w-full h-full bg-black pointer-events-none [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover ${
+          user.hasVideo && track ? "opacity-100" : "opacity-0"
         }`}
       />
 
@@ -1517,7 +1533,7 @@ function RemoteUserVideoCard({
 
       {/* Host Action Hover Buttons */}
       {isGuruHost && !compact && (
-        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/70 backdrop-blur-md p-1 rounded-xl border border-white/10 z-10">
+        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/70 backdrop-blur-md p-1 rounded-xl border border-white/10 z-10 pointer-events-auto">
           <button
             type="button"
             onClick={onMute}
