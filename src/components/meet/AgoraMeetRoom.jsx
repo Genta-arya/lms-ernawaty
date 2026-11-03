@@ -25,7 +25,7 @@ export function AgoraMeetRoom({
 }) {
   const [joined, setJoined] = useState(false)
   const [connecting, setConnecting] = useState(true)
-  const [micOn, setMicOn] = useState(true)
+  const [micOn, setMicOn] = useState(isGuru ? true : false)
   const [cameraOn, setCameraOn] = useState(true)
   const [isScreenSharing, setIsScreenSharing] = useState(false)
   const [remoteUsers, setRemoteUsers] = useState([])
@@ -98,6 +98,11 @@ export function AgoraMeetRoom({
             videoTrack.play(localVideoRef.current)
           }
 
+          // Jika siswa, otomatis mute mic saat pertama masuk
+          if (!isGuru && audioTrack) {
+            await audioTrack.setEnabled(false)
+          }
+
           // Publikasikan track ke channel
           await client.publish([audioTrack, videoTrack])
         } catch (deviceErr) {
@@ -106,6 +111,9 @@ export function AgoraMeetRoom({
             const audioTrack = await AgoraRTC.createMicrophoneAudioTrack()
             localTracksRef.current.audioTrack = audioTrack
             setCameraOn(false)
+            if (!isGuru && audioTrack) {
+              await audioTrack.setEnabled(false)
+            }
             await client.publish([audioTrack])
           } catch (micErr) {
             console.error("Gagal akses mikrofon:", micErr)
@@ -313,19 +321,21 @@ export function AgoraMeetRoom({
           </div>
         ) : (
           <div
-            className={`w-full max-w-6xl h-full pb-20 grid gap-3 sm:gap-4 overflow-y-auto no-scrollbar ${
+            className={`w-full max-w-6xl h-full pb-28 pt-2 px-1 grid gap-3 sm:gap-4 overflow-y-auto no-scrollbar auto-rows-fr ${
               remoteUsers.length === 0
-                ? "grid-cols-1"
+                ? "grid-cols-1 max-w-3xl"
                 : remoteUsers.length === 1
                 ? "grid-cols-1 sm:grid-cols-2"
-                : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                : remoteUsers.length === 2
+                ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
+                : "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
             }`}
           >
             {/* Video Lokal (Saya) */}
-            <div className="relative rounded-3xl bg-slate-900 border border-slate-800/80 overflow-hidden shadow-2xl flex items-center justify-center min-h-[220px]">
+            <div className="relative rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800/80 overflow-hidden shadow-xl flex items-center justify-center aspect-video w-full">
               <div
                 ref={localVideoRef}
-                className="w-full h-full min-h-[220px] bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
+                className="w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
               />
               {!cameraOn && !isScreenSharing && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400 space-y-2">
@@ -348,10 +358,10 @@ export function AgoraMeetRoom({
           </div>
         )}
 
-        {/* Floating Overlay Controls Pill (Mengambang Modern ala Zoom/Meet) */}
+        {/* Floating Overlay Controls Pill (Mengambang Modern & Aman untuk HP/Tablet) */}
         {!connecting && !errorMsg && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30">
-            <div className="flex items-center gap-2.5 sm:gap-3.5 p-2 sm:p-2.5 px-3.5 sm:px-5 rounded-full bg-slate-900/85 hover:bg-slate-900/95 border border-white/10 shadow-2xl backdrop-blur-xl transition-all">
+          <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[9999999] pointer-events-auto max-w-[95vw]">
+            <div className="flex items-center gap-2 sm:gap-3.5 p-1.5 sm:p-2.5 px-3 sm:px-5 rounded-full bg-slate-900/90 hover:bg-slate-900/98 border border-white/15 shadow-2xl backdrop-blur-2xl transition-all ring-1 ring-black/40">
               {/* Mic Toggle */}
               <button
                 type="button"
@@ -432,10 +442,10 @@ function RemoteUserVideoCard({ user }) {
       : `Peserta #${String(user.uid).slice(-4)}`
 
   return (
-    <div className="relative rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl flex items-center justify-center min-h-[220px]">
+    <div className="relative rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl flex items-center justify-center aspect-video w-full">
       <div
         ref={containerRef}
-        className="w-full h-full min-h-[220px] bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
+        className="w-full h-full bg-black [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
       />
       <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-xl text-[11px] font-bold text-white flex items-center gap-1.5 shadow-xs">
         <span>{displayName}</span>
