@@ -34,6 +34,7 @@ import { TugasList as GuruTugasList } from "@/pages/guru/TugasList"
 import { TugasEdit as GuruTugasEdit } from "@/pages/guru/TugasEdit"
 import { TugasNilai as GuruTugasNilai } from "@/pages/guru/TugasNilai"
 import { Pengumuman as GuruPengumuman } from "@/pages/guru/Pengumuman"
+import { GuruMeet } from "@/pages/guru/Meet"
 
 // Murid Pages
 import { Dashboard as MuridDashboard } from "@/pages/murid/Dashboard"
@@ -105,6 +106,7 @@ export default function App() {
           <Route path="tugas/:id/edit" element={<GuruTugasEdit />} />
           <Route path="tugas/:id/nilai" element={<GuruTugasNilai />} />
           <Route path="pengumuman" element={<GuruPengumuman />} />
+          <Route path="meet" element={<GuruMeet />} />
         </Route>
 
         {/* Rute Murid (Protected: murid) */}

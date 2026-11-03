@@ -1,3 +1,4 @@
+import { BannerMeetMurid } from "@/components/meet/BannerMeetMurid"
 import React, { useState, useEffect } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
@@ -209,6 +210,9 @@ export function MuridKelas() {
           </div>
         </div>
       </div>
+
+      {/* Banner Sesi Virtual Meet Live / Terjadwal dari Guru */}
+      <BannerMeetMurid kelasId={kelasData?.id} />
 
       {/* Filter Tab & Pencarian Teman */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">

@@ -16,6 +16,7 @@ import {
   Feather,
   ClipboardList,
   Megaphone,
+  Video,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -41,6 +42,7 @@ export function GuruLayout() {
 
   const navItems = [
     { label: "Dashboard", href: "/guru", icon: LayoutDashboard },
+    { label: "Virtual Meet (Zoom)", href: "/guru/meet", icon: Video },
     { label: "Pusat Pengumuman", href: "/guru/pengumuman", icon: Megaphone },
     { label: "Monitoring Karya", href: "/guru/mading", icon: Feather },
     { label: "Penugasan Siswa", href: "/guru/tugas", icon: ClipboardList },

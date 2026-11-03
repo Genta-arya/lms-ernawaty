@@ -183,6 +183,14 @@ service cloud.firestore {
     }
 
 
+
+    match /sesiMeet/{id} {
+      // Semua pengguna login dapat membaca status sesi meet
+      allow read: if signedIn();
+      // Hanya guru yang dapat membuat, mengupdate status, dan menghapus sesi meet
+      allow write: if isGuru();
+    }
+
     match /forumDiskusi/{id} {
       // Siswa teraktivasi dan guru dapat membaca diskusi
       allow read: if signedIn();
