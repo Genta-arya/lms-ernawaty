@@ -7,12 +7,25 @@ import { Terminal, X, Copy, Trash2, Check, AlertCircle, AlertTriangle, Info } fr
  * Diaktifkan lewat URL query parameter ?debug=true ATAU tombol mengambang kecil di pojok.
  */
 export function MobileDebugConsole() {
+  const [isDebugMode, setIsDebugMode] = useState(false)
   const [logs, setLogs] = useState([])
   const [isOpen, setIsOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [filter, setFilter] = useState("all") // all | error | warn
 
   useEffect(() => {
+    // Hanya aktifkan jika user menambahkan ?debug=true di URL
+    // (Bisa disimpan di sessionStorage selama sesi aktif)
+    const urlParams = new URLSearchParams(window.location.search)
+    const hasDebugParam = urlParams.get("debug") === "true" || sessionStorage.getItem("app_debug_mode") === "true"
+
+    if (!hasDebugParam) {
+      return
+    }
+
+    setIsDebugMode(true)
+    sessionStorage.setItem("app_debug_mode", "true")
+    setIsOpen(true)
     // Tangkap window error yang tidak ter-handle
     const handleError = (event) => {
       const errItem = {
@@ -82,11 +95,6 @@ export function MobileDebugConsole() {
     window.addEventListener("error", handleError)
     window.addEventListener("unhandledrejection", handleUnhandledRejection)
 
-    // Buka otomatis jika ada parameter ?debug=true di URL
-    if (window.location.search.includes("debug=true")) {
-      setIsOpen(true)
-    }
-
     return () => {
       window.removeEventListener("error", handleError)
       window.removeEventListener("unhandledrejection", handleUnhandledRejection)
@@ -94,6 +102,9 @@ export function MobileDebugConsole() {
       console.warn = originalConsoleWarn
     }
   }, [])
+
+  // Jika tidak dalam mode debug (?debug=true), jangan tampilkan apapun ke user umum
+  if (!isDebugMode) return null
 
   const errorCount = logs.filter((l) => l.type === "error").length
   const filteredLogs = logs.filter((l) => (filter === "all" ? true : l.type === filter))
@@ -108,8 +119,15 @@ export function MobileDebugConsole() {
     })
   }
 
+  const handleExitDebug = () => {
+    sessionStorage.removeItem("app_debug_mode")
+    setIsDebugMode(false)
+    setIsOpen(false)
+  }
+
   return (
     <>
+
       {/* Tombol Melayang Kecil Pengaktif Console Debug di Layar Tablet (Pojok Kanan Tengah) */}
       {!isOpen && (
         <button
@@ -177,12 +195,22 @@ export function MobileDebugConsole() {
 
               <button
                 type="button"
+                onClick={handleExitDebug}
+                className="px-2 py-1 text-[10px] font-bold text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition-colors border border-transparent hover:border-rose-900/40"
+                title="Keluar dari mode debug dan sembunyikan console"
+              >
+                Keluar Debug
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setIsOpen(false)}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                title="Tutup Panel Debugger"
+                title="Tutup Panel Sementara"
               >
                 <X className="w-4 h-4" />
               </button>
+
             </div>
           </div>
 
