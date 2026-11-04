@@ -10,4 +10,4 @@ Disallow: /guru/
 Disallow: /murid/
 
 # Lokasi Sitemap
-Sitemap: https://lms-ernawaty.web.app/sitemap.xml
+Sitemap: https://lms-ernawaty.vercel.app/sitemap.xml
