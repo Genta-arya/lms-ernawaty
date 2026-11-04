@@ -10,6 +10,7 @@ import {
   askUserToUnmute,
   forceKickUser,
   setSpotlightUser,
+  updateScreenSharePermission,
 } from "@/services/meet"
 import { MeetChatDrawer } from "./MeetChatDrawer"
 import { Button } from "@/components/ui/button"
@@ -65,6 +66,7 @@ export function AgoraMeetRoom({
 
   // Realtime meet controls
   const [activeSharer, setActiveSharer] = useState(null)
+  const [allowStudentScreenShare, setAllowStudentScreenShare] = useState(false)
   const [spotlightUser, setSpotlightUserState] = useState(null)
   const [showParticipantList, setShowParticipantList] = useState(false)
   const [showChat, setShowChat] = useState(false)
@@ -314,6 +316,7 @@ export function AgoraMeetRoom({
     const unsub = subscribeMeetControls(channelName, (controls) => {
       const currentActiveSharer = controls?.activeSharer || null
       setActiveSharer(currentActiveSharer)
+      setAllowStudentScreenShare(!!controls?.allowStudentScreenShare)
       setSpotlightUserState(controls?.spotlightUser || null)
 
       // Deteksi jika Firestore mencatat diri saya sedang sharing padahal tidak
@@ -767,10 +770,10 @@ export function AgoraMeetRoom({
     }, 600)
   }
 
-  // Toggle Berbagi Layar (Screen Sharing - Khusus Guru)
+  // Toggle Berbagi Layar (Screen Sharing - Kompatibel Browser HP & Desktop)
   async function toggleScreenShare() {
-    if (!isGuru) {
-      alert("Hanya guru pengajar yang diizinkan berbagi layar.")
+    if (!isGuru && !allowStudentScreenShare) {
+      alert("Berbagi layar oleh murid belum diizinkan oleh guru pengajar.")
       return
     }
     const client = clientRef.current
@@ -782,24 +785,106 @@ export function AgoraMeetRoom({
     }
 
     if (!isScreenSharing) {
+      // 1. Pengecekan kapabilitas browser (termasuk deteksi browser mobile / in-app)
+      const hasGetDisplayMedia =
+        (typeof navigator !== "undefined" && navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === "function") ||
+        (typeof navigator !== "undefined" && typeof navigator.getDisplayMedia === "function")
+
+      if (!hasGetDisplayMedia) {
+        alert(
+          "Peramban (browser) di perangkat ini belum mendukung fitur Berbagi Layar (Screen Sharing).\n\n" +
+          "Saran:\n" +
+          "• Buka LMS menggunakan aplikasi Google Chrome versi terbaru di Android.\n" +
+          "• Jika Anda membuka tautan dari dalam WhatsApp / Instagram / Facebook, tekan ikon titik tiga di sudut atas lalu pilih 'Buka di Chrome' (Open in Chrome / Browser).\n" +
+          "• Pada perangkat iPhone/iPad (iOS), browser Chrome/Safari membatasi Web Screen Share karena kebijakan sistem Apple (fitur Broadcast Extension)."
+        )
+        return
+      }
+
       try {
-        const screenTrack = await AgoraRTC.createScreenVideoTrack({}, "disable")
+        let screenTrack = null
+
+        // Coba lewat AgoraRTC SDK terlebih dahulu
+        try {
+          screenTrack = await AgoraRTC.createScreenVideoTrack(
+            {
+              encoderConfig: "720p_2",
+              optimizationMode: "detail",
+            },
+            "disable"
+          )
+        } catch (agoraErr) {
+          console.warn("AgoraRTC.createScreenVideoTrack gagal, mencoba fallback standar WebRTC:", agoraErr)
+          // Fallback langsung menggunakan native mediaDevices.getDisplayMedia jika Agora wrapper menolak di mobile
+          if (navigator.mediaDevices?.getDisplayMedia) {
+            const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+              video: {
+                cursor: "always",
+                frameRate: { max: 15, ideal: 10 },
+              },
+              audio: false,
+            })
+            const videoTrack = mediaStream.getVideoTracks()[0]
+            if (videoTrack) {
+              screenTrack = AgoraRTC.createCustomVideoTrack({
+                mediaStreamTrack: videoTrack,
+              })
+            } else {
+              throw agoraErr
+            }
+          } else {
+            throw agoraErr
+          }
+        }
+
+        if (!screenTrack) {
+          throw new Error("Track layar tidak dapat diinisialisasi.")
+        }
+
         screenTrackRef.current = screenTrack
 
+        // Unpublish sementara video kamera agar bandwidth fokus ke presentasi
         if (localTracksRef.current.videoTrack) {
-          await client.unpublish(localTracksRef.current.videoTrack)
+          try {
+            await client.unpublish(localTracksRef.current.videoTrack)
+          } catch (_) { }
         }
 
         await client.publish(screenTrack)
         await setActiveScreenSharer(channelName, userNama)
 
-        screenTrack.on("track-ended", async () => {
+        // Tangani saat pengguna menekan tombol bawaan "Stop sharing" di notifikasi sistem HP/PC
+        const handleTrackEnded = async () => {
           await stopScreenSharing()
-        })
+        }
+
+        if (screenTrack.on) {
+          screenTrack.on("track-ended", handleTrackEnded)
+        }
+        if (screenTrack.getMediaStreamTrack) {
+          const rawTrack = screenTrack.getMediaStreamTrack()
+          if (rawTrack) {
+            rawTrack.onended = handleTrackEnded
+          }
+        }
 
         setIsScreenSharing(true)
       } catch (err) {
         console.warn("Batal berbagi layar atau ditolak:", err)
+        if (err.name === "NotAllowedError" || err.message?.includes("Permission denied")) {
+          // Pengguna sengaja membatalkan dialog izin
+          return
+        }
+        if (err.name === "NotSupportedError" || err.message?.includes("not supported")) {
+          alert(
+            "Fitur berbagi layar tidak didukung di browser ini. Mohon gunakan Google Chrome versi terbaru."
+          )
+        } else {
+          alert(
+            "Gagal memulai berbagi layar: " +
+            (err.message || "Izin dibatalkan atau tidak didukung peramban HP Anda.")
+          )
+        }
       }
     } else {
       await stopScreenSharing()
@@ -1651,7 +1736,7 @@ export function AgoraMeetRoom({
 
             {/* Action Cepat Guru */}
             {isGuru && (
-              <div className="border-b border-slate-800 pb-2">
+              <div className="border-b border-slate-800 pb-2 space-y-1.5">
                 <Button
                   type="button"
                   size="sm"
@@ -1661,6 +1746,28 @@ export function AgoraMeetRoom({
                 >
                   <VolumeX className="w-3.5 h-3.5 mr-1.5" />
                   Mute Semua Murid
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    const nextVal = !allowStudentScreenShare
+                    await updateScreenSharePermission(channelName, nextVal)
+                  }}
+                  className={`w-full text-[11px] font-bold h-8 border-slate-700 ${
+                    allowStudentScreenShare
+                      ? "bg-emerald-950/40 text-emerald-300 border-emerald-600/50 hover:bg-emerald-900/50"
+                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  <Monitor className="w-3.5 h-3.5 mr-1.5" />
+                  <span>
+                    {allowStudentScreenShare
+                      ? "Izin Share Screen Murid: Aktif"
+                      : "Izinkan Murid Berbagi Layar"}
+                  </span>
                 </Button>
               </div>
             )}
@@ -1875,8 +1982,8 @@ export function AgoraMeetRoom({
                 </span>
               </button>
 
-              {/* Screen Sharing Toggle (Khusus Guru Pengajar) */}
-              {isGuru && (
+              {/* Screen Sharing Toggle (Guru & Murid jika diizinkan) */}
+              {(isGuru || allowStudentScreenShare) && (
                 <button
                   type="button"
                   onClick={toggleScreenShare}
