@@ -1,9 +1,25 @@
 import React, { useState, useEffect } from "react"
-import { Terminal, Globe, X, Copy, Trash2, Check, AlertCircle, AlertTriangle, Info, ArrowUpRight, ArrowDownLeft } from "lucide-react"
+import {
+  Terminal,
+  Globe,
+  X,
+  Copy,
+  Trash2,
+  Check,
+  AlertCircle,
+  AlertTriangle,
+  Info,
+  ChevronDown,
+  ChevronRight,
+  Code2,
+  Send,
+  FileJson,
+} from "lucide-react"
 
 /**
  * MobileDebugConsole
- * Menginspeksi Error, Warning, dan Network Request (Fetch / XHR) langsung di layar tablet/HP.
+ * Menginspeksi Error, Warning, dan Network Request (Fetch / XHR)
+ * LENGKAP dengan Payload (Request Body) dan Response Data (JSON/Text).
  * HANYA aktif jika ada URL parameter ?debug=true (atau tersimpan di sessionStorage).
  */
 export function MobileDebugConsole() {
@@ -11,6 +27,8 @@ export function MobileDebugConsole() {
   const [activeTab, setActiveTab] = useState("console") // 'console' | 'network'
   const [logs, setLogs] = useState([])
   const [requests, setRequests] = useState([])
+  const [expandedReqId, setExpandedReqId] = useState(null)
+  const [reqDetailTab, setReqDetailTab] = useState({}) // reqId -> 'response' | 'payload' | 'headers'
   const [isOpen, setIsOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [consoleFilter, setConsoleFilter] = useState("all") // all | error | warn
@@ -94,7 +112,27 @@ export function MobileDebugConsole() {
       setLogs((prev) => [warnItem, ...prev].slice(0, 100))
     }
 
-    // 4. Intercept window.fetch (Network Requests)
+    // Helper untuk memformat payload
+    function parsePayload(body) {
+      if (!body) return null
+      if (typeof body === "string") {
+        try {
+          return JSON.stringify(JSON.parse(body), null, 2)
+        } catch (_) {
+          return body
+        }
+      }
+      if (typeof body === "object") {
+        try {
+          return JSON.stringify(body, null, 2)
+        } catch (_) {
+          return String(body)
+        }
+      }
+      return String(body)
+    }
+
+    // 4. Intercept window.fetch (Lengkap dengan Payload & Clone Response Body)
     const originalFetch = window.fetch
     window.fetch = async (...args) => {
       const startTime = performance.now()
@@ -102,8 +140,12 @@ export function MobileDebugConsole() {
       if (typeof url === "object" && url.url) url = url.url
       url = String(url)
 
-      const method = (args[1]?.method || "GET").toUpperCase()
+      const options = args[1] || {}
+      const method = (options.method || "GET").toUpperCase()
       const reqId = Date.now() + Math.random()
+
+      // Ambil Request Payload
+      const requestPayload = parsePayload(options.body)
 
       const newReq = {
         id: reqId,
@@ -113,6 +155,8 @@ export function MobileDebugConsole() {
         statusCode: 0,
         duration: 0,
         time: new Date().toLocaleTimeString("id-ID"),
+        payload: requestPayload,
+        response: null,
         error: null,
       }
 
@@ -123,6 +167,21 @@ export function MobileDebugConsole() {
         const duration = Math.round(performance.now() - startTime)
         const ok = response.ok
 
+        // Clone response agar tidak mengonsumsi stream asli aplikasi
+        let responseBody = null
+        try {
+          const clone = response.clone()
+          const contentType = clone.headers.get("content-type") || ""
+          if (contentType.includes("application/json") || contentType.includes("text/")) {
+            const text = await clone.text()
+            responseBody = parsePayload(text)
+          } else {
+            responseBody = `[Binary/Stream data: ${contentType}]`
+          }
+        } catch (_) {
+          responseBody = "[Tidak dapat membaca response stream]"
+        }
+
         setRequests((prev) =>
           prev.map((r) =>
             r.id === reqId
@@ -131,6 +190,7 @@ export function MobileDebugConsole() {
                   status: ok ? "success" : "failed",
                   statusCode: response.status,
                   duration,
+                  response: responseBody,
                 }
               : r
           )
@@ -155,7 +215,7 @@ export function MobileDebugConsole() {
       }
     }
 
-    // 5. Intercept XMLHttpRequest (XHR)
+    // 5. Intercept XMLHttpRequest (XHR Lengkap dengan Payload & Response)
     const originalXHROpen = XMLHttpRequest.prototype.open
     const originalXHRSend = XMLHttpRequest.prototype.send
 
@@ -172,6 +232,7 @@ export function MobileDebugConsole() {
       const method = this._debugMethod || "GET"
       const url = this._debugUrl || ""
       const startTime = this._debugStartTime || performance.now()
+      const payload = parsePayload(args[0])
 
       const newReq = {
         id: reqId,
@@ -181,6 +242,8 @@ export function MobileDebugConsole() {
         statusCode: 0,
         duration: 0,
         time: new Date().toLocaleTimeString("id-ID"),
+        payload,
+        response: null,
         error: null,
       }
       setRequests((prev) => [newReq, ...prev].slice(0, 80))
@@ -190,6 +253,19 @@ export function MobileDebugConsole() {
         const status = this.status
         const ok = status >= 200 && status < 400
 
+        let responseBody = null
+        try {
+          if (this.responseType === "" || this.responseType === "text") {
+            responseBody = parsePayload(this.responseText)
+          } else if (this.responseType === "json") {
+            responseBody = JSON.stringify(this.response, null, 2)
+          } else {
+            responseBody = `[Response Type: ${this.responseType}]`
+          }
+        } catch (_) {
+          responseBody = "[Gagal membaca XHR response text]"
+        }
+
         setRequests((prev) =>
           prev.map((r) =>
             r.id === reqId
@@ -198,6 +274,7 @@ export function MobileDebugConsole() {
                   status: ok ? "success" : "failed",
                   statusCode: status,
                   duration,
+                  response: responseBody,
                   error: !ok ? `HTTP Error ${status}` : null,
                 }
               : r
@@ -252,6 +329,10 @@ export function MobileDebugConsole() {
     return true
   })
 
+  const toggleExpand = (id) => {
+    setExpandedReqId((prev) => (prev === id ? null : id))
+  }
+
   const handleCopyAll = () => {
     let text = ""
     if (activeTab === "console") {
@@ -263,13 +344,22 @@ export function MobileDebugConsole() {
         .map(
           (r) =>
             `[${r.time}] [${r.method}] ${r.statusCode || r.status} (${r.duration}ms)\nURL: ${r.url}${
-              r.error ? `\nError: ${r.error}` : ""
+              r.payload ? `\n\n--- PAYLOAD ---\n${r.payload}` : ""
+            }${r.response ? `\n\n--- RESPONSE ---\n${r.response}` : ""}${
+              r.error ? `\n\n--- ERROR ---\n${r.error}` : ""
             }`
         )
-        .join("\n----------------\n")
+        .join("\n====================================\n")
     }
 
     navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  const handleCopySingle = (content) => {
+    navigator.clipboard.writeText(content).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -307,7 +397,7 @@ export function MobileDebugConsole() {
 
       {/* Jendela Panel Debugger Layar Sentuh Tablet */}
       {isOpen && (
-        <div className="fixed inset-x-2 sm:inset-x-6 bottom-2 z-[9999999] max-h-[75vh] flex flex-col rounded-3xl bg-slate-950/95 border border-slate-800 text-slate-100 shadow-2xl backdrop-blur-2xl overflow-hidden animate-in slide-in-from-bottom-5">
+        <div className="fixed inset-x-2 sm:inset-x-6 bottom-2 z-[9999999] max-h-[82vh] flex flex-col rounded-3xl bg-slate-950/95 border border-slate-800 text-slate-100 shadow-2xl backdrop-blur-2xl overflow-hidden animate-in slide-in-from-bottom-5">
           {/* Header Panel */}
           <div className="p-3 sm:p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/70 shrink-0">
             {/* Tab Navigasi: Console vs Network */}
@@ -340,7 +430,7 @@ export function MobileDebugConsole() {
                 }`}
               >
                 <Globe className="w-3.5 h-3.5" />
-                <span>Network (Fetch/XHR)</span>
+                <span>Network (Payload &amp; Response)</span>
                 {failedReqCount > 0 && (
                   <span className="bg-rose-500 text-white px-1.5 py-0.2 rounded-full text-[9px] font-black">
                     {failedReqCount}
@@ -441,7 +531,7 @@ export function MobileDebugConsole() {
                     networkFilter === "failed" ? "bg-rose-600 text-white" : "text-slate-400 hover:text-white"
                   }`}
                 >
-                  Gagal / Error ({failedReqCount})
+                  Gagal ({failedReqCount})
                 </button>
                 <button
                   type="button"
@@ -454,7 +544,9 @@ export function MobileDebugConsole() {
                 </button>
               </div>
             )}
-            <span className="text-[10px] text-slate-500 font-mono">Realtime Inspector Active</span>
+            <span className="text-[10px] text-slate-500 font-mono">
+              {activeTab === "network" ? "Ketuk baris untuk melihat Payload & Response" : "Live Console Active"}
+            </span>
           </div>
 
           {/* Isi Pesan (Tab Console vs Tab Network) */}
@@ -501,62 +593,171 @@ export function MobileDebugConsole() {
               <div className="text-center py-10 text-slate-500 space-y-1">
                 <Globe className="w-6 h-6 mx-auto opacity-50" />
                 <p>Belum ada request Network (Fetch / XHR) yang terpantau.</p>
-                <p className="text-[10px] text-slate-600">
-                  Lakukan panggilan API atau perpindahan halaman untuk melihat log network.
-                </p>
               </div>
             ) : (
-              filteredRequests.map((req) => (
-                <div
-                  key={req.id}
-                  className={`p-2.5 rounded-xl border text-[11px] leading-relaxed break-words flex flex-col gap-1 ${
-                    req.status === "failed"
-                      ? "bg-rose-950/40 border-rose-900/60 text-rose-200"
-                      : req.status === "pending"
-                      ? "bg-blue-950/40 border-blue-900/60 text-blue-200"
-                      : "bg-slate-900/50 border-slate-800 text-slate-200"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2 text-[10px]">
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={`font-black px-1.5 py-0.5 rounded text-[9px] uppercase ${
-                          req.method === "POST"
-                            ? "bg-blue-600 text-white"
-                            : req.method === "DELETE"
-                            ? "bg-rose-600 text-white"
-                            : "bg-slate-700 text-slate-200"
-                        }`}
-                      >
-                        {req.method}
-                      </span>
-                      <span
-                        className={`font-extrabold px-1.5 py-0.5 rounded text-[9px] ${
-                          req.status === "failed"
-                            ? "bg-rose-600 text-white"
-                            : req.status === "pending"
-                            ? "bg-amber-600 text-white animate-pulse"
-                            : "bg-emerald-600 text-white"
-                        }`}
-                      >
-                        {req.statusCode ? req.statusCode : req.status.toUpperCase()}
-                      </span>
-                      {req.duration > 0 && <span className="opacity-60">{req.duration}ms</span>}
-                    </div>
-                    <span className="opacity-60">{req.time}</span>
-                  </div>
+              filteredRequests.map((req) => {
+                const isExpanded = expandedReqId === req.id
+                const currentDetailTab = reqDetailTab[req.id] || "response"
 
-                  <div className="font-mono text-slate-300 break-all text-[11px] select-text">
-                    {req.url}
-                  </div>
-
-                  {req.error && (
-                    <div className="text-rose-400 text-[10px] font-bold mt-0.5 border-t border-rose-900/40 pt-1">
-                      ⚠️ {req.error}
+                return (
+                  <div
+                    key={req.id}
+                    className={`rounded-2xl border text-[11px] leading-relaxed overflow-hidden transition-all ${
+                      req.status === "failed"
+                        ? "bg-rose-950/30 border-rose-900/60 text-rose-200"
+                        : req.status === "pending"
+                        ? "bg-blue-950/30 border-blue-900/60 text-blue-200"
+                        : "bg-slate-900/50 border-slate-800 text-slate-200"
+                    }`}
+                  >
+                    {/* Baris Ringkasan Request (Bisa Diklik untuk Expand) */}
+                    <div
+                      onClick={() => toggleExpand(req.id)}
+                      className="p-3 cursor-pointer hover:bg-white/[0.03] flex items-start justify-between gap-2.5 transition-colors"
+                    >
+                      <div className="flex items-start gap-2 min-w-0 flex-1">
+                        <div className="mt-0.5 text-slate-400 shrink-0">
+                          {isExpanded ? <ChevronDown className="w-4 h-4 text-blue-400" /> : <ChevronRight className="w-4 h-4" />}
+                        </div>
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              className={`font-black px-1.5 py-0.5 rounded text-[9px] uppercase ${
+                                req.method === "POST"
+                                  ? "bg-blue-600 text-white"
+                                  : req.method === "DELETE"
+                                  ? "bg-rose-600 text-white"
+                                  : "bg-slate-700 text-slate-200"
+                              }`}
+                            >
+                              {req.method}
+                            </span>
+                            <span
+                              className={`font-extrabold px-1.5 py-0.5 rounded text-[9px] ${
+                                req.status === "failed"
+                                  ? "bg-rose-600 text-white"
+                                  : req.status === "pending"
+                                  ? "bg-amber-600 text-white animate-pulse"
+                                  : "bg-emerald-600 text-white"
+                              }`}
+                            >
+                              {req.statusCode ? req.statusCode : req.status.toUpperCase()}
+                            </span>
+                            {req.duration > 0 && <span className="text-[10px] opacity-60 font-mono">{req.duration}ms</span>}
+                            {req.payload && (
+                              <span className="text-[9px] bg-slate-800 text-blue-300 px-1 py-0.5 rounded font-bold">
+                                + Payload
+                              </span>
+                            )}
+                            {req.response && (
+                              <span className="text-[9px] bg-slate-800 text-emerald-300 px-1 py-0.5 rounded font-bold">
+                                + Response
+                              </span>
+                            )}
+                          </div>
+                          <div className="font-mono text-slate-300 break-all text-[11px] select-text">
+                            {req.url}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] opacity-50 font-mono shrink-0">{req.time}</span>
                     </div>
-                  )}
-                </div>
-              ))
+
+                    {/* Panel Accordion Detail (Payload & Response Data) */}
+                    {isExpanded && (
+                      <div className="border-t border-slate-800/80 bg-slate-950/70 p-3 space-y-2.5 animate-in fade-in duration-150">
+                        {/* Tab Selector Detail: Response vs Payload */}
+                        <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setReqDetailTab((prev) => ({ ...prev, [req.id]: "response" }))
+                              }}
+                              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors ${
+                                currentDetailTab === "response"
+                                  ? "bg-emerald-600 text-white shadow-xs"
+                                  : "text-slate-400 hover:text-white bg-slate-900"
+                              }`}
+                            >
+                              <FileJson className="w-3 h-3" />
+                              <span>Response Body</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setReqDetailTab((prev) => ({ ...prev, [req.id]: "payload" }))
+                              }}
+                              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors ${
+                                currentDetailTab === "payload"
+                                  ? "bg-blue-600 text-white shadow-xs"
+                                  : "text-slate-400 hover:text-white bg-slate-900"
+                              }`}
+                            >
+                              <Send className="w-3 h-3" />
+                              <span>Request Payload</span>
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const content =
+                                currentDetailTab === "response"
+                                  ? req.response || "No response"
+                                  : req.payload || "No payload"
+                              handleCopySingle(content)
+                            }}
+                            className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-white bg-slate-900 px-2 py-1 rounded-lg border border-slate-800"
+                          >
+                            <Copy className="w-3 h-3" />
+                            <span>Salin {currentDetailTab === "response" ? "Response" : "Payload"}</span>
+                          </button>
+                        </div>
+
+                        {/* Konten Tab yang Dipilih */}
+                        {currentDetailTab === "response" ? (
+                          <div className="space-y-1">
+                            {req.response ? (
+                              <pre className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-emerald-300 font-mono text-[10px] overflow-x-auto max-h-48 whitespace-pre-wrap select-text leading-relaxed">
+                                {req.response}
+                              </pre>
+                            ) : (
+                              <div className="text-[10px] text-slate-500 italic py-2">
+                                {req.status === "pending"
+                                  ? "Sedang menunggu respon server..."
+                                  : "Tidak ada data response body untuk request ini."}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            {req.payload ? (
+                              <pre className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-blue-300 font-mono text-[10px] overflow-x-auto max-h-48 whitespace-pre-wrap select-text leading-relaxed">
+                                {req.payload}
+                              </pre>
+                            ) : (
+                              <div className="text-[10px] text-slate-500 italic py-2">
+                                Request GET standar (Tidak memiliki payload request body).
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {req.error && (
+                          <div className="p-2 rounded-xl bg-rose-950/60 border border-rose-900 text-rose-300 text-[10px] font-bold">
+                            ⚠️ Error: {req.error}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
             )}
           </div>
         </div>
