@@ -35,6 +35,41 @@
 .skeleton-stagger > *:nth-child(5) { animation-delay: 320ms; }
 .skeleton-stagger > *:nth-child(6) { animation-delay: 400ms; }
 
+/* Interactive Auth Animations */
+@keyframes blobFloat {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -40px) scale(1.08);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+}
+
+@keyframes floatCard {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-blob-1 {
+  animation: blobFloat 14s infinite ease-in-out;
+}
+.animate-blob-2 {
+  animation: blobFloat 18s infinite ease-in-out reverse;
+}
+.animate-blob-3 {
+  animation: blobFloat 22s infinite ease-in-out 3s;
+}
+.animate-float-subtle {
+  animation: floatCard 6s ease-in-out infinite;
+}
+
 @layer base {
   :root {
     --background: 210 40% 98%;
