@@ -24,6 +24,9 @@ import {
   Sparkles,
   ExternalLink,
   ShieldAlert,
+  Monitor,
+  Laptop,
+  Info,
 } from "lucide-react"
 
 export function GuruMeet() {
@@ -315,6 +318,26 @@ export function GuruMeet() {
           </div>
         </form>
       )}
+
+      {/* Notice Banner: Panduan & Edukasi Berbagi Layar (Screen Sharing) */}
+      <div className="p-4 rounded-3xl bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-slate-50 border border-blue-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-2xl bg-blue-600 text-white shrink-0 mt-0.5 shadow-sm">
+            <Laptop className="w-4 h-4" />
+          </div>
+          <div className="space-y-0.5">
+            <h4 className="font-extrabold text-slate-800 flex items-center gap-1.5">
+              <span>Tips Presentasi & Berbagi Layar (Screen Share)</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-blue-100 text-blue-700">
+                Penting
+              </span>
+            </h4>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Untuk melakukan <b>presentasi layar (share screen materi, PDF, atau slide)</b>, disarankan membuka LMS menggunakan <b>Laptop / PC</b> di Google Chrome. Browser di HP (Android & iOS) membatasi izin perekaman layar website demi keamanan privasi ponsel.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Daftar Sesi Meet */}
       <div className="space-y-3">

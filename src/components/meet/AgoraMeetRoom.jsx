@@ -125,9 +125,11 @@ export function AgoraMeetRoom({
   const dragStartRef = useRef({ x: 0, y: 0 })
   const touchDistanceRef = useRef(null)
 
-  // Pop-up Notifikasi Peserta Bergabung
+  // Pop-up Notifikasi Peserta Bergabung & Alert Toast Share Screen
   const [joinedToast, setJoinedToast] = useState(null)
+  const [screenShareToast, setScreenShareToast] = useState(null)
   const toastTimeoutRef = useRef(null)
+  const screenShareToastTimeoutRef = useRef(null)
   const hasInitialJoinFinishedRef = useRef(false)
 
   // Suara lonceng lembut saat peserta bergabung
@@ -790,13 +792,20 @@ export function AgoraMeetRoom({
         (typeof navigator !== "undefined" && navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === "function") ||
         (typeof navigator !== "undefined" && typeof navigator.getDisplayMedia === "function")
 
+      function triggerScreenShareNotice(title, desc) {
+        if (screenShareToastTimeoutRef.current) {
+          clearTimeout(screenShareToastTimeoutRef.current)
+        }
+        setScreenShareToast({ id: Date.now(), title, desc })
+        screenShareToastTimeoutRef.current = setTimeout(() => {
+          setScreenShareToast(null)
+        }, 9000)
+      }
+
       if (!hasGetDisplayMedia) {
-        alert(
-          "⚠️ FITUR BERBAGI LAYAR DI HP / PERAMBAN SELULER\n\n" +
-          "Google Chrome di Android serta Safari/Chrome di iOS (iPhone) secara resmi MEMBATASI dan TIDAK MENYEDIAKAN izin tangkapan layar (Screen Capture API) untuk situs web demi alasan privasi & keamanan sistem operasi HP.\n\n" +
-          "📌 Solusi Rekomendasi:\n" +
-          "1. Gunakan Laptop / Komputer (PC): Buka Google Chrome di PC/Laptop untuk melakukan presentasi atau berbagi layar dengan lancar.\n" +
-          "2. Di HP: Anda tetap dapat MENONTON dan MELIHAT presentasi layar guru/teman secara jernih, berbicara lewat mic, dan menyalakan kamera."
+        triggerScreenShareNotice(
+          "Berbagi Layar di HP Dibatasi Browser",
+          "Google Chrome di Android & Safari di iOS tidak mengizinkan rekaman layar website demi keamanan sistem. Silakan buka dari Laptop/Komputer untuk melakukan presentasi."
         )
         return
       }
@@ -875,16 +884,10 @@ export function AgoraMeetRoom({
           // Pengguna sengaja membatalkan dialog izin
           return
         }
-        if (err.name === "NotSupportedError" || err.message?.includes("not supported")) {
-          alert(
-            "Fitur berbagi layar tidak didukung di browser ini. Mohon gunakan Google Chrome versi terbaru."
-          )
-        } else {
-          alert(
-            "Gagal memulai berbagi layar: " +
-            (err.message || "Izin dibatalkan atau tidak didukung peramban HP Anda.")
-          )
-        }
+        triggerScreenShareNotice(
+          "Peramban Tidak Mendukung Screen Share",
+          "Browser di perangkat ini membatasi tangkapan layar. Buka LMS di Laptop/PC dengan Chrome untuk berbagi layar."
+        )
       }
     } else {
       await stopScreenSharing()
@@ -996,6 +999,38 @@ export function AgoraMeetRoom({
               type="button"
               onClick={() => setJoinedToast(null)}
               className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+              title="Tutup"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Pop-up Edukasi/Toast Share Screen Mobile */}
+      {screenShareToast && (
+        <div className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[9999999] pointer-events-auto animate-in fade-in slide-in-from-top-4 duration-300 w-[92vw] max-w-md">
+          <div className="bg-slate-900/98 border border-amber-500/40 text-white p-3.5 sm:p-4 rounded-2xl shadow-2xl backdrop-blur-xl flex items-start gap-3 ring-1 ring-amber-500/20">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+              <Monitor className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="text-xs font-extrabold text-amber-300 flex items-center gap-1.5">
+                <span>{screenShareToast.title}</span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                {screenShareToast.desc}
+              </p>
+              <div className="pt-1 flex items-center gap-2">
+                <span className="text-[10px] font-bold text-sky-400 bg-sky-950/40 px-2 py-0.5 rounded-md border border-sky-600/30">
+                  💡 Tips: Gunakan Laptop/PC
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setScreenShareToast(null)}
+              className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors shrink-0"
               title="Tutup"
             >
               <X className="w-3.5 h-3.5" />
