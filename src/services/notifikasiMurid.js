@@ -7,6 +7,7 @@ import {
 } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { normalizeTingkatRomawi, isMateriCocokTingkat } from "@/lib/utils"
+import { decryptChatMessage } from "@/services/cryptoChat"
 
 const STORAGE_KEY_MURID_READ = "lsm_erna_murid_read_notifications_v3"
 
@@ -346,8 +347,21 @@ export function subscribeMuridNotifications({ uid, studentNisn, studentTingkat, 
     )
     unsubChatKelas = onSnapshot(
       qChatKelas,
-      (snap) => {
-        chatKelasList = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      async (snap) => {
+        const rawList = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        // Dekripsi teks pesan kelas agar tidak tampil hash terenkripsi
+        const decryptedList = await Promise.all(
+          rawList.map(async (m) => {
+            try {
+              if (m.pesan && typeof m.pesan === "string" && m.pesan.includes(":")) {
+                const dec = await decryptChatMessage(m.pesan, `kelas_${studentKelasId}`)
+                return { ...m, pesan: dec || m.pesan }
+              }
+            } catch (_) {}
+            return m
+          })
+        )
+        chatKelasList = decryptedList
         computeNotifications()
       },
       (err) => console.warn("Live notif chat kelas error:", err)
@@ -362,8 +376,21 @@ export function subscribeMuridNotifications({ uid, studentNisn, studentTingkat, 
   )
   const unsubChatPribadi = onSnapshot(
     qChatPribadi,
-    (snap) => {
-      chatPribadiList = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    async (snap) => {
+      const rawList = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      // Dekripsi teks pesan pribadi berdasarkan chatId rahasia
+      const decryptedList = await Promise.all(
+        rawList.map(async (m) => {
+          try {
+            if (m.chatId && m.pesan && typeof m.pesan === "string" && m.pesan.includes(":")) {
+              const dec = await decryptChatMessage(m.pesan, m.chatId)
+              return { ...m, pesan: dec || m.pesan }
+            }
+          } catch (_) {}
+          return m
+        })
+      )
+      chatPribadiList = decryptedList
       computeNotifications()
     },
     (err) => console.warn("Live notif chat pribadi error:", err)
