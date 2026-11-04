@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react"
-import { Download, X, Smartphone, Tablet } from "lucide-react"
+import { Download, X } from "lucide-react"
 
 /**
  * PwaInstallToast
- * Menampilkan toast ajakan install PWA khusus untuk perangkat mobile (khususnya Android).
+ * Toast ajakan pasang aplikasi PWA yang super simpel, ramping, dan modern (ala Dynamic Island / minimal pill).
  * Posisi:
- * - HP (< 768px): Atas Tengah (top-3 left-1/2 -translate-x-1/2)
- * - Tablet (>= 768px & < 1024px atau tablet mode): Kiri Atas (top-4 left-4 md:translate-x-0)
+ * - HP (< 640px): Atas Tengah (top-2.5 left-1/2 -translate-x-1/2) dengan pill super kompak
+ * - Tablet (>= 640px): Kiri Atas (top-4 left-4)
  */
 export function PwaInstallToast() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
@@ -25,29 +25,27 @@ export function PwaInstallToast() {
       return
     }
 
-    // 2. Cek apakah user sudah pernah menutup toast baru-baru ini (simpan 2 hari)
+    // 2. Cek dismissal preferensi (simpan 2 hari)
     const dismissedUntil = localStorage.getItem("pwa_toast_dismissed_until")
     if (dismissedUntil && Date.now() < Number(dismissedUntil)) {
       return
     }
 
-    // 3. Deteksi apakah perangkat adalah tablet atau HP
+    // 3. Deteksi ukuran perangkat
     const checkDevice = () => {
       const width = window.innerWidth
-      // Tablet tipikal 640px s.d 1024px
-      const tabletQuery = width >= 640 && width <= 1024
-      setIsTablet(tabletQuery)
+      setIsTablet(width >= 640 && width <= 1024)
     }
 
     checkDevice()
     window.addEventListener("resize", checkDevice)
 
-    // 4. Deteksi apakah user agent adalah Android atau Mobile
+    // 4. Deteksi user agent mobile
     const ua = navigator.userAgent || ""
     const isAndroid = /Android/i.test(ua)
     const isMobileDevice = /Mobile|Android|iP(hone|od|ad)/i.test(ua) || window.innerWidth < 1024
 
-    // 5. Tangkap event 'beforeinstallprompt' dari browser Chrome/Chromium Android
+    // 5. Tangkap event 'beforeinstallprompt' dari Chromium Android
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault()
       setDeferredPrompt(e)
@@ -56,12 +54,10 @@ export function PwaInstallToast() {
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
 
-    // Fallback khusus Android jika event beforeinstallprompt lambat / belum dipicu
-    // namun kita ingin memberi tahu bahwa web ini bisa diinstall ke layar utama
+    // Fallback otomatis jika di mobile belum terpicu event
     let fallbackTimer = null
     if (isAndroid || isMobileDevice) {
       fallbackTimer = setTimeout(() => {
-        // Tampilkan jika belum pernah ditutup
         if (!localStorage.getItem("pwa_toast_dismissed_until")) {
           setShowToast(true)
         }
@@ -85,21 +81,19 @@ export function PwaInstallToast() {
           setShowToast(false)
         }
       } catch (err) {
-        console.error("Gagal memicu install PWA:", err)
+        console.error("Gagal install PWA:", err)
       } finally {
         setIsInstalling(false)
         setDeferredPrompt(null)
       }
     } else {
-      // Petunjuk instruksi jika sebeluminstallprompt belum siap di browser tertentu
-      alert("Untuk memasang aplikasi ke layar utama:\n1. Ketuk ikon titik tiga (⋮) di pojok kanan atas browser\n2. Pilih 'Tambahkan ke Layar Utama' atau 'Instal Aplikasi'")
+      alert("Untuk memasang aplikasi ke layar utama:\n1. Ketuk menu titik tiga (⋮) di browser\n2. Pilih 'Tambahkan ke Layar Utama' atau 'Instal Aplikasi'")
       handleDismiss()
     }
   }
 
   const handleDismiss = () => {
     setShowToast(false)
-    // Tunda penayangan ulang selama 2 hari
     localStorage.setItem(
       "pwa_toast_dismissed_until",
       String(Date.now() + 2 * 24 * 60 * 60 * 1000)
@@ -110,54 +104,51 @@ export function PwaInstallToast() {
 
   return (
     <aside
-      aria-label="Pemasangan Aplikasi PWA"
-      className={`fixed z-[999999] transition-all duration-300 animate-in fade-in slide-in-from-top-4 px-3 sm:px-0 pointer-events-auto ${
+      aria-label="Pasang Aplikasi PWA"
+      className={`fixed z-[999999] transition-all duration-300 animate-in fade-in slide-in-from-top-3 pointer-events-auto ${
         isTablet
-          ? "top-4 left-4 max-w-sm w-full"
-          : "top-3 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-md"
+          ? "top-4 left-4 max-w-xs w-auto"
+          : "top-2.5 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-sm"
       }`}
     >
-      <div className="bg-slate-900/95 text-white backdrop-blur-md border border-slate-800 rounded-2xl p-3.5 sm:p-4 shadow-2xl flex items-center gap-3">
-        {/* Ikon Aplikasi / PWA */}
-        <div className="w-10 h-10 rounded-xl bg-blue-600/30 border border-blue-500/40 flex items-center justify-center shrink-0 text-blue-400">
-          {isTablet ? <Tablet className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
-        </div>
-
-        {/* Info Teks */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-black uppercase tracking-wider text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
-              PWA App
-            </span>
-            <span className="text-[11px] text-slate-400">SMPN 3 Ketapang</span>
+      {/* Pill Minimalis Ramping ala Dynamic Island */}
+      <div className="bg-slate-900/95 text-white backdrop-blur-xl border border-slate-700/60 rounded-full px-3 py-1.5 sm:px-3.5 sm:py-2 shadow-xl shadow-slate-950/40 flex items-center justify-between gap-2.5">
+        {/* Logo Sekolah & Teks Ramping Singkat */}
+        <div className="flex items-center gap-2 min-w-0">
+          <img
+            src="/logo.png"
+            alt="Logo LMS"
+            className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-white/20"
+          />
+          <div className="min-w-0 pr-1">
+            <h4 className="text-[12px] font-bold text-white leading-tight truncate">
+              Pasang LMS SMPN 3
+            </h4>
+            <p className="text-[10px] text-slate-300 leading-none truncate">
+              Akses cepat tanpa browser
+            </p>
           </div>
-          <h4 className="text-xs sm:text-sm font-extrabold text-slate-100 tracking-tight leading-snug mt-0.5 truncate">
-            Pasang Aplikasi di {isTablet ? "Tablet" : "HP"}
-          </h4>
-          <p className="text-[11px] text-slate-300 leading-tight line-clamp-1">
-            Akses lebih cepat & tanpa alamat web browser
-          </p>
         </div>
 
-        {/* Tombol Aksi */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Tombol Pasang & Close Ringkas */}
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={handleInstallClick}
             disabled={isInstalling}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3 py-2 rounded-xl text-xs font-black shadow-md shadow-blue-600/30 transition-all cursor-pointer"
+            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white px-2.5 py-1 rounded-full text-[11px] font-extrabold shadow-xs transition-all cursor-pointer"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>{isInstalling ? "Memasang..." : "Pasang"}</span>
+            <Download className="w-3 h-3" />
+            <span>{isInstalling ? "..." : "Pasang"}</span>
           </button>
 
           <button
             type="button"
             onClick={handleDismiss}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition-colors"
-            aria-label="Tutup notifikasi pasang aplikasi"
+            className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label="Tutup"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
