@@ -48,6 +48,7 @@ import { TugasDetail as MuridTugasDetail } from "@/pages/murid/TugasDetail"
 import { MuridKelas } from "@/pages/murid/MuridKelas"
 import { GlobalChatNotification } from "@/components/kelas/GlobalChatNotification"
 import { PageMeta } from "@/components/common/PageMeta"
+import { PwaInstallToast } from "@/components/common/PwaInstallToast"
 
 export default function App() {
   return (
@@ -139,8 +140,11 @@ export default function App() {
       </Routes>
         {/* Global Chat Toast Notification (layaknya WhatsApp) */}
         <GlobalChatNotification />
+        {/* PWA Install Notification Khusus Mobile / Tablet */}
+        <PwaInstallToast />
       </ToastProvider>
     </AuthProvider>
   )
 }
+
 
