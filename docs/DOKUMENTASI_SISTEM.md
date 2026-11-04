@@ -1,15 +1,15 @@
 # Dokumentasi Lengkap Sistem & Arsitektur Teknis LMS Mandiri SMPN 3 Ketapang
 
-> **Tujuan Dokumen**: Berkas ini adalah *Single Source of Truth* arsitektur teknis dan panduan fitur menyeluruh LMS Mandiri SMPN 3 Ketapang. Dokumen ini dirancang agar pengembang maupun **Agen AI** di masa depan dapat langsung memahami struktur proyek, logika bisnis, basis data, integrasi pihak ketiga, serta setiap modul fitur yang telah dibangun.
+> **Tujuan Dokumen**: Berkas ini adalah acuan teknis definitif (*Single Source of Truth*) dan panduan fitur menyeluruh LMS Mandiri SMPN 3 Ketapang. Dokumen ini dirancang agar pengembang maupun **Agen AI** di masa depan dapat langsung memahami struktur proyek, logika bisnis, basis data, integrasi pihak ketiga, serta setiap modul fitur yang telah dibangun.
 
 ---
 
-## 1. Ikhtisar & Identitas Proyek
+## 1. Identitas & Ikhtisar Proyek
 
 - **Nama Aplikasi**: LMS Mandiri - SMPN 3 Ketapang (Platform Pembelajaran Digital Terpadu)
 - **Domain Resmi**: `https://lms-ernawaty.vercel.app`
 - **Sasaran Pengguna**: Siswa dan Guru SMP Negeri 3 Ketapang, Kabupaten Ketapang, Kalimantan Barat (Kurikulum Merdeka Fase D).
-- **Fokus Utama**: Pembelajaran mandiri, literasi digital, evaluasi formatif instan, kolaborasi kelas real-time, serta tatap muka video interaktif multi-partisipan.
+- **Fokus Utama**: Pembelajaran mandiri, literasi digital, evaluasi formatif instan, kolaborasi kelas real-time, manajemen tugas terstruktur, serta tatap muka video interaktif multi-partisipan.
 
 ### Tech Stack Utama
 - **Frontend Core**: React 18 (`react`, `react-dom`), Vite 5, Tailwind CSS 3.4, PostCSS, Autoprefixer.
@@ -53,12 +53,13 @@ lms-ernawaty/
 │   ├── data/                   # Data benih / template kurikulum (Teks Rekon Fase D)
 │   ├── lib/                    # Utilitas umum (firebase, utils, csv, grading, editorUtils)
 │   ├── pages/                  # Halaman publik (Beranda, Masuk, Aktivasi, Mading, MateriDetail)
-│   │   ├── guru/               # Halaman kelola guru (Dashboard, Kelas, Materi, Kuis, Tugas, Progres, Meet, dll)
+│   │   ├── guru/               # 16 Halaman kelola guru (Dashboard, Kelas, Materi, Kuis, Tugas, Progres, Meet, dll)
 │   │   └── murid/              # Halaman belajar murid (Dashboard, Kelas, Materi, Kuis, Tugas, Riwayat, Profil)
 │   ├── services/               # Lapisan API Firestore, AI, Agora, Cloudinary, Presensi, dan FCM
 │   ├── App.jsx                 # Routing tabel utama & provider wrapping
 │   ├── index.css               # Tailwind directives & custom CSS
 │   └── main.jsx                # Titik awal bootstrap React DOM
+├── README.md                   # README resmi repository GitHub
 ├── firestore.rules             # Aturan keamanan database Firestore
 ├── firestore.indexes.json      # Indeks komposit Firestore
 └── package.json
@@ -66,20 +67,20 @@ lms-ernawaty/
 
 ---
 
-## 3. Skema Basis Data Cloud Firestore
+## 3. Skema Basis Data Cloud Firestore (15 Koleksi Utama)
 
 | Koleksi | Penjelasan Entitas | Struktur Field Utama |
 | :--- | :--- | :--- |
 | `users` | Dokumen pengguna utama (Guru & Murid) | `uid`, `email`, `nama`, `role` (`guru` / `murid`), `fotoUrl`, `nisn`, `kelasId`, `kelasNama`, `tingkat`, `isClaimed`, `createdAt` |
 | `murid` | Database induk data siswa resmi sekolah | `nisn` (ID Dokumen), `nama`, `kelasId`, `kelasNama`, `tingkat`, `statusKlaim` (`belum` / `diklaim`), `akunMurid: { uid, email, fotoUrl }` |
-| `kelas` | Rombongan belajar (Rombel) | `id`, `nama` (misal: 7A, 8B, 9A), `tingkat` (7, 8, 9), `waliKelas`, `totalSiswa` |
+| `kelas` | Rombongan belajar (Rombel) | `id`, `nama` (misal: 7A, 8B, 9A), `tingkat` (7, 8, 9), `waliKelas`, `tahunAjaran`, `keterangan`, `totalSiswa` |
 | `klaim_aktivasi` | Antrean verifikasi akun siswa baru | `id`, `uid`, `email`, `nisn`, `nama`, `kelasId`, `kelasNama`, `status` (`pending`, `disetujui`, `ditolak`), `alasanPenolakan`, `createdAt` |
-| `materi` | Modul pembelajaran Kurikulum Merdeka | `id`, `judul`, `deskripsi`, `konten` (Markdown/HTML), `mapel`, `tingkat` (Array: `["VII", "VIII"]`), `penulisNama`, `durasiBacaMenit`, `lampiranUrl`, `createdAt` |
+| `materi` | Modul pembelajaran Kurikulum Merdeka | `id`, `judul`, `deskripsi`, `konten` (Markdown/HTML), `mapel`, `tingkat` (Array: `["VII", "VIII"]`), `status` (`terbit` / `draft`), `penulisNama`, `durasiBacaMenit`, `lampiranUrl`, `createdAt` |
 | `kuis` | Bank kuis formatif | `id`, `judul`, `deskripsi`, `materiId`, `tingkat`, `durasiMenit`, `passingScore` (KKM), `soal: [{ teks, opsi: [A,B,C,D], jawabanBenar, pembahasan }]`, `createdAt` |
 | `percobaan_kuis` | Lembar hasil pengerjaan kuis siswa | `id`, `kuisId`, `materiId`, `muridUid`, `namaMurid`, `nisn`, `kelasId`, `kelasNama`, `skor` (0–100), `jawaban: { [index]: pilihan }`, `durasiDetik`, `lulus` (boolean), `createdAt` |
 | `tugas` | Penugasan dari guru | `id`, `judul`, `deskripsi`, `deadline`, `tingkat`, `kelasId`, `mapel`, `penulisNama`, `fileTugasUrl`, `createdAt` |
 | `pengumpulan_tugas`| Lembar penyerahan tugas siswa | `id`, `tugasId`, `muridUid`, `namaMurid`, `nisn`, `kelasId`, `fileUrl`, `fileName`, `catatanSiswa`, `status` (`menunggu_penilaian`, `dinilai`), `nilai` (0–100), `catatanGuru`, `dikumpulkanPada`, `dinilaiPada` |
-| `pengumuman` | Informasi broadcast sekolah | `id`, `judul`, `isi` (Markdown), `prioritas` (`penting` / `informasi`), `penulisNama`, `tingkat` (Array), `createdAt` |
+| `pengumuman` | Informasi broadcast sekolah | `id`, `judul`, `isi` (Markdown), `prioritas` (`penting` / `informasi`), `status` (`aktif` / `arsip`), `penulisNama`, `tingkat` (Array), `createdAt` |
 | `karya_mading` | Pojok literasi karya kreasi siswa | `id`, `judul`, `isi`, `kategori` (`puisi`, `cerpen`, `pantun`, `opini`, `artikel`), `penulisUid`, `penulisNama`, `penulisKelas`, `fotoUrl`, `likes: [uid]`, `komentarCount`, `createdAt` |
 | `sesi_meet` | Ruang temu tatap muka Agora | `id`, `judul`, `channelName`, `kelasId`, `kelasNama`, `guruUid`, `guruNama`, `status` (`terjadwal`, `berlangsung`, `selesai`), `dimulaiPada`, `berakhirPada` |
 | `diskusi_materi` | Komentar interaktif per modul materi | `id`, `materiId`, `parentId` (null untuk komentar utama, ID parent untuk reply), `userUid`, `userNama`, `userRole`, `fotoUrl`, `pesan`, `createdAt` |
@@ -89,120 +90,120 @@ lms-ernawaty/
 
 ---
 
-## 4. Telaah Mendalam Fitur Utama Sistem
+## 4. Telaah Mendalam Seluruh Fitur di Dashboard Guru (`/guru/*`)
 
-### 4.1. Mesin AI Generator Materi & Kuis (`services/ai.js`)
-- **Arsitektur Multi-Key Round-Robin**: Menggunakan 6 API Key Google Gemini yang tersimpan di environment `VITE_GEMINI_API_KEYS`. Sistem mendistribusikan beban secara merata dan otomatis berpindah ke kunci cadangan jika salah satu terkena limit (*quota exceeded* / HTTP 429).
-- **Generator Modul Pembelajaran (`AiMateriGeneratorModal.jsx`)**:
-  - Menerima topik instruksional guru.
-  - Membangun prompt berbasis silabus Kurikulum Merdeka Fase D (Bahasa Indonesia).
-  - Menghasilkan 4 bab materi terstruktur: Pengertian Konsep, Ciri-ciri & Struktur Kebahasaan, Contoh Nyata Teks, serta Ringkasan & Refleksi formatif.
-- **Generator Kuis Otomatis (`AiKuisGeneratorModal.jsx`)**:
-  - Menghasilkan 5 hingga 20 butir soal pilihan ganda (A, B, C, D) lengkap dengan kunci jawaban dan pembahasan rasional berdasarkan materi yang dipilih guru.
+Dashboard Guru adalah pusat komando operasional pembelajaran yang mencakup 10 modul besar:
 
-### 4.2. Editor Materi Dual-Mode WYSIWYG (`RichTextEditor.jsx`)
-- Mengakomodasi kebutuhan guru yang terbiasa mengetik ala Microsoft Word (Mode Visual) maupun pengguna tingkat lanjut yang menyukai penulisan Markdown.
-- Sinkronisasi instan dua arah (`markdownToHtml` & `htmlToMarkdown`).
-- Mendukung elemen heading (H2, H3), format tebal/miring/garis bawah, blok kutipan (*blockquote*), tabel terstruktur, tautan eksternal, dan undo/redo.
+### 4.1. Beranda Dashboard Guru (`/guru` -> `Dashboard.jsx`)
+- **Kartu Statistik Realtime**: Memantau total siswa terdaftar, total rombel kelas aktif, jumlah modul ajar (terbit vs draf), dan bank kuis.
+- **Badge Alert Permintaan Aktivasi Siswa**: Indikator *pulsing dot* otomatis jika ada akun siswa yang baru mendaftar dan menunggu verifikasi.
+- **Pusat Monitoring Cepat**: Tautan pintas ke modul tugas yang belum dinilai, pengumuman sekolah, progres belajar per bab, dan hasil evaluasi kuis.
+- **Widget Diskusi Materi Terkini**: Menampilkan obrolan tanya jawab terbaru dari siswa pada modul-modul materi pembelajaran dengan tombol langsung *"Lihat & Tanggapi"*.
 
-### 4.3. Papan Peringkat Harian & Hasil Kuis (`LeaderboardHarian.jsx`, `percobaan.js`)
-- Mendorong motivasi belajar siswa (*gamified learning*).
-- Algoritma pemeringkatan: Siswa dengan skor tertinggi dan durasi pengerjaan tercepat pada hari yang sama menempati posisi teratas.
-- Menampilkan avatar siswa, nama rombel kelas yang terformat rapi, dan lencana peringkat (Emas, Perak, Perunggu).
+### 4.2. Manajemen Rombongan Belajar / Kelas (`/guru/kelas` & `/guru/kelas/:id`)
+- Menambah, mengubah nama, tingkat (Kelas 7, 8, 9), tahun ajaran, dan keterangan rombel.
+- Di halaman detail kelas: Menampilkan seluruh daftar siswa di rombel terkait, status klaim akun masing-masing siswa, serta fitur *Quick Add Murid*.
 
-### 4.4. Forum Diskusi Terintegrasi per Materi (`ForumDiskusi.jsx`)
-- Tersemat langsung di bawah setiap modul materi pelajaran.
-- Mendukung komentar berantai (*threaded discussion / 1-level reply*).
-- Terdapat penanda lencana khusus: Guru diverifikasi dengan badge hijau mencolok (*Pengajar / Guru*) dan siswa dengan badge biru.
+### 4.3. Data Induk Siswa & Impor Massal CSV (`/guru/murid` -> `Murid.jsx`)
+- **Pencarian & Filter Cepat**: Filter berdasarkan rombel kelas atau kata kunci pencarian (Nama / NISN).
+- **Impor Massal CSV (`lib/csv.js`)**: Guru dapat mengunggah berkas CSV dan sistem otomatis memvalidasi keaslian data (tepat 10 digit angka NISN, nama, kelas). Mampu mengimpor ratusan siswa dalam sekali klik.
+- **Ekspor Data Siswa**: Mengunduh database siswa ke format CSV.
+- **Unlink Akun Siswa**: Guru memiliki hak untuk memutuskan tautan akun Google siswa jika terjadi kesalahan klaim NISN atau pergantian perangkat HP.
 
-### 4.5. Pojok Kreasi Mading Siswa (`Mading.jsx`, `MadingCarousel.jsx`, `karya.js`)
-- Wadah apresiasi karya literasi siswa: puisi, pantun, cerita pendek, resensi buku, dan artikel opini.
-- Carousel karya terbaru di halaman beranda.
-- Fitur interaksi: Jumlah pembaca, tombol suka (*likes*), komentar apresiasi, dan tombol *"Salin Kutipan"* berformat otomatis lengkap dengan atribusi nama siswa dan sekolah.
+### 4.4. Verifikasi & Persetujuan Aktivasi Akun (`/guru/permintaan` -> `Permintaan.jsx`)
+- Menampilkan antrean siswa yang baru mendaftar lewat Google Sign-In dan melakukan klaim NISN.
+- Guru dapat memeriksa kesesuaian Nama, NISN, dan Kelas.
+- Pilihan aksi: **Setujui** (langsung mengaktifkan profil siswa) atau **Tolak** dengan menyertakan alasan tertulis yang akan dibaca siswa.
 
-### 4.6. Pusat Notifikasi Terpadu (`NotificationMenu.jsx`, `MuridNotificationMenu.jsx`)
-- **Notifikasi Guru**:
-  - Notifikasi real-time jika ada siswa baru melakukan klaim aktivasi NISN.
-  - Notifikasi jika ada siswa yang mengumpulkan tugas dan belum dinilai.
-  - Notifikasi saat ada siswa yang menyelesaikan kuis dan jika ada karya mading baru.
-- **Notifikasi Murid**:
-  - Tab kategori terpisah: Semua, Pesan Pribadi, Materi Baru, Tugas Baru, dan Nilai Kuis.
-  - Menampilkan cuplikan chat pribadi yang sudah didekripsi otomatis dari ciphertext.
+### 4.5. Manajemen Modul Materi Ajar (`/guru/materi` & `/guru/materi/:id/edit`)
+- **Generator Materi Berbasis AI (`AiMateriGeneratorModal.jsx`)**: Guru cukup memasukkan topik instruksional, lalu Google Gemini AI menyusun modul lengkap 4 bab (Pengertian, Struktur Ciri Kebahasaan, Contoh Teks, Refleksi).
+- **Editor Dual-Mode WYSIWYG (`RichTextEditor.jsx`)**: Pilihan mode mengetik visual ala Microsoft Word atau Markdown murni dengan sinkronisasi otomatis.
+- **Template Materi Bawaan**: Tombol *"Buat dari Template"* untuk menghasilkan modul Teks Rekon Kurikulum Merdeka instan.
+- **Pengaturan Modul**: Tingkat sasaran kelas (VII, VIII, IX), durasi estimasi baca, lampiran URL, dan status penerbitan (`draft` / `terbit`).
+- **Modal Diskusi Materi**: Guru dapat memantau dan membalas tanya jawab siswa langsung dari tabel daftar materi.
 
-### 4.7. Sesi Tatap Muka Online Interaktif Ala Zoom (`AgoraMeetRoom.jsx`, `PreMeetLobbyModal.jsx`)
-- Menggunakan Agora RTC NG dengan latensi sangat rendah (*ultra-low latency*).
-- **Lobby Pra-Meet**: Peserta dapat mengecek kamera dan mikrofon sebelum bergabung.
-- **Fitur Ruang Temu**:
-  - Kontrol mic & kamera (termasuk tombol flip kamera depan/belakang di HP).
-  - Angkat tangan (*Hand Raise*) dengan notifikasi visual ke guru host.
-  - Berbagi layar (*Screen Share*) dengan fallback notifikasi ramah untuk peramban mobile.
-  - Sisi samping percakapan teks (*Chat Drawer*) di dalam ruang tatap muka.
-  - **Modal Akhiri Sesi**: Guru dapat memilih *"Akhiri untuk Semua"* (status selesai) atau keluar sementara tanpa menggunakan alert bawaan browser.
+### 4.6. Bank Soal & Kuis Formatif (`/guru/kuis` & `/guru/kuis/:id/edit`)
+- **Generator Soal AI (`AiKuisGeneratorModal.jsx`)**: Menganalisis materi yang dipilih dan otomatis menghasilkan butir-butir soal pilihan ganda (A, B, C, D) lengkap dengan kunci jawaban dan pembahasan.
+- **Editor Butir Soal Fleksibel**: Menambah, mengubah, menghapus soal, mengatur opsi jawaban, memilih kunci, dan menyusun pembahasan.
+- **Pengaturan Kuis**: Durasi countdown pengerjaan (menit) dan Nilai Ambang Batas Kelulusan (*Passing Score / KKM*).
+- **Template Kuis Cepat**: Tombol template untuk memuat paket soal Teks Rekon siap uji.
 
-### 4.8. Sistem Enkripsi Chat Pribadi (`cryptoChat.js`, `ModalChatPribadi.jsx`)
-- Menggunakan standar industri Web Crypto API (AES-GCM 256-bit) dengan turunan kunci PBKDF2 (100.000 iterasi hash SHA-256).
-- Pesan yang dikirimkan disimpan dalam bentuk `ciphertext`, `iv`, dan `salt`. Hanya akun pengirim dan penerima yang memegang pasangan kunci untuk mendekripsi teks di peramban mereka masing-masing.
-- Dilengkapi indikator kehadiran realtime (*Online / Waktu Terakhir Dilihat*) dan indikator saat lawan bicara sedang mengetik.
+### 4.7. Evaluasi Hasil Kuis & Analisis Butir Soal (`/guru/kuis/:id/hasil` -> `KuisHasil.jsx`)
+- **Ringkasan Nilai Komprehensif**: Rata-rata nilai kelas, skor tertinggi, skor terendah, dan persentase kelulusan KKM.
+- **Tabel Lembar Jawaban Siswa**: Memeriksa detail jawaban tiap siswa (benar/salah per nomor).
+- **Filter per Kelas**: Menampilkan hasil evaluasi per rombel tertentu.
+- **Ekspor Nilai CSV**: Mengunduh lembar rekapitulasi nilai kuis ke format spreadsheet.
+- **Reset Percobaan**: Menghapus percobaan kuis siswa jika diperlukan remedial atau ujian ulang.
 
-### 4.9. Pengelolaan Data Siswa & Impor/Ekspor CSV (`lib/csv.js`, `guru/Murid.jsx`)
-- Guru dapat mengunduh format template CSV siswa resmi.
-- Validasi otomatis data: NISN wajib 10 digit numerik, nama lengkap, dan rombel kelas valid.
-- Pendaftaran ratusan siswa sekaligus hanya dalam hitungan detik secara massal.
+### 4.8. Manajemen & Penilaian Tugas Siswa (`/guru/tugas` & `/guru/tugas/:id/nilai`)
+- **Pemberian Tugas**: Membuat instruksi penugasan, batas waktu pengumpulan (*deadline*), tingkat kelas, dan lampiran berkas panduan.
+- **Panel Penilaian Tugas (`TugasNilai.jsx`)**:
+  - Filter tab: Siswa yang **Sudah Mengumpulkan** vs Siswa yang **Belum Mengumpulkan**.
+  - Tinjau Berkas Tugas: Membuka berkas jawaban siswa yang diunggah ke Cloudinary.
+  - Dialog Penilaian Modern: Input nilai numerik (0–100) dan catatan evaluasi guru.
+  - Ekspor Nilai Tugas ke berkas CSV.
 
-### 4.10. PWA & Responsivitas Mobile UX (`PwaInstallToast.jsx`, `BottomNav.jsx`, `LiveMeetAlertToast.jsx`)
-- **PwaInstallToast**:
-  - Di HP: Tampil sebagai kapsul ramping minimalis (*Dynamic Island pill*) di bagian atas tengah.
-  - Di Tablet: Tampil di sudut kiri atas.
-  - Menangkap event `beforeinstallprompt` untuk pemasangan aplikasi native satu klik.
-- **BottomNav**:
-  - Mengusung gaya *Apple iOS Glassmorphism* mengambang dengan indikator geser tab yang halus (*sliding soft pill*).
-  - Memperhitungkan *safe-area-inset* perangkat Android & iPhone.
-- **LiveMeetAlertToast Mobile**:
-  - Tampil sebagai *Floating Circular Action Button* di sisi kiri bawah tepat **di atas Bottom Navigation Bar** (`bottom-20 left-4`) agar tidak menghalangi navigasi.
-  - Dilengkapi animasi denyut (*ping pulse*) saat sesi aktif, yang bila diketuk akan membuka kartu popover detail sesi untuk bergabung.
+### 4.9. Pemantauan Progres Membaca Materi (`/guru/progres` -> `Progres.jsx`)
+- Matriks matriks pemantauan real-time: Baris siswa dan kolom modul materi.
+- Indikator centang hijau untuk materi yang telah selesai dibaca tuntas oleh siswa.
+- Dialog inspeksi mendalam: Menampilkan waktu persis siswa menyelesaikan pembacaan materi.
 
----
+### 4.10. Papan Pengumuman Sekolah (`/guru/pengumuman` -> `Pengumuman.jsx`)
+- Menulis pengumuman dengan Rich Editor / Markdown.
+- Pilihan tingkat prioritas: **Penting** (berwarna merah tegas) atau **Informasi** (berwarna biru).
+- Target sasaran tingkatan kelas (VII, VIII, IX).
+- Pengumuman otomatis tayang secara real-time di carousel beranda siswa dan publik.
 
-## 5. Konfigurasi Lingkungan Produksi (.env)
+### 4.11. Sesi Tatap Muka Virtual Guru (`/guru/meet` -> `Meet.jsx`)
+- Pembuatan sesi tatap muka online berbasis Agora RTC.
+- Status sesi: *Terjadwal, Berlangsung, dan Selesai*.
+- Guru bertindak sebagai **Host**: Mengontrol mikrofon/kamera, melihat daftar peserta hadir, menerima angkat tangan siswa, berbagi layar, dan mengakhiri sesi untuk seluruh peserta.
 
-| Variabel | Fungsi / Tujuan | Contoh Nilai |
-| :--- | :--- | :--- |
-| `VITE_FIREBASE_API_KEY` | Kunci Web API Firebase Authentication | `AIzaSy...` |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Domain handler OAuth Google Sign-in | `lsm-ernawaty.firebaseapp.com` |
-| `VITE_FIREBASE_PROJECT_ID` | Identitas proyek Google Cloud / Firebase | `lsm-ernawaty` |
-| `VITE_FIREBASE_STORAGE_BUCKET`| Bucket penyimpanan file Firebase | `lsm-ernawaty.appspot.com` |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Project Number untuk push notification | `123456789...` |
-| `VITE_FIREBASE_APP_ID` | ID Aplikasi Web Firebase Client | `1:123456:web:...` |
-| `VITE_FIREBASE_VAPID_KEY` | Public key sertifikat Web Push FCM | `BEl6...` |
-| `VITE_AGORA_APP_ID` | App ID Agora Console untuk video RTC | `a1b2c3d4...` |
-| `VITE_CLOUDINARY_CLOUD_NAME` | Cloud Name Cloudinary Storage | `dxyz123...` |
-| `VITE_CLOUDINARY_UPLOAD_PRESET`| Unsigned Upload Preset Cloudinary | `lms_preset` |
-| `VITE_GEMINI_API_KEYS` | Daftar kunci API Gemini (pisahkan koma) | `key1,key2,key3,key4,key5,key6` |
-| `VITE_GEMINI_MODEL` | Model AI Google Gemini | `gemini-1.5-flash` |
+### 4.12. Profil & Keamanan Akun Guru (`/guru/profil` -> `Profil.jsx`)
+- Pengaturan biodata, NIP, nomor kontak WhatsApp, dan mata pelajaran ampu.
+- Unggah foto profil dengan *Cloudinary Cropping Widget* (lingkaran proporsional).
+- Penggantian kata sandi akun (*Re-authenticate & Update Password*).
 
 ---
 
-## 6. Aturan Penting bagi Pengembang / Agen AI
+## 5. Telaah Fitur di Sisi Murid (`/murid/*`)
 
-1. **Aturan Penanganan Modal & Backdrop**:
-   - Seluruh modal popup baru **WAJIB** dirender ke akar body menggunakan `createPortal(..., document.body)`.
-   - Backdrop overlay wajib menggunakan kelas: `fixed inset-0 w-full h-full min-h-[100dvh] z-[999999] bg-black/75 backdrop-blur-md`.
-   - Selalu tambahkan efek penguncian scroll pada halaman latar:
-     ```javascript
-     useEffect(() => {
-       const originalOverflow = document.body.style.overflow
-       document.body.style.overflow = "hidden"
-       return () => { document.body.style.overflow = originalOverflow }
-     }, [])
-     ```
+1. **Dashboard Murid (`Dashboard.jsx`)**: Menampilkan carousel pengumuman sekolah, ringkasan tugas aktif, modul materi yang perlu dibaca, dan kuis formatif yang tersedia.
+2. **Kelas & Ruang Teman (`MuridKelas.jsx`)**:
+   - Melihat teman sekelas dan wali kelas.
+   - Ruang **Chat Kelas Realtime** untuk diskusi terbuka.
+   - Fitur **Chat Pribadi Terenkripsi** (`ModalChatPribadi.jsx`) antar sesama siswa dengan enkripsi AES-GCM 256-bit dan indikator online.
+   - Modal profil dan riwayat capaian belajar teman.
+3. **Modul Belajar Mandiri (`MateriBelajar.jsx` & `MateriDetail.jsx`)**:
+   - Membaca modul materi dengan typography ramah mata.
+   - Forum tanya jawab bertingkat di bawah setiap materi.
+   - Pelacak status selesai baca otomatis yang dicatat ke sistem.
+4. **Pengerjaan Kuis Real-Time (`KuisKerjakan.jsx` & `Hasil.jsx`)**:
+   - Countdown timer otomatis.
+   - Navigasi nomor soal fleksibel.
+   - Perhitungan skor instan dan lembar pembahasan jawaban.
+   - Terintegrasi dengan **Leaderboard Harian** kelas.
+5. **Penyerahan Tugas (`TugasList.jsx` & `TugasDetail.jsx`)**:
+   - Melihat instruksi tugas dan batas waktu penyerahan.
+   - Unggah berkas jawaban melalui Cloudinary widget.
+   - Menerima umpan balik nilai dan catatan evaluasi dari guru.
+6. **Mading Siswa (`Mading.jsx`)**: Menerbitkan karya puisi, pantun, cerpen, serta saling memberikan apresiasi suka dan komentar.
+
+---
+
+## 6. Standar Teknis & Aturan Pengembang / Agen AI
+
+1. **Penggunaan Portal pada Modal**:
+   - Seluruh modal popup **WAJIB** menggunakan `createPortal(..., document.body)` dengan kelas backdrop:
+     `fixed inset-0 w-full h-full min-h-[100dvh] z-[999999] bg-black/75 backdrop-blur-md`
+   - Kunci scroll latar belakang: `document.body.style.overflow = "hidden"`.
 2. **Koordinasi Z-Index**:
-   - Konten Halaman Biasa: `z-0` s.d `z-10`
+   - Halaman Biasa: `z-0` s.d `z-10`
    - Navbar Atas: `sticky top-0 z-40`
-   - Bottom Navigation Mobile: `fixed bottom-0 z-50`
-   - Floating Action Buttons Mobile: `fixed bottom-20 z-40`
+   - Bottom Nav Mobile: `fixed bottom-0 z-50`
+   - Floating Action Meet: `fixed bottom-20 z-40`
    - Modals & Confirm Dialogs: `z-[99999]` s.d `z-[999999]`
-3. **Penyimpanan Pesan & Privasi**:
-   - Jangan pernah menyimpan pesan chat pribadi siswa dalam bentuk teks polos (*plaintext*) ke Firestore; selalu lewatkan fungsi enkripsi di `cryptoChat.js`.
-4. **Git Remote Workflow**:
-   - Repository terhubung ke remote `origin master` di GitHub (`Genta-arya/lms-ernawaty`).
-   - Setiap pekerjaan fitur atau bugfix harus langsung di-commit dengan pesan Conventional Commits dan di-push ke branch `master`.
+3. **Privasi Chat**:
+   - Jangan pernah menyimpan pesan obrolan personal dalam bentuk teks biasa di Firestore; selalu gunakan modul `cryptoChat.js`.
+4. **Git Workflow**:
+   - Selalu lakukan commit terstruktur dan push ke remote `origin master`.
