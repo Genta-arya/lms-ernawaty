@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="45%" stop-color="#1e1b4b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fcd34d" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="60" result="blur" />
+    </filter>
+  </defs>
+
+  <!-- Dark Premium Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)" />
+
+  <!-- Ambient Light Orbs -->
+  <circle cx="200" cy="150" r="220" fill="#3b82f6" fill-opacity="0.18" filter="url(#glow)" />
+  <circle cx="1050" cy="480" r="260" fill="#6366f1" fill-opacity="0.22" filter="url(#glow)" />
+  <circle cx="950" cy="120" r="180" fill="#0284c7" fill-opacity="0.15" filter="url(#glow)" />
+
+  <!-- Subtle Modern Grid Lines -->
+  <g stroke="#334155" stroke-opacity="0.25" stroke-width="1">
+    <line x1="0" y1="126" x2="1200" y2="126" />
+    <line x1="0" y1="252" x2="1200" y2="252" />
+    <line x1="0" y1="378" x2="1200" y2="378" />
+    <line x1="0" y1="504" x2="1200" y2="504" />
+    <line x1="240" y1="0" x2="240" y2="630" />
+    <line x1="480" y1="0" x2="480" y2="630" />
+    <line x1="720" y1="0" x2="720" y2="630" />
+    <line x1="960" y1="0" x2="960" y2="630" />
+  </g>
+
+  <!-- Left Content Area -->
+  <g transform="translate(100, 110)">
+    <!-- Pill Badge: Official LMS -->
+    <rect x="0" y="0" width="310" height="42" rx="21" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5" stroke-opacity="0.6"/>
+    <circle cx="24" cy="21" r="6" fill="#38bdf8" />
+    <text x="42" y="27" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-weight="800" font-size="14" fill="#38bdf8" letter-spacing="1.5">LMS MANDIRI SMPN 3</text>
+
+    <!-- Main Title -->
+    <text x="0" y="115" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-weight="900" font-size="52" fill="#ffffff" letter-spacing="-1">
+      Platform Pembelajaran
+    </text>
+    <text x="0" y="180" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-weight="900" font-size="52" fill="url(#accentGrad)" letter-spacing="-1">
+      Digital &amp; Interaktif
+    </text>
+
+    <!-- Description Subtitle -->
+    <text x="0" y="240" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-weight="500" font-size="20" fill="#94a3b8">
+      SMP Negeri 3 Ketapang &bull; Kalimantan Barat
+    </text>
+    <text x="0" y="272" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-weight="400" font-size="16" fill="#64748b">
+      Modul Kurikulum Merdeka, Video Tatap Muka Live Meet, Kuis Interaktif, &amp; Mading Karya.
+    </text>
+
+    <!-- Key Feature Pills -->
+    <g transform="translate(0, 320)">
+      <!-- Pill 1 -->
+      <rect x="0" y="0" width="160" height="44" rx="14" fill="#1e293b" stroke="#475569" stroke-width="1" />
+      <text x="20" y="27" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="700" font-size="14" fill="#e2e8f0">⚡ Modul Belajar</text>
+
+      <!-- Pill 2 -->
+      <rect x="175" y="0" width="165" height="44" rx="14" fill="#1e293b" stroke="#475569" stroke-width="1" />
+      <text x="195" y="27" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="700" font-size="14" fill="#e2e8f0">📹 Live Meet HD</text>
+
+      <!-- Pill 3 -->
+      <rect x="355" y="0" width="170" height="44" rx="14" fill="#1e293b" stroke="#475569" stroke-width="1" />
+      <text x="375" y="27" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="700" font-size="14" fill="#e2e8f0">🏆 Kuis &amp; Tugas</text>
+    </g>
+  </g>
+
+  <!-- Right Visual / Emblem Illustration -->
+  <g transform="translate(850, 180)">
+    <!-- Glowing background plate -->
+    <rect x="-30" y="-30" width="280" height="280" rx="60" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.3" filter="url(#glow)" />
+    <rect x="-30" y="-30" width="280" height="280" rx="60" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.5" />
+
+    <!-- School Icon Stylized -->
+    <g transform="translate(110, 85)">
+      <!-- Book Base -->
+      <path d="M-80 60c25-12 52-18 80-18s55 6 80 18v-90c-25-12-52-18-80-18s-55 6-80 18v90z" fill="#ffffff" fill-opacity="0.95"/>
+      <path d="M0 -30v90" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round"/>
+      <path d="M-7 -30h14v45l-7-6-7 6z" fill="url(#goldGrad)" />
+      <!-- Cap -->
+      <path d="M0 -75l90 35-90 35-90-35 90-35z" fill="#ffffff"/>
+      <path d="M-50 -20v30c0 22 22 40 50 40s50-18 50-40v-30" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+      <path d="M70 -35v40" stroke="url(#goldGrad)" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="70" cy="8" r="5" fill="url(#goldGrad)"/>
+    </g>
+
+    <text x="110" y="210" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="900" font-size="20" fill="#ffffff" text-anchor="middle" letter-spacing="3">SMPN 3</text>
+    <text x="110" y="232" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="700" font-size="12" fill="#38bdf8" text-anchor="middle" letter-spacing="4">KETAPANG</text>
+  </g>
+
+  <!-- Bottom Brand Footer -->
+  <line x1="100" y1="570" x2="1100" y2="570" stroke="#334155" stroke-width="1" />
+  <text x="100" y="600" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="600" font-size="14" fill="#64748b">
+    &copy; LMS SMPN 3 Ketapang &bull; Sistem Informasi Pembelajaran Mandiri Terpadu
+  </text>
+  <text x="1100" y="600" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="700" font-size="14" fill="#38bdf8" text-anchor="end">
+    lms-ernawaty.web.app
+  </text>
+</svg>

@@ -1,24 +1,49 @@
 {
-  "name": "LMS Mandiri SMPN 3 Ketapang",
+  "name": "LMS Mandiri - SMPN 3 Ketapang",
   "short_name": "LMS SMPN 3",
-  "description": "Aplikasi Learning Management System Mandiri SMPN 3 Ketapang",
+  "description": "Platform Pembelajaran Digital Mandiri SMPN 3 Ketapang Kalimantan Barat. Dilengkapi modul Kurikulum Merdeka, tatap muka online HD, kuis interaktif, dan mading siswa.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#0f172a",
   "theme_color": "#2563eb",
   "orientation": "portrait-primary",
+  "categories": ["education", "books", "productivity"],
+  "lang": "id-ID",
   "icons": [
     {
-      "src": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSkMwdy4_7y48uzPnbFyQIzELTIrQTUGMHfofMTkNenIM_ExEml_YBWl275&s=10",
-      "sizes": "192x192",
-      "type": "image/png",
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSkMwdy4_7y48uzPnbFyQIzELTIrQTUGMHfofMTkNenIM_ExEml_YBWl275&s=10",
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mading Kreasi Siswa",
+      "short_name": "Mading",
+      "description": "Karya literasi dan artikel kreasi siswa SMPN 3",
+      "url": "/mading",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Masuk Siswa",
+      "short_name": "Masuk",
+      "description": "Masuk ke portal belajar siswa",
+      "url": "/masuk",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     }
   ]
 }

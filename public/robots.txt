@@ -1,0 +1,13 @@
+# Robots.txt untuk LMS SMPN 3 Ketapang
+User-agent: *
+Allow: /
+Allow: /materi/
+Allow: /mading/
+Allow: /masuk/
+
+# Lindungi rute internal siswa & guru dari indexing publik
+Disallow: /guru/
+Disallow: /murid/
+
+# Lokasi Sitemap
+Sitemap: https://lms-ernawaty.web.app/sitemap.xml

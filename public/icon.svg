@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e40af" />
+      <stop offset="50%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square with soft gradient -->
+  <rect width="512" height="512" rx="112" fill="url(#primaryGrad)" />
+  
+  <!-- Subtle inner decorative ring -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#ffffff" stroke-width="4" stroke-opacity="0.15" />
+
+  <!-- School Graduation Cap & Open Book Icon Combination -->
+  <g filter="url(#shadow)" transform="translate(0, -10)">
+    <!-- Open Book Pages (Base) -->
+    <path d="M128 356c38-16 80-24 128-24s90 8 128 24v-150c-38-16-80-24-128-24s-90 8-128 24v150z" fill="#ffffff" fill-opacity="0.95"/>
+    <path d="M256 206v150" stroke="#cbd5e1" stroke-width="6" stroke-linecap="round"/>
+    
+    <!-- Stylized Book Bookmark (Gold Accent) -->
+    <path d="M244 206h24v70l-12-10-12 10z" fill="url(#accentGrad)" />
+
+    <!-- Graduation Cap (Top) -->
+    <path d="M256 128l144 54-144 54-144-54 144-54z" fill="#ffffff"/>
+    <path d="M176 215v48c0 36 36 65 80 65s80-29 80-65v-48" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+    
+    <!-- Tassel -->
+    <path d="M370 190v60" stroke="url(#accentGrad)" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="370" cy="255" r="8" fill="url(#accentGrad)"/>
+  </g>
+
+  <!-- Subtle Badge Text SMPN 3 -->
+  <text x="256" y="440" font-family="'Plus Jakarta Sans', system-ui, -apple-system, sans-serif" font-weight="900" font-size="34" fill="#ffffff" text-anchor="middle" letter-spacing="4">SMPN 3 KETAPANG</text>
+</svg>
