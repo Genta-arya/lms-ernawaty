@@ -128,6 +128,7 @@ export function AgoraMeetRoom({
   // Pop-up Notifikasi Peserta Bergabung & Alert Toast Share Screen
   const [joinedToast, setJoinedToast] = useState(null)
   const [screenShareToast, setScreenShareToast] = useState(null)
+  const [showEndMeetModal, setShowEndMeetModal] = useState(false)
   const toastTimeoutRef = useRef(null)
   const screenShareToastTimeoutRef = useRef(null)
   const hasInitialJoinFinishedRef = useRef(false)
@@ -652,7 +653,7 @@ export function AgoraMeetRoom({
     }
   }, [viewMode, spotlightUser, pinnedUser, speakingUsers, remoteUsers, userNama, cameraOn])
 
-  async function leaveChannel() {
+  async function leaveChannel(endOption = null) {
     try {
       if (isScreenSharingRef.current || activeSharerRef.current === userNama) {
         await setActiveScreenSharer(channelName, null).catch(() => { })
@@ -678,7 +679,16 @@ export function AgoraMeetRoom({
     } finally {
       document.body.style.overflow = "auto"
       setJoined(false)
-      if (onLeave) onLeave()
+      setShowEndMeetModal(false)
+      if (onLeave) onLeave(endOption)
+    }
+  }
+
+  function handleLeaveClick() {
+    if (isGuru) {
+      setShowEndMeetModal(true)
+    } else {
+      leaveChannel()
     }
   }
 
@@ -1035,6 +1045,71 @@ export function AgoraMeetRoom({
             >
               <X className="w-3.5 h-3.5" />
             </button>
+          </div>
+        </div>
+      )}
+      {/* Modal Dialog Konfirmasi Akhiri / Keluar Sesi Meet (Ala Zoom) */}
+      {showEndMeetModal && (
+        <div className="fixed inset-0 z-[99999999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-700/80 p-5 sm:p-6 shadow-2xl text-white space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+                <PhoneOff className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-100 tracking-tight">
+                  {isGuru ? "Akhiri Sesi Tatap Muka?" : "Keluar Dari Sesi Meet?"}
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {isGuru
+                    ? "Sebagai guru host, Anda dapat mengakhiri sesi untuk semua murid atau keluar sementara."
+                    : "Apakah Anda ingin meninggalkan ruang tatap muka ini sekarang?"}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              {isGuru ? (
+                <>
+                  {/* Opsi 1: Akhiri Sesi untuk Semua (Status Selesai) */}
+                  <Button
+                    type="button"
+                    onClick={() => leaveChannel("selesai")}
+                    className="w-full h-10 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-900/30 flex items-center justify-center gap-2"
+                  >
+                    <span>Ya, Akhiri Sesi untuk Semua</span>
+                  </Button>
+
+                  {/* Opsi 2: Hanya Tinggalkan Sesi Sementara */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => leaveChannel("tinggalkan")}
+                    className="w-full h-10 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 flex items-center justify-center gap-2"
+                  >
+                    <span>Hanya Tinggalkan (Sesi Tetap Aktif)</span>
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={() => leaveChannel("tinggalkan")}
+                  className="w-full h-10 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-900/30 flex items-center justify-center gap-2"
+                >
+                  <span>Ya, Keluar dari Meet</span>
+                </Button>
+              )}
+
+              {/* Opsi 3: Batal / Jangan */}
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowEndMeetModal(false)}
+                className="w-full h-9 text-xs font-semibold rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60"
+              >
+                <span>Jangan (Kembali ke Meet)</span>
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -2049,7 +2124,7 @@ export function AgoraMeetRoom({
             <div className="shrink-0">
               <button
                 type="button"
-                onClick={leaveChannel}
+                onClick={handleLeaveClick}
                 className="h-8 sm:h-9 px-3 sm:px-4 rounded-xl sm:rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-rose-900/30 transition-all active:scale-95"
                 title="Tinggalkan Sesi Meet"
               >

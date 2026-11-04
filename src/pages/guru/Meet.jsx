@@ -38,6 +38,7 @@ export function GuruMeet() {
   const [activeMeetSession, setActiveMeetSession] = useState(null)
   const [lobbyMeetSession, setLobbyMeetSession] = useState(null)
   const [meetInitialSettings, setMeetInitialSettings] = useState(null)
+  const [modalConfirmAction, setModalConfirmAction] = useState(null) // { type: 'akhiri' | 'hapus', sesi: Object }
 
   // Form State
   const [judul, setJudul] = useState("")
@@ -151,26 +152,22 @@ export function GuruMeet() {
     }
   }
 
-  async function handleAkhiriSesi(sesiId) {
-    if (window.confirm("Akhiri sesi video meet ini sekarang?")) {
-      try {
-        await updateStatusSesiMeet(sesiId, "selesai")
-        if (activeMeetSession?.id === sesiId) {
+  async function executeConfirmAction() {
+    if (!modalConfirmAction) return
+    const { type, sesi } = modalConfirmAction
+    try {
+      if (type === "akhiri") {
+        await updateStatusSesiMeet(sesi.id, "selesai")
+        if (activeMeetSession?.id === sesi.id) {
           setActiveMeetSession(null)
         }
-      } catch (err) {
-        console.error("Gagal mengakhiri sesi:", err)
+      } else if (type === "hapus") {
+        await deleteSesiMeet(sesi.id)
       }
-    }
-  }
-
-  async function handleHapus(sesiId) {
-    if (window.confirm("Hapus jadwal sesi meet ini?")) {
-      try {
-        await deleteSesiMeet(sesiId)
-      } catch (err) {
-        console.error("Gagal menghapus:", err)
-      }
+    } catch (err) {
+      console.error(`Gagal melakukan aksi ${type}:`, err)
+    } finally {
+      setModalConfirmAction(null)
     }
   }
 
@@ -427,7 +424,7 @@ export function GuruMeet() {
                             type="button"
                             variant="destructive"
                             size="sm"
-                            onClick={() => handleAkhiriSesi(sesi.id)}
+                            onClick={() => setModalConfirmAction({ type: "akhiri", sesi })}
                             className="text-xs rounded-xl h-8 px-2.5"
                             title="Akhiri Sesi"
                           >
@@ -453,7 +450,7 @@ export function GuruMeet() {
 
                     <button
                       type="button"
-                      onClick={() => handleHapus(sesi.id)}
+                      onClick={() => setModalConfirmAction({ type: "hapus", sesi })}
                       className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition-colors"
                       title="Hapus sesi"
                     >
@@ -490,16 +487,11 @@ export function GuruMeet() {
           userNama={profileData?.nama || "Guru Pengajar"}
           isGuru={true}
           initialSettings={meetInitialSettings}
-          onLeave={async () => {
+          onLeave={async (endOption) => {
             const currentSession = activeMeetSession
             setActiveMeetSession(null)
             setMeetInitialSettings(null)
-            if (
-              currentSession &&
-              window.confirm(
-                "Apakah Anda ingin menyelesaikan (mengakhiri) sesi tatap muka ini agar tidak berstatus 'LIVE BERLANGSUNG' lagi?"
-              )
-            ) {
+            if (currentSession && endOption === "selesai") {
               try {
                 await updateStatusSesiMeet(currentSession.id, "selesai")
               } catch (e) {
@@ -508,6 +500,75 @@ export function GuruMeet() {
             }
           }}
         />
+      )}
+
+      {/* Modal Popup Konfirmasi Modern (Akhiri Sesi / Hapus Jadwal) */}
+      {modalConfirmAction && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-3xl bg-white border border-slate-200 p-5 sm:p-6 shadow-2xl text-slate-800 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-3">
+              <div
+                className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+                  modalConfirmAction.type === "akhiri"
+                    ? "bg-amber-100 text-amber-600"
+                    : "bg-rose-100 text-rose-600"
+                }`}
+              >
+                {modalConfirmAction.type === "akhiri" ? (
+                  <Square className="w-5 h-5 fill-current" />
+                ) : (
+                  <Trash2 className="w-5 h-5" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
+                  {modalConfirmAction.type === "akhiri"
+                    ? "Akhiri Sesi Tatap Muka?"
+                    : "Hapus Jadwal Sesi Meet?"}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  {modalConfirmAction.type === "akhiri" ? (
+                    <>
+                      Apakah Anda yakin ingin menyelesaikan sesi{" "}
+                      <b>"{modalConfirmAction.sesi.judul}"</b>? Status sesi akan diubah menjadi
+                      SELESAI dan peserta tidak dapat bergabung lagi.
+                    </>
+                  ) : (
+                    <>
+                      Jadwal sesi <b>"{modalConfirmAction.sesi.judul}"</b> akan dihapus secara
+                      permanen dari daftar meet.
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <Button
+                type="button"
+                onClick={executeConfirmAction}
+                className={`w-full h-10 text-xs font-bold rounded-xl text-white shadow-md flex items-center justify-center gap-2 ${
+                  modalConfirmAction.type === "akhiri"
+                    ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/20"
+                    : "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20"
+                }`}
+              >
+                <span>
+                  {modalConfirmAction.type === "akhiri" ? "Ya, Akhiri Sesi" : "Ya, Hapus Jadwal"}
+                </span>
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setModalConfirmAction(null)}
+                className="w-full h-9 text-xs font-semibold rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+              >
+                <span>Jangan (Batal)</span>
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
