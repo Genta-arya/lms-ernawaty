@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from "react"
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react"
+import { createPortal } from "react-dom"
 import {
   CheckCircle2,
   AlertCircle,
@@ -105,6 +106,17 @@ export function ToastProvider({ children }) {
     info: "border-blue-200/90 shadow-blue-500/10 bg-white/95 text-blue-950",
   }
 
+  // Kunci scroll halaman belakang saat confirmDialog aktif
+  useEffect(() => {
+    if (confirmDialog) {
+      const originalOverflow = document.body.style.overflow
+      document.body.style.overflow = "hidden"
+      return () => {
+        document.body.style.overflow = originalOverflow
+      }
+    }
+  }, [confirmDialog])
+
   return (
     <ToastContext.Provider value={value}>
       {children}
@@ -146,60 +158,67 @@ export function ToastProvider({ children }) {
         ))}
       </aside>
 
-      {/* Dialog Konfirmasi Elegan Murni Tailwind CSS */}
-      {confirmDialog && (
-        <div className="fixed inset-0 w-screen h-screen z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      {/* Dialog Konfirmasi Elegan Murni Tailwind CSS - Dipindahkan ke Root Body via Portal */}
+      {confirmDialog &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-150"
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 w-full h-full min-h-[100dvh] z-[999999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
           >
-            <div className="flex items-center gap-3">
-              <div
-                className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                  confirmDialog.variant === "danger"
-                    ? "bg-rose-50 text-rose-600"
-                    : "bg-blue-50 text-blue-600"
-                }`}
-              >
-                {confirmDialog.variant === "danger" ? (
-                  <Trash2 className="w-5 h-5" />
-                ) : (
-                  <AlertCircle className="w-5 h-5" />
-                )}
+            <div
+              className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-150"
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
+                    confirmDialog.variant === "danger"
+                      ? "bg-rose-50 text-rose-600"
+                      : "bg-blue-50 text-blue-600"
+                  }`}
+                >
+                  {confirmDialog.variant === "danger" ? (
+                    <Trash2 className="w-5 h-5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-slate-900 tracking-tight">
+                    {confirmDialog.title}
+                  </h3>
+                </div>
               </div>
-              <div>
-                <h3 className="font-black text-base text-slate-900 tracking-tight">
-                  {confirmDialog.title}
-                </h3>
+
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                {confirmDialog.message}
+              </p>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDialog(null)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  {confirmDialog.cancelText}
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDialog.onConfirm}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-black text-white shadow-md transition-all active:scale-95 ${
+                    confirmDialog.variant === "danger"
+                      ? "bg-rose-600 hover:bg-rose-700 shadow-rose-500/20"
+                      : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
+                  }`}
+                >
+                  {confirmDialog.confirmText}
+                </button>
               </div>
             </div>
-
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              {confirmDialog.message}
-            </p>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setConfirmDialog(null)}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                {confirmDialog.cancelText}
-              </button>
-              <button
-                type="button"
-                onClick={confirmDialog.onConfirm}
-                className={`px-5 py-2.5 rounded-xl text-xs font-black text-white shadow-md transition-all active:scale-95 ${
-                  confirmDialog.variant === "danger"
-                    ? "bg-rose-600 hover:bg-rose-700 shadow-rose-500/20"
-                    : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/20"
-                }`}
-              >
-                {confirmDialog.confirmText}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </ToastContext.Provider>
   )
 }

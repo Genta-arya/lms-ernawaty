@@ -1050,7 +1050,7 @@ export function AgoraMeetRoom({
       )}
       {/* Modal Dialog Konfirmasi Akhiri / Keluar Sesi Meet (Ala Zoom) */}
       {showEndMeetModal && (
-        <div className="fixed inset-0 z-[99999999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 w-full h-full min-h-[100dvh] z-[99999999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-700/80 p-5 sm:p-6 shadow-2xl text-white space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">

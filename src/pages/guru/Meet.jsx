@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react"
+import { createPortal } from "react-dom"
 import { useAuth } from "@/context/AuthContext"
 import { getKelasList } from "@/services/kelas"
 import {
@@ -502,74 +503,85 @@ export function GuruMeet() {
         />
       )}
 
-      {/* Modal Popup Konfirmasi Modern (Akhiri Sesi / Hapus Jadwal) */}
-      {modalConfirmAction && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-3xl bg-white border border-slate-200 p-5 sm:p-6 shadow-2xl text-slate-800 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex items-start gap-3">
-              <div
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
-                  modalConfirmAction.type === "akhiri"
-                    ? "bg-amber-100 text-amber-600"
-                    : "bg-rose-100 text-rose-600"
-                }`}
-              >
-                {modalConfirmAction.type === "akhiri" ? (
-                  <Square className="w-5 h-5 fill-current" />
-                ) : (
-                  <Trash2 className="w-5 h-5" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
-                  {modalConfirmAction.type === "akhiri"
-                    ? "Akhiri Sesi Tatap Muka?"
-                    : "Hapus Jadwal Sesi Meet?"}
-                </h3>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+      {/* Modal Popup Konfirmasi Modern (Akhiri Sesi / Hapus Jadwal) - Render via Portal ke document.body */}
+      {modalConfirmAction &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 w-full h-full min-h-[100dvh] z-[999999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+            onClick={() => setModalConfirmAction(null)}
+          >
+            <div
+              className="w-full max-w-sm rounded-3xl bg-white border border-slate-200 p-5 sm:p-6 shadow-2xl text-slate-800 space-y-4 animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+                    modalConfirmAction.type === "akhiri"
+                      ? "bg-amber-100 text-amber-600"
+                      : "bg-rose-100 text-rose-600"
+                  }`}
+                >
                   {modalConfirmAction.type === "akhiri" ? (
-                    <>
-                      Apakah Anda yakin ingin menyelesaikan sesi{" "}
-                      <b>"{modalConfirmAction.sesi.judul}"</b>? Status sesi akan diubah menjadi
-                      SELESAI dan peserta tidak dapat bergabung lagi.
-                    </>
+                    <Square className="w-5 h-5 fill-current" />
                   ) : (
-                    <>
-                      Jadwal sesi <b>"{modalConfirmAction.sesi.judul}"</b> akan dihapus secara
-                      permanen dari daftar meet.
-                    </>
+                    <Trash2 className="w-5 h-5" />
                   )}
-                </p>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
+                    {modalConfirmAction.type === "akhiri"
+                      ? "Akhiri Sesi Tatap Muka?"
+                      : "Hapus Jadwal Sesi Meet?"}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    {modalConfirmAction.type === "akhiri" ? (
+                      <>
+                        Apakah Anda yakin ingin menyelesaikan sesi{" "}
+                        <b>"{modalConfirmAction.sesi.judul}"</b>? Status sesi akan diubah menjadi
+                        SELESAI dan peserta tidak dapat bergabung lagi.
+                      </>
+                    ) : (
+                      <>
+                        Jadwal sesi <b>"{modalConfirmAction.sesi.judul}"</b> akan dihapus secara
+                        permanen dari daftar meet.
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <Button
+                  type="button"
+                  onClick={executeConfirmAction}
+                  className={`w-full h-10 text-xs font-bold rounded-xl text-white shadow-md flex items-center justify-center gap-2 ${
+                    modalConfirmAction.type === "akhiri"
+                      ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/20"
+                      : "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20"
+                  }`}
+                >
+                  <span>
+                    {modalConfirmAction.type === "akhiri" ? "Ya, Akhiri Sesi" : "Ya, Hapus Jadwal"}
+                  </span>
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setModalConfirmAction(null)}
+                  className="w-full h-9 text-xs font-semibold rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                >
+                  <span>Jangan (Batal)</span>
+                </Button>
               </div>
             </div>
-
-            <div className="space-y-2 pt-2">
-              <Button
-                type="button"
-                onClick={executeConfirmAction}
-                className={`w-full h-10 text-xs font-bold rounded-xl text-white shadow-md flex items-center justify-center gap-2 ${
-                  modalConfirmAction.type === "akhiri"
-                    ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/20"
-                    : "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20"
-                }`}
-              >
-                <span>
-                  {modalConfirmAction.type === "akhiri" ? "Ya, Akhiri Sesi" : "Ya, Hapus Jadwal"}
-                </span>
-              </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setModalConfirmAction(null)}
-                className="w-full h-9 text-xs font-semibold rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100"
-              >
-                <span>Jangan (Batal)</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   )
 }

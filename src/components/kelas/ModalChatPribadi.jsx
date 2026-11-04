@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils"
 import React, { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import { useAuth } from "@/context/AuthContext"
 import {
   getPrivateChatId,
@@ -131,17 +132,29 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
     return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
   }
 
-  return (
+  // Kunci scroll halaman belakang saat modal chat aktif
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = originalOverflow
+    }
+  }, [])
+
+  if (typeof document === "undefined") return null
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 w-full h-full min-h-[100dvh] z-[99999] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl max-w-lg w-full h-[600px] max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200"
+        className="bg-white rounded-3xl max-w-lg w-full h-[600px] max-h-[90dvh] flex flex-col overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
+
         {/* Header Modal Chat Pribadi */}
         <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
@@ -313,6 +326,8 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
           </Button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
+

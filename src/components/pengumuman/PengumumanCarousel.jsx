@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react"
+import { createPortal } from "react-dom"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Badge } from "@/components/ui/badge"
@@ -44,7 +45,17 @@ export function PengumumanCarousel({ announcements = [] }) {
     return () => clearInterval(timer)
   }, [total, isPaused, detailModal, handleNext])
 
-  // Touch handlers untuk swipe mobile (HP)
+  // Kunci scroll halaman belakang saat modal dibuka agar backdrop kokoh
+  useEffect(() => {
+    if (detailModal) {
+      const originalOverflow = document.body.style.overflow
+      document.body.style.overflow = "hidden"
+      return () => {
+        document.body.style.overflow = originalOverflow
+      }
+    }
+  }, [detailModal])
+
   const onTouchStart = (e) => {
     touchStartX.current = e.targetTouches[0].clientX
   }
@@ -236,98 +247,104 @@ export function PengumumanCarousel({ announcements = [] }) {
         </div>
       </div>
 
-      {/* POPUP MODAL DETAIL PENGUMUMAN LENGKAP */}
-      {detailModal && (
-        <div
-          className="fixed inset-0 w-screen h-screen z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setDetailModal(null)}
-        >
+      {/* POPUP MODAL DETAIL PENGUMUMAN LENGKAP - RENDER KE BODY LEWAT PORTAL */}
+      {detailModal &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
-            className="bg-white rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 w-full h-full min-h-[100dvh] z-[999999] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+            onClick={() => setDetailModal(null)}
           >
-            {/* Header Modal */}
             <div
-              className={`p-5 border-b flex items-start justify-between gap-3 ${
-                detailModal.prioritas === "penting"
-                  ? "bg-rose-50/70 border-rose-100"
-                  : "bg-blue-50/70 border-blue-100"
-              }`}
+              className="bg-white rounded-3xl max-w-lg w-full max-h-[88dvh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="space-y-1.5 flex-1 pr-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge
-                    className={`text-[10px] font-black uppercase px-2.5 py-0.5 border-none rounded-full ${
-                      detailModal.prioritas === "penting"
-                        ? "bg-rose-600 text-white"
-                        : "bg-blue-600 text-white"
-                    }`}
-                  >
-                    {detailModal.prioritas === "penting" ? "Penting" : "Informasi"}
-                  </Badge>
-                  <span className="text-[11px] font-semibold text-slate-600">
-                    Oleh: {detailModal.penulisNama || "Ibu Guru"}
-                  </span>
-                  {detailModal.createdAt && (
-                    <span className="text-[11px] text-slate-400">
-                      &bull; {formatDate(detailModal.createdAt)}
+              {/* Header Modal */}
+              <div
+                className={`p-4 sm:p-5 border-b flex items-start justify-between gap-3 shrink-0 ${
+                  detailModal.prioritas === "penting"
+                    ? "bg-rose-50/70 border-rose-100"
+                    : "bg-blue-50/70 border-blue-100"
+                }`}
+              >
+                <div className="space-y-1.5 flex-1 pr-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge
+                      className={`text-[10px] font-black uppercase px-2.5 py-0.5 border-none rounded-full ${
+                        detailModal.prioritas === "penting"
+                          ? "bg-rose-600 text-white"
+                          : "bg-blue-600 text-white"
+                      }`}
+                    >
+                      {detailModal.prioritas === "penting" ? "Penting" : "Informasi"}
+                    </Badge>
+                    <span className="text-[11px] font-semibold text-slate-600">
+                      Oleh: {detailModal.penulisNama || "Ibu Guru"}
                     </span>
-                  )}
-                </div>
-
-                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-snug">
-                  {detailModal.judul}
-                </h2>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setDetailModal(null)}
-                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors shrink-0"
-                aria-label="Tutup modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Isi Pengumuman Lengkap (Markdown Rich Format) */}
-            <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
-              <div className="prose prose-sm max-w-none text-xs sm:text-sm text-slate-700 leading-relaxed rich-editor-content">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {detailModal.isi}
-                </ReactMarkdown>
-              </div>
-
-              {detailModal.tingkat && detailModal.tingkat.length > 0 && (
-                <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-400">
-                  <span className="font-semibold text-slate-600">Sasaran:</span>
-                  <div className="flex gap-1 flex-wrap">
-                    {detailModal.tingkat.map((t) => (
-                      <span
-                        key={t}
-                        className="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-md text-[11px]"
-                      >
-                        Kelas {t}
+                    {detailModal.createdAt && (
+                      <span className="text-[11px] text-slate-400">
+                        &bull; {formatDate(detailModal.createdAt)}
                       </span>
-                    ))}
+                    )}
                   </div>
-                </div>
-              )}
-            </div>
 
-            {/* Footer Modal */}
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={() => setDetailModal(null)}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors shadow-xs active:scale-95"
-              >
-                Tutup
-              </button>
+                  <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-snug">
+                    {detailModal.judul}
+                  </h2>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setDetailModal(null)}
+                  className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors shrink-0"
+                  aria-label="Tutup modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Isi Pengumuman Lengkap (Markdown Rich Format) - Responsive Scrollable Body */}
+              <div className="p-4 sm:p-6 overflow-y-auto overscroll-contain space-y-4 flex-1 min-h-0 text-slate-700">
+                <div className="prose prose-sm max-w-none text-xs sm:text-sm text-slate-700 leading-relaxed rich-editor-content">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {detailModal.isi}
+                  </ReactMarkdown>
+                </div>
+
+                {detailModal.tingkat && detailModal.tingkat.length > 0 && (
+                  <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-400">
+                    <span className="font-semibold text-slate-600">Sasaran:</span>
+                    <div className="flex gap-1 flex-wrap">
+                      {detailModal.tingkat.map((t) => (
+                        <span
+                          key={t}
+                          className="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-md text-[11px]"
+                        >
+                          Kelas {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Modal */}
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setDetailModal(null)}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors shadow-xs active:scale-95"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
+
     </>
   )
 }

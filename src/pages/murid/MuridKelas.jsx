@@ -1,5 +1,6 @@
 import { BannerMeetMurid } from "@/components/meet/BannerMeetMurid"
 import React, { useState, useEffect } from "react"
+import { createPortal } from "react-dom"
 import { Link, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
 import { getDetailKelasDanTeman } from "@/services/kelas"
@@ -440,146 +441,150 @@ export function MuridKelas() {
         />
       )}
 
-      {/* Modal Popup Detail Nilai & Riwayat Siswa yang Dipilih */}
-      {selectedMurid && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
-          onClick={() => setSelectedMurid(null)}
-        >
+      {/* Modal Popup Detail Nilai & Riwayat Siswa yang Dipilih - Render via Portal ke document.body */}
+      {selectedMurid &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
-            className="bg-white rounded-3xl max-w-md w-full max-h-[85vh] overflow-y-auto p-5 sm:p-6 space-y-5 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 w-full h-full min-h-[100dvh] z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+            onClick={() => setSelectedMurid(null)}
           >
-            {/* Header Profil Teman */}
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <UserAvatar
-                fotoUrl={selectedMurid.fotoUrl}
-                nama={selectedMurid.nama}
-                size="md"
-                className="w-12 h-12 rounded-2xl ring-2 ring-blue-500/20 shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-extrabold text-slate-900 text-sm sm:text-base truncate">
-                    {selectedMurid.nama}
-                  </h3>
-                  {selectedMurid.nisn === profileData?.nisn && (
-                    <Badge className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0">Saya</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 font-mono mt-0.5">
-                  NISN: {selectedMurid.nisn} &bull; Kelas {kelasData?.nama || profileData?.kelasNama}
-                </p>
-              </div>
-            </div>
-
-            {/* Rangkuman Nilai */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200/80">
-                <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                  <Trophy className="w-4 h-4 text-amber-600" />
-                  <span>Rata-Rata Kuis</span>
-                </div>
-                <div className="text-2xl font-black text-amber-950 mt-1">
-                  {selectedMurid.avgKuis || 0}
-                </div>
-                <div className="text-[10px] text-amber-700 mt-0.5">
-                  Tertinggi: {selectedMurid.maxKuis || 0} ({selectedMurid.kuisCount || 0} kuis)
+            <div
+              className="bg-white rounded-3xl max-w-md w-full max-h-[88dvh] overflow-y-auto overscroll-contain p-5 sm:p-6 space-y-5 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Profil Teman */}
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                <UserAvatar
+                  fotoUrl={selectedMurid.fotoUrl}
+                  nama={selectedMurid.nama}
+                  size="md"
+                  className="w-12 h-12 rounded-2xl ring-2 ring-blue-500/20 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="font-extrabold text-slate-900 text-sm sm:text-base truncate">
+                      {selectedMurid.nama}
+                    </h3>
+                    {selectedMurid.nisn === profileData?.nisn && (
+                      <Badge className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0">Saya</Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">
+                    NISN: {selectedMurid.nisn} &bull; Kelas {kelasData?.nama || profileData?.kelasNama}
+                  </p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80">
-                <div className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                  <ClipboardList className="w-4 h-4 text-emerald-600" />
-                  <span>Rata-Rata Tugas</span>
+              {/* Rangkuman Nilai */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200/80">
+                  <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                    <Trophy className="w-4 h-4 text-amber-600" />
+                    <span>Rata-Rata Kuis</span>
+                  </div>
+                  <div className="text-2xl font-black text-amber-950 mt-1">
+                    {selectedMurid.avgKuis || 0}
+                  </div>
+                  <div className="text-[10px] text-amber-700 mt-0.5">
+                    Tertinggi: {selectedMurid.maxKuis || 0} ({selectedMurid.kuisCount || 0} kuis)
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-emerald-950 mt-1">
-                  {selectedMurid.avgTugas || 0}
-                </div>
-                <div className="text-[10px] text-emerald-700 mt-0.5">
-                  {selectedMurid.tugasCount || 0} tugas telah dinilai
+
+                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80">
+                  <div className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                    <ClipboardList className="w-4 h-4 text-emerald-600" />
+                    <span>Rata-Rata Tugas</span>
+                  </div>
+                  <div className="text-2xl font-black text-emerald-950 mt-1">
+                    {selectedMurid.avgTugas || 0}
+                  </div>
+                  <div className="text-[10px] text-emerald-700 mt-0.5">
+                    {selectedMurid.tugasCount || 0} tugas telah dinilai
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Rincian Pengerjaan Kuis */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                <span>Riwayat Kuis ({selectedMurid.kuisList?.length || 0})</span>
-              </h4>
-              {(!selectedMurid.kuisList || selectedMurid.kuisList.length === 0) ? (
-                <p className="text-xs text-slate-400 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                  Belum ada catatan pengerjaan kuis.
-                </p>
-              ) : (
-                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                  {selectedMurid.kuisList.map((k, i) => (
-                    <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-                      <span className="truncate font-medium text-slate-700">{k.kuisJudul}</span>
-                      <span className="font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg shrink-0">
-                        {k.skor}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+              {/* Rincian Pengerjaan Kuis */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Riwayat Kuis ({selectedMurid.kuisList?.length || 0})</span>
+                </h4>
+                {(!selectedMurid.kuisList || selectedMurid.kuisList.length === 0) ? (
+                  <p className="text-xs text-slate-400 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    Belum ada catatan pengerjaan kuis.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {selectedMurid.kuisList.map((k, i) => (
+                      <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                        <span className="truncate font-medium text-slate-700">{k.kuisJudul}</span>
+                        <span className="font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg shrink-0">
+                          {k.skor}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            {/* Rincian Penilaian Tugas */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                <ClipboardList className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Riwayat Nilai Tugas ({selectedMurid.tugasList?.length || 0})</span>
-              </h4>
-              {(!selectedMurid.tugasList || selectedMurid.tugasList.length === 0) ? (
-                <p className="text-xs text-slate-400 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                  Belum ada tugas yang dinilai guru.
-                </p>
-              ) : (
-                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                  {selectedMurid.tugasList.map((t, i) => (
-                    <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-                      <span className="truncate font-medium text-slate-700">{t.tugasJudul}</span>
-                      <span className="font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg shrink-0">
-                        {t.nilai}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+              {/* Rincian Penilaian Tugas */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <ClipboardList className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Riwayat Nilai Tugas ({selectedMurid.tugasList?.length || 0})</span>
+                </h4>
+                {(!selectedMurid.tugasList || selectedMurid.tugasList.length === 0) ? (
+                  <p className="text-xs text-slate-400 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    Belum ada tugas yang dinilai guru.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {selectedMurid.tugasList.map((t, i) => (
+                      <div key={i} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                        <span className="truncate font-medium text-slate-700">{t.tugasJudul}</span>
+                        <span className="font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg shrink-0">
+                          {t.nilai}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            <div className="flex items-center gap-2 pt-2">
-              {selectedMurid.nisn !== profileData?.nisn && (
+              <div className="flex items-center gap-2 pt-2">
+                {selectedMurid.nisn !== profileData?.nisn && (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      const target = selectedMurid
+                      setSelectedMurid(null)
+                      openChatWithTarget(target)
+                    }}
+                    className="flex-1 text-xs font-bold rounded-xl h-10 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Kirim Pesan Pribadi</span>
+                  </Button>
+                )}
                 <Button
                   type="button"
-                  onClick={() => {
-                    const target = selectedMurid
-                    setSelectedMurid(null)
-                    openChatWithTarget(target)
-                  }}
-                  className="flex-1 text-xs font-bold rounded-xl h-10 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                  variant="outline"
+                  onClick={() => setSelectedMurid(null)}
+                  className="flex-1 text-xs font-bold rounded-xl h-10"
                 >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Kirim Pesan Pribadi</span>
+                  Tutup
                 </Button>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setSelectedMurid(null)}
-                className="flex-1 text-xs font-bold rounded-xl h-10"
-              >
-                Tutup
-              </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   )
 }
+
 
