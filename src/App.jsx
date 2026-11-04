@@ -47,11 +47,15 @@ import { TugasList as MuridTugasList } from "@/pages/murid/TugasList"
 import { TugasDetail as MuridTugasDetail } from "@/pages/murid/TugasDetail"
 import { MuridKelas } from "@/pages/murid/MuridKelas"
 import { GlobalChatNotification } from "@/components/kelas/GlobalChatNotification"
+import { PageMeta } from "@/components/common/PageMeta"
 
 export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
+        {/* Dynamic Document Title Tag (Helmet-Style per Route) */}
+        <PageMeta />
+
         <Routes>
         {/* Rute Publik */}
         <Route element={<PublicLayout />}>

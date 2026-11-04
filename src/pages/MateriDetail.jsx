@@ -68,6 +68,9 @@ export function MateriDetail() {
         const mat = await getMateriBySlug(slug, role === "guru")
         if (mat) {
           setMateri(mat)
+          if (mat.judul) {
+            document.title = `${mat.judul} - LMS SMPN 3 Ketapang`
+          }
           // Load kuis terkait
           const kuis = await getKuisByMateriId(mat.id, role === "guru")
           setKuisList(kuis)
