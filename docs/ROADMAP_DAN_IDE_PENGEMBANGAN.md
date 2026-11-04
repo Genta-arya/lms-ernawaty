@@ -1,87 +1,134 @@
-# Roadmap & Ide Pengembangan Masa Depan (Feature Ideation & Roadmap)
+# Roadmap & Ide Pengembangan Masa Depan (LMS SMPN 3 Ketapang)
 
-Dokumen ini berisi kumpulan inisiatif, inovasi fitur, dan rekomendasi peningkatan arsitektur untuk pengembangan LMS Mandiri SMPN 3 Ketapang ke tahap selanjutnya. Ide-ide di bawah dikelompokkan berdasarkan prioritas dan dampak bagi kegiatan belajar mengajar.
-
----
-
-## 1. Integrasi Kecerdasan Buatan Tingkat Lanjut (AI-Powered Learning)
-
-### A. AI Tutor Pribadi & Asisten Belajar Murid ("Tanya Bu Guru AI")
-- **Deskripsi**: Bot asisten interaktif di pojok kanan bawah modul materi yang dapat ditanyai siswa kapan saja jika belum memahami bagian bacaan tertentu.
-- **Implementasi**: Menggunakan Google Gemini API dengan *system prompt* yang dibatasi hanya pada silabus Kurikulum Merdeka SMPN 3 Ketapang.
-- **Fitur Unggulan**:
-  - Ringkasan materi otomatis (*TL;DR / Quick Summary*).
-  - Penjelasan konsep sulit dengan bahasa analogi sederhana yang ramah remaja SMP.
-  - Kuis latihan instan hasil generasi AI berdasarkan materi yang sedang dibaca.
-
-### B. Generator Soal Kuis Otomatis untuk Guru (AI Quiz Creator)
-- **Deskripsi**: Guru cukup mengunggah berkas modul atau mengetikkan topik pembahasan, lalu AI otomatis menghasilkan 10–20 soal pilihan ganda beserta kunci jawaban dan opsi pengecoh yang berbobot.
-- **Dampak**: Menghemat waktu persiapan guru hingga 80% saat membuat kuis formatif baru.
-
-### C. Koreksi Tugas Otomatis Berbasis Rubrik & AI (Automated Grading Assistant)
-- **Deskripsi**: Untuk tugas esai Bahasa Indonesia atau karya tulis literasi, AI menganalisis tata bahasa (*PUEBI*), kesesuaian struktur teks, serta orisinalitas, lalu memberikan draf saran nilai awal dan komentar yang tinggal disetujui atau disesuaikan oleh guru.
+Dokumen ini memuat peta jalan strategis (*product roadmap*), ide-ide inovasi fitur, dan rekomendasi arsitektur lanjutan untuk membawa LMS Mandiri SMPN 3 Ketapang menjadi platform pembelajaran digital modern terdepan. Inisiatif diklasifikasikan ke dalam 3 fase strategis: **Fase 1 (Quick Wins)**, **Fase 2 (Enhanced Interactivity)**, dan **Fase 3 (Ecosystem Expansion)**.
 
 ---
 
-## 2. Gamifikasi & Motivasi Belajar Siswa (Gamification Engine)
+## Matriks Prioritas & Dampak Fitur
 
-### A. Sistem Poin, Level, & Lencana Digital (Badges & Achievement System)
-- **Mekanisme**: Siswa mendapatkan *Exp Points (XP)* setiap kali:
-  - Menyelesaikan pembacaan materi (+50 XP).
-  - Mengerjakan kuis formatif dengan nilai di atas KKM (+100 XP).
-  - Mengumpulkan tugas tepat waktu (+75 XP).
-  - Membaca dan menyukai karya literasi teman di Mading (+10 XP).
-- **Lencana (Badges)**:
-  - *Kutu Buku*: Membaca 10 modul pelajaran.
-  - *Master Kuis*: Meraih nilai 100 berturut-turut pada 3 kuis berbeda.
-  - *Pujangga Muda*: Menerbitkan 3 karya puisi/artikel di Mading.
-- **Leaderboard Rombel**: Papan peringkat mingguan dan bulanan yang ramah dan kompetitif di dashboard murid.
-
----
-
-## 3. Peningkatan Fitur Tatap Muka Online (Agora Live Meet 2.0)
-
-### A. Papan Tulis Digital Bersama (Collaborative Whiteboard)
-- **Deskripsi**: Kanvas interaktif di dalam room Agora Meet tempat guru bisa mencoret-coret rumus, membuat peta konsep (*mind map*), atau meminta siswa mengerjakan soal secara langsung di layar.
-- **Teknologi**: Menggunakan library kanvas HTML5 seperti `tldraw` atau `fabric.js` disinkronkan melalui Firebase Realtime Database.
-
-### B. Presensi / Absensi Otomatis Sesi Meet
-- **Deskripsi**: Sistem otomatis mencatat log durasi kehadiran siswa di ruang temu: jam masuk, jam keluar, dan total menit kehadiran, lalu mengekspornya langsung ke lembar rekapitulasi kehadiran guru.
-
-### C. Breakout Rooms (Ruang Diskusi Kelompok)
-- **Deskripsi**: Guru dapat membagi siswa yang sedang online di dalam satu sesi besar menjadi beberapa sub-ruangan kecil (3–5 orang) untuk diskusi kelompok, lalu memanggil mereka kembali ke ruang utama.
+```
+Dampak Tinggi  │  [AI Tutor Pribadi]        [Papan Tulis Kolaboratif]     [Mode Belajar Offline PWA]
+               │  [Ekspor Buku Nilai Excel]   [Presensi Otomatis Meet]       [Portal Wali Murid]
+               │
+Dampak Sedang  │  [Gamifikasi XP & Badges]    [Deteksi Dini Siswa Lambat]   [Breakout Rooms Meet]
+               │  [Koreksi AI Esai Bahasa]    [Voice Note di Chat Kelas]    [Audiobook Modul Materi]
+               └─────────────────────────────────────────────────────────────────────────────
+                                 Fase 1                        Fase 2                        Fase 3
+                            (Jangka Pendek)               (Jangka Menengah)              (Jangka Panjang)
+```
 
 ---
 
-## 4. Fitur Offline & Optimalisasi PWA (Offline-First Learning)
+## 1. Fase 1: Peningkatan Cepat & Nilai Tambah Langsung (Quick Wins)
 
-### A. Download Modul untuk Baca Offline (Offline Reading Mode)
-- **Deskripsi**: Siswa yang memiliki keterbatasan kuota internet di rumah dapat menekan tombol **"Simpan Offline"** pada modul teks rekon atau materi Bahasa Indonesia saat berada di sekolah / area Wi-Fi.
-- **Implementasi**: Menggunakan IndexedDB lokal melalui Service Worker caching (`CacheStorage API`).
+### 1.1. Ekspor Rekapitulasi Nilai ke Format Excel Resmi (.xlsx)
+- **Konteks & Masalah**: Guru saat ini harus mencatat manual nilai kuis formatif dan tugas siswa ke format raport kurikulum dinas.
+- **Solusi Fitur**:
+  - Tombol *"Ekspor Buku Nilai"* di halaman `/guru/progres` dan `/guru/kelas/:id`.
+  - Menggunakan library `xlsx` / `exceljs` untuk menghasilkan lembar kerja Excel berformat resmi dinas pendidikan dengan formula otomatis: Nilai Rata-Rata Kuis, Nilai Tugas, Nilai Akhir, dan Keterangan Kelulusan (KKM).
+- **Estimasi Kompleksitas**: Rendah - Sedang (2–3 hari kerja).
 
-### B. Push Notification PWA Native (Web Push via FCM)
-- **Deskripsi**: Notifikasi instan langsung ke layar kunci HP siswa layaknya aplikasi Play Store ketika:
-  - Guru memulai sesi Live Meet.
-  - Guru mengunggah tugas baru dengan tenggat waktu dekat.
-  - Teman sekelas mengirimkan pesan chat pribadi.
+### 1.2. Gamifikasi Pembelajaran: Sistem XP, Level, & Lencana Digital
+- **Konteks & Masalah**: Siswa membutuhkan dorongan motivasi intrinsik dan ekstrinsik agar rutin membuka modul materi dan mengerjakan tugas tepat waktu.
+- **Solusi Fitur**:
+  - **Experience Points (XP)**:
+    - Membaca materi hingga tuntas: `+50 XP`
+    - Mengerjakan kuis formatif di atas KKM: `+100 XP`
+    - Mengumpulkan tugas tepat waktu: `+75 XP`
+    - Menerbitkan karya mading yang disukai teman: `+30 XP`
+  - **Level Akun Siswa**: Level 1 (Pemula) hingga Level 10 (Pujangga Ahli).
+  - **Koleksi Lencana Digital (*Badges*)**:
+    - *Kutu Buku*: Membaca 10 modul materi pelajaran.
+    - *Sempurna*: Meraih nilai 100 pada kuis formatif.
+    - *Pena Emas*: Menerbitkan 3 karya di Mading.
+- **Estimasi Kompleksitas**: Sedang (3–4 hari kerja).
+
+### 1.3. AI Tutor Pendamping Belajar Murid ("Tanya Bu Guru AI")
+- **Konteks & Masalah**: Siswa sering kali sungkan bertanya langsung di kelas saat tidak memahami suatu kalimat atau istilah sastra dalam teks rekon.
+- **Solusi Fitur**:
+  - Tombol bantuan interaktif melayang di sudut bawah halaman modul materi siswa (`/murid/materi`).
+  - Menggunakan Google Gemini API dengan prompt tersegmentasi ketat: AI bertindak ramah layaknya guru Bahasa Indonesia SMPN 3 Ketapang yang sabar menjelaskan arti kata sulit, memberikan contoh analogi, atau membuat ringkasan 3 poin utama.
+- **Estimasi Kompleksitas**: Sedang (3 hari kerja).
 
 ---
 
-## 5. Portal Orang Tua Siswa (Parent Monitoring Portal)
+## 2. Fase 2: Interaktivitas Lanjutan & Pembelajaran Cerdas (Enhanced Interactivity)
 
-### A. Akses Pantau Wali Murid (Parent View Mode)
-- **Deskripsi**: Tampilan ringan khusus orang tua/wali murid berbasis kode QR atau token unik siswa untuk melihat:
-  - Catatan kehadiran kuis dan nilai evaluasi harian anak.
-  - Pengumuman penting dari pihak sekolah.
-  - Riwayat pengumpulan tugas anak (sudah mengumpulkan atau terlambat).
-- **Dampak Positif**: Meningkatkan kolaborasi antara pihak sekolah dan orang tua di rumah.
+### 2.1. Papan Tulis Kolaboratif di Agora Meet (Digital Whiteboard)
+- **Konteks & Masalah**: Saat tatap muka video berlangsung, guru kesulitan mencoret-coret bagan kalimat atau diagram alur teks secara interaktif bersama siswa.
+- **Solusi Fitur**:
+  - Kanvas kolaboratif terintegrasi di dalam ruang `AgoraMeetRoom.jsx` menggunakan library open-source seperti `tldraw` atau `fabric.js`.
+  - Sinkronisasi goresan pensil, bentuk bangun, pengetikan teks, dan penghapus secara real-time antar peserta melalui Firestore / Firebase Realtime Database.
+  - Guru dapat memberikan hak kontrol coret kepada siswa tertentu untuk menjawab pertanyaan di layar.
+- **Estimasi Kompleksitas**: Tinggi (1–2 minggu kerja).
+
+### 2.2. Presensi & Absensi Otomatis Sesi Tatap Muka
+- **Konteks & Masalah**: Guru membuang waktu 10–15 menit di awal sesi meet hanya untuk memanggil presensi satu per satu siswa.
+- **Solusi Fitur**:
+  - Sistem otomatis mencatat log waktu saat siswa masuk ke channel Agora dan waktu saat mereka meninggalkan ruang.
+  - Menghitung persentase durasi kehadiran (misal: hadir minimal 75% durasi = status *"Hadir Penuh"*, di bawah itu = *"Hadir Sebagian"*).
+  - Menghasilkan lembar presensi otomatis yang terhubung ke data kelas.
+- **Estimasi Kompleksitas**: Sedang (4–5 hari kerja).
+
+### 2.3. Peringatan Dini Penurunan Belajar (Early Intervention Alert)
+- **Konteks & Masalah**: Guru baru menyadari siswa mengalami kesulitan belajar ketika ujian akhir semester telah tiba.
+- **Solusi Fitur**:
+  - Algoritma analitik di `/guru/progres` yang secara otomatis menandai siswa dengan label kuning/merah jika:
+    1. Mengalami penurunan skor kuis formatif 3 kali berturut-turut.
+    2. Melewatkan pengumpulan 2 tugas berturut-turut.
+    3. Tidak membuka materi belajar selama lebih dari 7 hari.
+  - Memberikan rekomendasi tindakan bimbingan konseling atau remedial terarah bagi guru wali kelas.
+- **Estimasi Kompleksitas**: Sedang (4 hari kerja).
+
+### 2.4. Koreksi Otomatis Tugas Esai Berbasis AI (Automated Grading Rubric)
+- **Konteks & Masalah**: Mengoreksi ratusan esai atau puisi siswa membutuhkan waktu berhari-hari bagi seorang guru.
+- **Solusi Fitur**:
+  - Fitur *"Bantu Nilai dengan AI"* di panel `/guru/tugas/:id/nilai`.
+  - Google Gemini menganalisis berkas teks tugas siswa berdasarkan rubrik: Ejaan & Tanda Baca (PUEBI), Kesesuaian Tema, dan Keruntutan Paragraf.
+  - AI menyajikan draf nilai awal dan komentar umpan balik yang membangun; guru memegang kontrol akhir untuk menyetujui, mengedit, atau menolak saran AI.
+- **Estimasi Kompleksitas**: Sedang - Tinggi (5–6 hari kerja).
 
 ---
 
-## 6. Analitik & Pelaporan Pembelajaran Komprehensif (Teacher Analytics)
+## 3. Fase 3: Ekosistem & Skalabilitas Menyeluruh (Ecosystem Expansion)
 
-### A. Ekspor Laporan Nilai ke Excel / PDF Resmi
-- **Fitur**: Tombol satu klik untuk mengekspor rekap nilai kuis formatif dan tugas ke format `.xlsx` (Excel) sesuai format buku nilai kurikulum dinas pendidikan.
+### 3.1. Mode Belajar Offline PWA (Offline-First Learning Storage)
+- **Konteks & Masalah**: Banyak siswa tinggal di area dengan sinyal seluler terbatas atau memiliki kuota internet terbatas di rumah.
+- **Solusi Fitur**:
+  - Tombol *"Unduh Modul Offline"* pada setiap materi dan kuis.
+  - Menyimpan teks modul, gambar penjelasan, dan bank soal kuis ke dalam peramban lokal menggunakan IndexedDB & CacheStorage API.
+  - Siswa dapat membaca materi dan mengerjakan kuis saat offline di rumah. Ketika HP mereka kembali terhubung ke internet di sekolah, data skor otomatis terkirim (*auto-sync*) ke Cloud Firestore.
+- **Estimasi Kompleksitas**: Tinggi (2 minggu kerja).
 
-### B. Grafik Deteksi Dini Siswa yang Memerlukan Bimbingan (Early Intervention Alert)
-- **Mekanisme**: Sistem mendeteksi otomatis siswa yang mengalami penurunan nilai berturut-turut atau belum membuka modul materi selama lebih dari 7 hari, lalu memberikan tanda pengingat bagi guru wali kelas untuk memberikan pendampingan khusus.
+### 3.2. Portal Pantau Orang Tua / Wali Murid (Parent Monitoring View)
+- **Konteks & Masalah**: Orang tua siswa ingin mengetahui apakah anak mereka rajin mengumpulkan tugas tanpa harus meminjam akun Google pribadi siswa.
+- **Solusi Fitur**:
+  - Halaman publik ringan `/pantau` yang dapat diakses dengan memasukkan NISN dan Token Keamanan Orang Tua (dapat dicetak pada kartu pelajar).
+  - Tampilan ringkas berisi: Status pengumpulan tugas minggu ini, rekapitulasi nilai kuis terbaru, dan catatan khusus dari guru wali kelas.
+- **Estimasi Kompleksitas**: Sedang (5–6 hari kerja).
+
+### 3.3. Breakout Rooms (Ruang Diskusi Kelompok Tatap Muka)
+- **Konteks & Masalah**: Pembelajaran Kurikulum Merdeka menekankan diskusi kelompok (*Problem-Based Learning*), namun di dalam satu room video besar semua siswa bercampur.
+- **Solusi Fitur**:
+  - Guru dapat membagi seluruh peserta ruang temu menjadi beberapa sub-channel Agora otomatis atau manual (misal: Kelompok 1, Kelompok 2, Kelompok 3).
+  - Siswa hanya mendengar dan melihat anggota kelompoknya sendiri.
+  - Guru dapat berpindah-pindah antar ruang kelompok untuk memantau diskusi dan mengakhiri breakout room untuk memanggil semua siswa kembali ke ruang pleno.
+- **Estimasi Kompleksitas**: Tinggi (2 minggu kerja).
+
+### 3.4. Pesan Suara (*Voice Note*) di Chat Kelas & Diskusi Materi
+- **Konteks & Masalah**: Pada materi Bahasa Indonesia lisan (seperti membaca puisi, deklamasi, atau pidato persuasif), komunikasi teks kurang mewadahi kemampuan intonasi dan artikulasi vokal siswa.
+- **Solusi Fitur**:
+  - Tombol rekam audio langsung di ruang obrolan kelas atau forum materi.
+  - File suara terkompresi otomatis (`.mp3`/`.webm`) disimpan ke Cloudinary dan dapat diputar langsung di timeline obrolan.
+- **Estimasi Kompleksitas**: Sedang (4 hari kerja).
+
+---
+
+## 4. Rekomendasi Peningkatan Arsitektur & Keamanan Berkelanjutan
+
+1. **Firebase Security Rules Audit**:
+   - Memperketat aturan penulisan koleksi `karya_mading` dan `chat_pribadi` agar hanya pemilik UID yang sesuai yang dapat menulis atau mengubah dokumennya.
+2. **Pembersihan Data Berkala (Cloud Functions / Firebase Functions)**:
+   - Membuat fungsi pembersih harian (*cron clean-up*) untuk dokumen `user_presence` yang tidak aktif lebih dari 30 hari guna menghemat kuota pembacaan Firestore.
+3. **Pengarsipan Tahun Ajaran**:
+   - Mekanisme arsip data tugas dan nilai ketika pergantian tahun ajaran baru tiba agar database tetap ringan dan performa kueri tetap optimal.
