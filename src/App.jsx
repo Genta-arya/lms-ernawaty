@@ -49,6 +49,7 @@ import { MuridKelas } from "@/pages/murid/MuridKelas"
 import { GlobalChatNotification } from "@/components/kelas/GlobalChatNotification"
 import { PageMeta } from "@/components/common/PageMeta"
 import { PwaInstallToast } from "@/components/common/PwaInstallToast"
+import { MobileDebugConsole } from "@/components/common/MobileDebugConsole"
 
 export default function App() {
   return (
@@ -142,9 +143,12 @@ export default function App() {
         <GlobalChatNotification />
         {/* PWA Install Notification Khusus Mobile / Tablet */}
         <PwaInstallToast />
+        {/* On-Screen Console Error Inspector untuk Tablet / Mobile */}
+        <MobileDebugConsole />
       </ToastProvider>
     </AuthProvider>
   )
 }
+
 
 
