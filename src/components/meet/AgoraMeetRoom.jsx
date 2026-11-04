@@ -792,11 +792,11 @@ export function AgoraMeetRoom({
 
       if (!hasGetDisplayMedia) {
         alert(
-          "Peramban (browser) di perangkat ini belum mendukung fitur Berbagi Layar (Screen Sharing).\n\n" +
-          "Saran:\n" +
-          "• Buka LMS menggunakan aplikasi Google Chrome versi terbaru di Android.\n" +
-          "• Jika Anda membuka tautan dari dalam WhatsApp / Instagram / Facebook, tekan ikon titik tiga di sudut atas lalu pilih 'Buka di Chrome' (Open in Chrome / Browser).\n" +
-          "• Pada perangkat iPhone/iPad (iOS), browser Chrome/Safari membatasi Web Screen Share karena kebijakan sistem Apple (fitur Broadcast Extension)."
+          "⚠️ FITUR BERBAGI LAYAR DI HP / PERAMBAN SELULER\n\n" +
+          "Google Chrome di Android serta Safari/Chrome di iOS (iPhone) secara resmi MEMBATASI dan TIDAK MENYEDIAKAN izin tangkapan layar (Screen Capture API) untuk situs web demi alasan privasi & keamanan sistem operasi HP.\n\n" +
+          "📌 Solusi Rekomendasi:\n" +
+          "1. Gunakan Laptop / Komputer (PC): Buka Google Chrome di PC/Laptop untuk melakukan presentasi atau berbagi layar dengan lancar.\n" +
+          "2. Di HP: Anda tetap dapat MENONTON dan MELIHAT presentasi layar guru/teman secara jernih, berbicara lewat mic, dan menyalakan kamera."
         )
         return
       }
