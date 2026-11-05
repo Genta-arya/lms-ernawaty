@@ -46,11 +46,8 @@ export function getNextApiKey() {
   return { key: selectedKey, index: currentIndex, total: keys.length }
 }
 
-// Model urutan prioritas: gemini-3.5-flash 
+// Model Gemini yang digunakan
 export const GEMINI_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
   "gemini-3.5-flash"
 ]
 
@@ -108,10 +105,17 @@ async function callGeminiApi(apiKey, modelName, systemPrompt, userPrompt) {
 }
 
 /**
- * Menerjemahkan pesan error teknis menjadi bahasa Indonesia yang ramah, jelas, dan mudah dipahami guru.
+ * Menerjemahkan pesan error teknis menjadi bahasa Indonesia yang ramah, jelas, dan santun.
+ * Mendukung deteksi role (guru atau murid).
  */
-export function formatAiFriendlyError(rawError) {
+export function formatAiFriendlyError(rawError, role = "guru") {
+  const isMurid = role === "murid"
+  const sapaan = isMurid ? "Adik-adik" : "Ibu/Bapak Guru"
+
   if (!rawError) {
+    if (isMurid) {
+      return "Layanan AI sedang sibuk. Silakan klik tombol 'Coba Lagi' dalam beberapa saat ya."
+    }
     return "Maaf Ibu/Bapak Guru, server AI sedang sibuk. Silakan klik tombol 'Coba Lagi' dalam beberapa detik."
   }
 
@@ -124,7 +128,9 @@ export function formatAiFriendlyError(rawError) {
     lower.includes("unavailable") ||
     lower.includes("overloaded")
   ) {
-    return "Server Google Gemini sedang mengalami antrian padat (ramai pengguna). Mohon Ibu/Bapak Guru menunggu 3-5 detik lalu klik 'Coba Lagi'."
+    return isMurid
+      ? "Server AI sedang ramai pengguna. Mohon tunggu beberapa detik lalu klik 'Coba Lagi'."
+      : "Server Google Gemini sedang mengalami antrian padat (ramai pengguna). Mohon Ibu/Bapak Guru menunggu 3-5 detik lalu klik 'Coba Lagi'."
   }
 
   if (
@@ -133,7 +139,9 @@ export function formatAiFriendlyError(rawError) {
     lower.includes("429") ||
     lower.includes("resource_exhausted")
   ) {
-    return "Batas frekuensi permintaan AI telah tercapai untuk sementara waktu. Mohon tunggu sekitar 10 detik lalu silakan coba lagi."
+    return isMurid
+      ? "Batas frekuensi permintaan AI telah tercapai sementara waktu. Mohon tunggu sekitar 10 detik lalu coba lagi."
+      : "Batas frekuensi permintaan AI telah tercapai untuk sementara waktu. Mohon tunggu sekitar 10 detik lalu silakan coba lagi."
   }
 
   if (
@@ -142,7 +150,9 @@ export function formatAiFriendlyError(rawError) {
     lower.includes("invalid api key") ||
     lower.includes("expired")
   ) {
-    return "Kunci API Gemini tidak valid atau telah kedaluwarsa. Silakan periksa pengaturan kunci API Anda atau coba lagi."
+    return isMurid
+      ? "Kunci AI belum siap atau sedang diperbarui. Silakan laporkan ke guru atau coba lagi nanti."
+      : "Kunci API Gemini tidak valid atau telah kedaluwarsa. Silakan periksa pengaturan kunci API Anda atau coba lagi."
   }
 
   if (
@@ -155,10 +165,14 @@ export function formatAiFriendlyError(rawError) {
   }
 
   if (lower.includes("json") || lower.includes("parse") || lower.includes("format")) {
-    return "AI sempat terpotong saat menyusun format materi/soal. Silakan klik tombol 'Coba Lagi' untuk menyusun ulang otomatis."
+    return isMurid
+      ? "AI sempat terpotong saat menyusun penjelasan. Silakan klik tombol 'Coba Lagi'."
+      : "AI sempat terpotong saat menyusun format materi/soal. Silakan klik tombol 'Coba Lagi' untuk menyusun ulang otomatis."
   }
 
-  return "Maaf Ibu/Bapak Guru, terjadi kendala saat membuat materi otomatis. Silakan periksa koneksi Anda dan coba klik lagi."
+  return isMurid
+    ? "Terjadi kendala saat memproses ringkasan materi dengan AI. Silakan periksa koneksi internet dan klik 'Coba Lagi'."
+    : "Maaf Ibu/Bapak Guru, terjadi kendala saat membuat materi otomatis. Silakan periksa koneksi Anda dan coba klik lagi."
 }
 
 /**
@@ -469,7 +483,7 @@ Mohon jelaskan konsep bab ini secara menyenangkan dan berikan rangkuman poin-poi
           try {
             const errJson = await response.json()
             if (errJson?.error?.message) errMsg = errJson.error.message
-          } catch (_) {}
+          } catch (_) { }
           const err = new Error(errMsg)
           err.status = response.status
           throw err
