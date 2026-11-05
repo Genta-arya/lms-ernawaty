@@ -486,6 +486,7 @@ export function MateriDetail() {
               <MateriAiSummaryCard
                 materiId={materi.id}
                 materiJudul={materi.judul}
+                mapel={materi.mapel || "Bahasa Indonesia"}
                 currentBagianIndex={currentBagianIndex}
                 currentBagian={materi.bagian[currentBagianIndex]}
                 totalBagian={materi.bagian.length}

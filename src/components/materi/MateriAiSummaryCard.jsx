@@ -19,6 +19,7 @@ import { generatePenjelasanDanRangkumanBabAi } from "@/services/ai"
 export function MateriAiSummaryCard({
   materiId,
   materiJudul = "",
+  mapel = "Bahasa Indonesia",
   currentBagianIndex = 0,
   currentBagian = null,
   totalBagian = 1,
@@ -26,8 +27,8 @@ export function MateriAiSummaryCard({
 }) {
   const isBabAkhir = currentBagianIndex === totalBagian - 1
 
-  // Cache key per bab
-  const cacheKey = `lms_ai_summary_${materiId || "temp"}_bab_${currentBagianIndex}`
+  // Cache key per bab (disertai v2 agar cache yang sempat salah mata pelajaran otomatis di-reset)
+  const cacheKey = `lms_ai_summary_v2_${materiId || "temp"}_bab_${currentBagianIndex}`
 
   const [summary, setSummary] = useState("")
   const [loading, setLoading] = useState(false)
@@ -68,6 +69,7 @@ export function MateriAiSummaryCard({
     try {
       const result = await generatePenjelasanDanRangkumanBabAi({
         materiJudul,
+        mapel,
         babJudul: currentBagian?.judul || `Bab ${currentBagianIndex + 1}`,
         kontenBab: currentBagian?.konten || "",
         isBabAkhir,

@@ -399,6 +399,7 @@ ${materiJudul ? `Terkait materi: "${materiJudul}"\n` : ""}Permintaan guru:
  */
 export async function generatePenjelasanDanRangkumanBabAi({
   materiJudul = "",
+  mapel = "Bahasa Indonesia",
   babJudul = "",
   kontenBab = "",
   isBabAkhir = false,
@@ -411,7 +412,9 @@ export async function generatePenjelasanDanRangkumanBabAi({
   }
 
   const systemPrompt = `Anda adalah asisten tutor AI yang cerdas, ramah, dan komunikatif untuk siswa SMP (Fase D).
-Gaya bahasa Anda menarik, mudah dipahami siswa remaja (tidak kaku), menggunakan analogi nyata sehari-hari jika relevan, dan terstruktur rapi.
+Mata Pelajaran: ${mapel}.
+PENTING: Gunakan bahasa pengantar dan materi sesuai mata pelajaran "${mapel}". JANGAN menganggap materi ini bahasa Inggris jika mata pelajarannya adalah "${mapel}". Teks Rekon adalah materi pembelajaran Bahasa Indonesia (teks yang menceritakan kembali peristiwa masa lalu secara kronologis dalam Bahasa Indonesia).
+Gaya bahasa Anda menarik, mudah dipahami siswa SMP (tidak kaku), menggunakan analogi nyata sehari-hari jika relevan, dan terstruktur rapi.
 
 Format respon dalam Markdown yang indah:
 1. 💡 **Penjelasan Inti (Konsep Mudah Dipahami)**: Jelaskan konsep utama bab ini dengan bahasa yang sangat mudah dicerna siswa SMP.
@@ -427,13 +430,15 @@ Gunakan icon emoji yang relevan dan format bold/bullet list yang rapi agar menye
       .map((b, i) => `--- Bab ${i + 1}: ${b.judul || `Bagian ${i + 1}`} ---\n${b.konten || ""}`)
       .join("\n\n")
 
-    userPrompt = `Materi: "${materiJudul}"
+    userPrompt = `Mata Pelajaran: ${mapel}
+Materi: "${materiJudul}"
 Ini adalah BAB TERAKHIR ("${babJudul}").
-Mohon jelaskan bab ini, dan buatkan rangkuman menyeluruh untuk SELURUH bab berikut:
+Mohon jelaskan bab ini dalam konteks pelajaran ${mapel}, dan buatkan rangkuman menyeluruh untuk SELURUH bab berikut:
 
 ${babSemuaTeks}`
   } else {
-    userPrompt = `Materi: "${materiJudul}"
+    userPrompt = `Mata Pelajaran: ${mapel}
+Materi: "${materiJudul}"
 Bab: "${babJudul}"
 
 Konten Bab yang dipelajari:
@@ -441,7 +446,7 @@ Konten Bab yang dipelajari:
 ${kontenBab}
 """
 
-Mohon jelaskan konsep bab ini secara menyenangkan dan berikan rangkuman poin-poin kuncinya.`
+Mohon jelaskan konsep bab ini dalam konteks mata pelajaran ${mapel} secara menyenangkan dan berikan rangkuman poin-poin kuncinya.`
   }
 
   let lastError = null
