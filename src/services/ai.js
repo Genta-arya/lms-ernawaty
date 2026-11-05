@@ -304,7 +304,7 @@ PENTING:
   }
 
   // Jika semua kunci dan model gagal
-  throw new Error(formatAiFriendlyError(lastError))
+  throw new Error(formatAiFriendlyError(lastError, "guru"))
 }
 
 /**
@@ -390,7 +390,7 @@ ${materiJudul ? `Terkait materi: "${materiJudul}"\n` : ""}Permintaan guru:
     }
   }
 
-  throw new Error(formatAiFriendlyError(lastError))
+  throw new Error(formatAiFriendlyError(lastError, "guru"))
 }
 
 /**
@@ -402,7 +402,8 @@ export async function generatePenjelasanDanRangkumanBabAi({
   babJudul = "",
   kontenBab = "",
   isBabAkhir = false,
-  semuaBab = []
+  semuaBab = [],
+  role = "murid",
 }) {
   const keys = getGeminiKeys()
   if (!keys || keys.length === 0) {
@@ -506,5 +507,5 @@ Mohon jelaskan konsep bab ini secara menyenangkan dan berikan rangkuman poin-poi
     }
   }
 
-  throw new Error(formatAiFriendlyError(lastError))
+  throw new Error(formatAiFriendlyError(lastError, role))
 }
