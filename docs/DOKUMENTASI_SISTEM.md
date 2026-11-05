@@ -207,3 +207,8 @@ Dashboard Guru adalah pusat komando operasional pembelajaran yang mencakup 10 mo
    - Jangan pernah menyimpan pesan obrolan personal dalam bentuk teks biasa di Firestore; selalu gunakan modul `cryptoChat.js`.
 4. **Git Workflow**:
    - Selalu lakukan commit terstruktur dan push ke remote `origin master`.
+5. **Otomatisasi Firebase Rules**:
+   - Setiap kali terjadi penambahan, penyesuaian, atau pembuatan rules baru pada [`firestore.rules`](../firestore.rules), pengembang / agen AI **WAJIB** langsung mengeksekusi deployment ke Firebase via perintah:
+     ```bash
+     npm run deploy:rules
+     ```
