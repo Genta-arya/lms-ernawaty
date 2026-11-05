@@ -1070,11 +1070,8 @@ export function AgoraMeetRoom({
   // Aktif jika diri sendiri sedang sharing, ATAU Firestore mencatat activeSharer, ATAU ada remote track _screen
   const isSomeoneSharing =
     isScreenSharing ||
-    (!!activeSharer && (
-      activeSharer === `${userNama}_screen` ||
-      activeSharer === userNama ||
-      remoteUsers.some((u) => u.uid === activeSharer || String(u.uid).endsWith("_screen"))
-    ))
+    !!activeSharer ||
+    remoteUsers.some((u) => String(u.uid).endsWith("_screen"))
 
   // Auto-fokus ke sharescreen saat ada yang mulai presentasi
   useEffect(() => {
@@ -1413,13 +1410,20 @@ export function AgoraMeetRoom({
                       {isLocalSharing ? (
                         <LocalScreenShareView screenTrack={screenTrackRef.current} />
                       ) : (
-                        <RemoteScreenShareView
-                          sharerUser={
+                        (() => {
+                          const remoteSharer =
                             remoteUsers.find((u) => u.uid === activeSharer) ||
                             remoteUsers.find((u) => u.uid === `${presenterName}_screen`) ||
-                            remoteUsers.find((u) => String(u.uid).endsWith("_screen"))
-                          }
-                        />
+                            remoteUsers.find((u) => String(u.uid).endsWith("_screen")) ||
+                            remoteUsers.find((u) => u.uid === presenterName)
+
+                          return (
+                            <RemoteScreenShareView
+                              key={remoteSharer?.uid || "remote-screen"}
+                              sharerUser={remoteSharer}
+                            />
+                          )
+                        })()
                       )}
                     </div>
                   </div>
@@ -2295,16 +2299,16 @@ export function AgoraMeetRoom({
                 <button
                   type="button"
                   onClick={toggleScreenShare}
-                  disabled={activeSharer && activeSharer !== userNama}
+                  disabled={!!activeSharer && String(activeSharer).replace(/_screen$/, "") !== userNama}
                   className={`h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl sm:rounded-2xl flex items-center justify-center gap-1.5 transition-all active:scale-95 border ${isScreenSharing
                       ? "bg-indigo-600 border-indigo-500 text-white shadow-sm ring-1 ring-indigo-400/50"
-                      : activeSharer && activeSharer !== userNama
+                      : activeSharer && String(activeSharer).replace(/_screen$/, "") !== userNama
                         ? "bg-slate-800/50 border-slate-800 text-slate-500 cursor-not-allowed opacity-50"
                         : "bg-slate-800/90 hover:bg-slate-700/90 border-slate-700/60 text-white"
                     }`}
                   title={
-                    activeSharer && activeSharer !== userNama
-                      ? `${activeSharer} sedang berbagi layar`
+                    activeSharer && String(activeSharer).replace(/_screen$/, "") !== userNama
+                      ? `${String(activeSharer).replace(/_screen$/, "")} sedang berbagi layar`
                       : isScreenSharing
                         ? "Hentikan Berbagi Layar"
                         : "Bagikan Layar"
@@ -2358,17 +2362,12 @@ function RemoteScreenShareView({ sharerUser, fit = "contain" }) {
     }
 
     playTrack()
-    timer1 = setTimeout(playTrack, 200)
-    timer2 = setTimeout(playTrack, 600)
+    timer1 = setTimeout(playTrack, 250)
+    timer2 = setTimeout(playTrack, 750)
 
     return () => {
       if (timer1) clearTimeout(timer1)
       if (timer2) clearTimeout(timer2)
-      if (track && containerRef.current) {
-        try {
-          track.stop()
-        } catch (_) { }
-      }
     }
   }, [track, sharerUser?.version, fit])
 
@@ -2411,11 +2410,6 @@ function LocalScreenShareView({ screenTrack, fit = "contain" }) {
 
     return () => {
       if (timer) clearTimeout(timer)
-      if (screenTrack && containerRef.current) {
-        try {
-          screenTrack.stop()
-        } catch (_) { }
-      }
     }
   }, [screenTrack, fit])
 
