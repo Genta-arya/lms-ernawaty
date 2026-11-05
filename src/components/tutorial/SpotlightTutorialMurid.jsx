@@ -126,6 +126,7 @@ const STEPS = [
 export function SpotlightTutorialMurid() {
   const location = useLocation()
   const navigate = useNavigate()
+  const cardRef = useRef(null)
   const [isOpen, setIsOpen] = useState(false)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [targetRect, setTargetRect] = useState(null)
@@ -152,18 +153,17 @@ export function SpotlightTutorialMurid() {
     }
   }, [mounted, location.pathname])
 
-  // Kunci scroll body saat tutorial aktif
-  useEffect(() => {
-    if (isOpen) {
-      const originalOverflow = document.body.style.overflow
-      document.body.style.overflow = "hidden"
-      return () => {
-        document.body.style.overflow = originalOverflow
-      }
-    }
-  }, [isOpen])
+  // CATATAN: Penguncian body overflow sengaja DIHAPUS agar murid bebas melakukan scroll
+  // baik pada halaman maupun di dalam modal spotlight saat tutorial berlangsung.
 
-  // Hitung posisi elemen target saat step berganti
+  // Helper cek apakah elemen visible di viewport (bukan hidden / display: none)
+  const isElementVisible = (el) => {
+    if (!el) return false
+    const style = window.getComputedStyle(el)
+    return style.display !== "none" && style.visibility !== "hidden" && el.offsetParent !== null
+  }
+
+  // Hitung posisi elemen target saat step berganti & perbarui saat scroll
   useEffect(() => {
     if (!isOpen) {
       setTargetRect(null)
@@ -173,22 +173,35 @@ export function SpotlightTutorialMurid() {
     const currentStep = STEPS[currentStepIndex]
     if (!currentStep) return
 
-    let element = document.querySelector(currentStep.selector)
+    let element = currentStep.selector ? document.querySelector(currentStep.selector) : null
 
-    // Fallback jika elemen mobile / desktop berbeda
-    if (!element && currentStep.id === "quickmenu") {
-      element = document.querySelector('[data-tour="murid-materi"]')
-    }
-    if (!element && currentStep.id === "pengumuman") {
-      element = document.querySelector('[data-tour="murid-profile"]')
+    // Fallback jika elemen mobile / desktop berbeda atau elemen belum terbit
+    if (!isElementVisible(element)) {
+      if (currentStep.id === "quickmenu" || currentStep.id === "materi" || currentStep.id === "tugas") {
+        const quickMenuEl = document.querySelector('[data-tour="murid-quickmenu"]')
+        const materiEl = document.querySelector('[data-tour="murid-materi"]')
+        if (isElementVisible(quickMenuEl)) {
+          element = quickMenuEl
+        } else if (isElementVisible(materiEl)) {
+          element = materiEl
+        }
+      } else if (currentStep.id === "pengumuman") {
+        element = document.querySelector('[data-tour="murid-profile"]')
+      }
     }
 
-    if (element) {
+    if (element && isElementVisible(element)) {
       // Scroll target ke tengah layar secara mulus
-      element.scrollIntoView({ behavior: "smooth", block: "center" })
+      try {
+        element.scrollIntoView({ behavior: "smooth", block: "center" })
+      } catch (err) {
+        // Fallback jika scrollIntoView opsi tidak didukung penuh
+        element.scrollIntoView()
+      }
 
       // Ambil bounding rect setelah transisi scroll
       const updatePosition = () => {
+        if (!element) return
         const rect = element.getBoundingClientRect()
         setTargetRect({
           top: rect.top,
@@ -202,8 +215,8 @@ export function SpotlightTutorialMurid() {
 
       updatePosition()
       const scrollTimer = setTimeout(updatePosition, 350)
-      window.addEventListener("resize", updatePosition)
-      window.addEventListener("scroll", updatePosition)
+      window.addEventListener("resize", updatePosition, { passive: true })
+      window.addEventListener("scroll", updatePosition, { passive: true })
 
       return () => {
         clearTimeout(scrollTimer)
@@ -214,6 +227,54 @@ export function SpotlightTutorialMurid() {
       setTargetRect(null)
     }
   }, [isOpen, currentStepIndex])
+
+  // Tangani klik di luar modal (backdrop tap) tanpa memblokir gesture swipe/scroll
+  useEffect(() => {
+    if (!isOpen) return
+
+    let startX = 0
+    let startY = 0
+    let isScrollDrag = false
+
+    function onPointerDown(e) {
+      startX = e.clientX
+      startY = e.clientY
+      isScrollDrag = false
+    }
+
+    function onPointerMove(e) {
+      if (Math.hypot(e.clientX - startX, e.clientY - startY) > 10) {
+        isScrollDrag = true
+      }
+    }
+
+    function onClickCapture(e) {
+      // Jika klik berada di dalam kartu dialog spotlight, biarkan tombol & kontrol beraksi normal
+      if (cardRef.current && cardRef.current.contains(e.target)) {
+        return
+      }
+
+      // Jika pengguna sedang melakukan scroll/swipe di layar, jangan batalkan dan jangan dismiss
+      if (isScrollDrag) {
+        return
+      }
+
+      // Jika murni tap ringan di luar kartu, tutup panduan hari ini & hentikan event tembus
+      e.preventDefault()
+      e.stopPropagation()
+      handleDismiss()
+    }
+
+    window.addEventListener("pointerdown", onPointerDown, { passive: true })
+    window.addEventListener("pointermove", onPointerMove, { passive: true })
+    window.addEventListener("click", onClickCapture, { capture: true })
+
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown)
+      window.removeEventListener("pointermove", onPointerMove)
+      window.removeEventListener("click", onClickCapture, { capture: true })
+    }
+  }, [isOpen, dontShowTodayChecked])
 
   // Navigasi keyboard (Panah Kiri, Panah Kanan, Escape)
   useEffect(() => {
@@ -284,15 +345,19 @@ export function SpotlightTutorialMurid() {
   // Hitung posisi tooltip card secara adaptif
   const padding = 10
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640
+  const isTargetInLowerHalf =
+    targetRect && typeof window !== "undefined"
+      ? targetRect.top > window.innerHeight / 2
+      : false
 
   let tooltipStyle = {}
   if (!isMobile && targetRect) {
     const spaceBelow = window.innerHeight - (targetRect.bottom + padding)
     const spaceAbove = targetRect.top - padding
 
-    // Jika ruang di bawah cukup (> 260px), letakkan di bawah target
-    if (spaceBelow >= 260 || spaceBelow >= spaceAbove) {
-      const topPos = Math.min(window.innerHeight - 300, targetRect.bottom + padding + 12)
+    // Jika ruang di bawah cukup (> 300px), letakkan di bawah target
+    if (spaceBelow >= 300 || spaceBelow >= spaceAbove) {
+      const topPos = Math.min(window.innerHeight - 380, targetRect.bottom + padding + 12)
       const leftPos = Math.max(16, Math.min(window.innerWidth - 440, targetRect.left))
       tooltipStyle = {
         top: `${Math.max(16, topPos)}px`,
@@ -300,7 +365,7 @@ export function SpotlightTutorialMurid() {
       }
     } else {
       // Letakkan di atas target
-      const topPos = Math.max(16, targetRect.top - padding - 280)
+      const topPos = Math.max(16, targetRect.top - padding - 360)
       const leftPos = Math.max(16, Math.min(window.innerWidth - 440, targetRect.left))
       tooltipStyle = {
         top: `${topPos}px`,
@@ -335,7 +400,7 @@ export function SpotlightTutorialMurid() {
             role="dialog"
             aria-modal="true"
             aria-label="Panduan Interaktif Siswa"
-            className="fixed inset-0 w-full h-full min-h-[100dvh] z-[999999] overflow-hidden select-none animate-in fade-in duration-300"
+            className="fixed inset-0 w-full h-full min-h-[100dvh] z-[999999] pointer-events-none animate-in fade-in duration-300"
           >
             {/* SVG MASK MENGHASILKAN SPOTLIGHT CUTOUT TRANSPARAN */}
             <svg
@@ -387,24 +452,20 @@ export function SpotlightTutorialMurid() {
               />
             )}
 
-            {/* AREA KLIK BACKDROP UNTUK MENUTUP */}
+            {/* KARTU DIALOG SPOTLIGHT (TOOLTIP) DENGAN AUTO-FLIP & OVERFLOW SCROLL */}
             <div
-              onClick={handleDismiss}
-              className="absolute inset-0 w-full h-full cursor-pointer z-10"
-              title="Klik di luar untuk menutup panduan"
-            />
-
-            {/* KARTU DIALOG SPOTLIGHT (TOOLTIP) DENGAN OVERFLOW SCROLL */}
-            <div
+              ref={cardRef}
               style={!isMobile && targetRect ? tooltipStyle : {}}
               className={`z-30 pointer-events-auto transition-all duration-300 ease-out ${
                 isMobile || !targetRect
-                  ? "fixed bottom-3 sm:bottom-6 left-3 sm:left-4 right-3 sm:right-4 max-w-md mx-auto"
+                  ? isTargetInLowerHalf
+                    ? "fixed top-3 sm:top-5 left-3 sm:left-4 right-3 sm:right-4 max-w-md mx-auto"
+                    : "fixed bottom-3 sm:bottom-6 left-3 sm:left-4 right-3 sm:right-4 max-w-md mx-auto"
                   : "fixed w-[420px] max-w-[calc(100vw-32px)]"
               }`}
             >
-              <div className="bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] border border-slate-200/90 text-slate-800 flex flex-col max-h-[82dvh] sm:max-h-[86vh] overflow-hidden animate-in zoom-in-95 duration-200">
-                {/* 1. Header Kartu (Sticky / Tidak hilang saat scroll) */}
+              <div className="bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] border border-slate-200/90 text-slate-800 flex flex-col max-h-[min(540px,78dvh)] sm:max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200">
+                {/* 1. Header Kartu (Sticky / Shrink-0) */}
                 <div className="p-4 sm:p-5 pb-3 border-b border-slate-100 flex items-start justify-between gap-3 shrink-0 bg-white rounded-t-3xl">
                   <div className="flex items-center gap-3">
                     <div
@@ -437,10 +498,10 @@ export function SpotlightTutorialMurid() {
                   </button>
                 </div>
 
-                {/* 2. Isi Konten dengan Overflow-Y Auto (DAPAT DISCROLL DENGAN SENTUHAN / MOUSE) */}
+                {/* 2. Isi Konten dengan Flex-1 Min-H-0 + Overflow-Y Auto + Touch-Pan-Y */}
                 <div
                   style={{ WebkitOverflowScrolling: "touch" }}
-                  className="p-4 sm:p-5 overflow-y-auto overscroll-contain space-y-3.5 focus:outline-none scrollbar-thin scrollbar-thumb-slate-200"
+                  className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y p-4 sm:p-5 space-y-3.5 focus:outline-none scrollbar-thin scrollbar-thumb-slate-200"
                 >
                   {/* Deskripsi Langkah */}
                   <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
