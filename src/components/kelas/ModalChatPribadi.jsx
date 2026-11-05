@@ -12,6 +12,7 @@ import {
 } from "@/services/chatPribadi"
 import { subscribeSinglePresence } from "@/services/presence"
 import { UserAvatar } from "@/components/common/UserAvatar"
+import { LinkifiedText } from "@/components/common/LinkifiedText"
 import { Button } from "@/components/ui/button"
 import {
   MessageCircle,
@@ -260,7 +261,12 @@ export function ModalChatPribadi({ targetMurid, onClose }) {
                           : "bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs"
                       }`}
                     >
-                      <p className="whitespace-pre-wrap">{msg.pesan}</p>
+                      <p className="whitespace-pre-wrap">
+                        <LinkifiedText
+                          text={msg.pesan}
+                          linkClassName={isMe ? "text-blue-100 hover:text-white" : "text-blue-600 hover:text-blue-700"}
+                        />
+                      </p>
 
                       <div
                         className={`text-[9px] mt-1 flex items-center justify-end gap-1 ${

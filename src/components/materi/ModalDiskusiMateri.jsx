@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { LinkifiedText } from "@/components/common/LinkifiedText"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -235,7 +236,10 @@ export function ModalDiskusiMateri({ isOpen, onClose, materi }) {
 
                   {/* Isi Komentar */}
                   <div className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line pl-1">
-                    {topik.isi}
+                    <LinkifiedText
+                      text={topik.isi}
+                      linkClassName="text-indigo-600 hover:text-indigo-800"
+                    />
                   </div>
 
                   {/* Aksi Guru: Balas */}
@@ -354,7 +358,10 @@ export function ModalDiskusiMateri({ isOpen, onClose, materi }) {
                             </div>
 
                             <div className="text-xs text-slate-700 leading-relaxed pl-8 whitespace-pre-line">
-                              {balasan.isi}
+                              <LinkifiedText
+                                text={balasan.isi}
+                                linkClassName="text-indigo-600 hover:text-indigo-800"
+                              />
                             </div>
                           </div>
                         )

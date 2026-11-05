@@ -11,6 +11,7 @@ import {
   forceKickUser,
   setSpotlightUser,
   updateScreenSharePermission,
+  subscribeMeetMessages,
 } from "@/services/meet"
 import { MeetChatDrawer } from "./MeetChatDrawer"
 import { Button } from "@/components/ui/button"
@@ -70,6 +71,9 @@ export function AgoraMeetRoom({
   const [spotlightUser, setSpotlightUserState] = useState(null)
   const [showParticipantList, setShowParticipantList] = useState(false)
   const [showChat, setShowChat] = useState(false)
+  const [unreadChatCount, setUnreadChatCount] = useState(0)
+  const [latestChatToast, setLatestChatToast] = useState(null)
+  const chatToastTimeoutRef = useRef(null)
 
   // View Mode: 'gallery' vs 'speaker'
   const [viewMode, setViewMode] = useState("gallery")
@@ -455,6 +459,53 @@ export function AgoraMeetRoom({
       }
     })
 
+    // Realtime Notifikasi Chat Baru di dalam Room Meet
+    const initialMsgTime = Date.now()
+    const unsubMeetChat = subscribeMeetMessages(channelName, (msgs) => {
+      if (!msgs || msgs.length === 0) return
+      const lastMsg = msgs[msgs.length - 1]
+      // Jika pesan baru dari peserta lain
+      if (lastMsg && lastMsg.senderNama !== userNama) {
+        let msgTime = 0
+        if (lastMsg.createdAt?.toMillis) msgTime = lastMsg.createdAt.toMillis()
+        else if (lastMsg.createdAt?.seconds) msgTime = lastMsg.createdAt.seconds * 1000
+        else if (lastMsg.createdAt) msgTime = new Date(lastMsg.createdAt).getTime()
+        else msgTime = Date.now()
+
+        // Tampilkan popup jika pesan masuk setelah room dimuat dan chat drawer sedang tertutup
+        if (msgTime >= initialMsgTime - 3000) {
+          setShowChat((currentShowChat) => {
+            if (!currentShowChat) {
+              setUnreadChatCount((prev) => prev + 1)
+              setLatestChatToast(lastMsg)
+
+              // Subtle notification beep
+              try {
+                const aCtx = new (window.AudioContext || window.webkitAudioContext)()
+                const osc = aCtx.createOscillator()
+                const gain = aCtx.createGain()
+                osc.type = "sine"
+                osc.frequency.setValueAtTime(659.25, aCtx.currentTime) // E5
+                osc.frequency.setValueAtTime(880, aCtx.currentTime + 0.08) // A5
+                gain.gain.setValueAtTime(0.1, aCtx.currentTime)
+                gain.gain.exponentialRampToValueAtTime(0.001, aCtx.currentTime + 0.3)
+                osc.connect(gain)
+                gain.connect(aCtx.destination)
+                osc.start()
+                osc.stop(aCtx.currentTime + 0.3)
+              } catch (_) {}
+
+              if (chatToastTimeoutRef.current) clearTimeout(chatToastTimeoutRef.current)
+              chatToastTimeoutRef.current = setTimeout(() => {
+                setLatestChatToast(null)
+              }, 4500)
+            }
+            return currentShowChat
+          })
+        }
+      }
+    })
+
     client.on("user-joined", (user) => {
       const isScreenUid = String(user.uid).endsWith("_screen")
       if (hasInitialJoinFinishedRef.current && !isScreenUid) {
@@ -673,6 +724,8 @@ export function AgoraMeetRoom({
 
     return () => {
       mounted = false
+      if (chatToastTimeoutRef.current) clearTimeout(chatToastTimeoutRef.current)
+      if (typeof unsubMeetChat === "function") unsubMeetChat()
       document.body.style.overflow = "auto"
       leaveChannel()
     }
@@ -1314,10 +1367,15 @@ export function AgoraMeetRoom({
           <button
             type="button"
             onClick={() => {
-              setShowChat(!showChat)
+              const nextChat = !showChat
+              setShowChat(nextChat)
+              if (nextChat) {
+                setUnreadChatCount(0)
+                setLatestChatToast(null)
+              }
               if (showParticipantList) setShowParticipantList(false)
             }}
-            className={`w-8 h-8 sm:w-auto p-1 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${showChat
+            className={`w-8 h-8 sm:w-auto p-1 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all relative ${showChat
                 ? "bg-blue-600 border-blue-500 text-white"
                 : "bg-slate-800 border-slate-700 text-slate-300 hover:text-white"
               }`}
@@ -1325,6 +1383,11 @@ export function AgoraMeetRoom({
           >
             <MessageSquare className="w-4 h-4 shrink-0" />
             <span className="text-[11px] hidden sm:inline">Chat</span>
+            {unreadChatCount > 0 && !showChat && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-slate-900 animate-bounce">
+                {unreadChatCount}
+              </span>
+            )}
           </button>
 
           {/* Tombol Panel Peserta */}
@@ -1993,28 +2056,6 @@ export function AgoraMeetRoom({
                   <VolumeX className="w-3.5 h-3.5 mr-1.5" />
                   Mute Semua Murid
                 </Button>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    const nextVal = !allowStudentScreenShare
-                    await updateScreenSharePermission(channelName, nextVal)
-                  }}
-                  className={`w-full text-[11px] font-bold h-8 border-slate-700 ${
-                    allowStudentScreenShare
-                      ? "bg-emerald-950/40 text-emerald-300 border-emerald-600/50 hover:bg-emerald-900/50"
-                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                  }`}
-                >
-                  <Monitor className="w-3.5 h-3.5 mr-1.5" />
-                  <span>
-                    {allowStudentScreenShare
-                      ? "Izin Share Screen Murid: Aktif"
-                      : "Izinkan Murid Berbagi Layar"}
-                  </span>
-                </Button>
               </div>
             )}
 
@@ -2090,6 +2131,47 @@ export function AgoraMeetRoom({
                 )
               })}
             </div>
+          </div>
+        )}
+
+        {/* Floating In-Meeting Chat Toast Notification */}
+        {latestChatToast && !showChat && (
+          <div
+            onClick={() => {
+              setShowChat(true)
+              setUnreadChatCount(0)
+              setLatestChatToast(null)
+            }}
+            className="fixed top-16 right-4 sm:right-6 z-50 max-w-sm w-auto bg-slate-900/95 hover:bg-slate-900 backdrop-blur-md border border-blue-500/40 rounded-2xl p-3 shadow-2xl flex items-center gap-3 cursor-pointer transition-all hover:scale-102 active:scale-98 animate-in slide-in-from-right-4"
+          >
+            <div className="w-8 h-8 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center shrink-0">
+              <MessageSquare className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 pr-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-black text-white truncate">
+                  {latestChatToast.senderNama}
+                </span>
+                {latestChatToast.senderRole === "guru" && (
+                  <Badge className="bg-blue-500/20 text-blue-300 border-none text-[8px] px-1.5 py-0 font-extrabold">
+                    Guru
+                  </Badge>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-300 truncate max-w-[200px]">
+                {latestChatToast.text}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setLatestChatToast(null)
+              }}
+              className="text-slate-400 hover:text-white p-1 rounded-lg"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
 

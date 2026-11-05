@@ -7,6 +7,7 @@ import {
   subscribeTypingKelas,
 } from "@/services/chatKelas"
 import { UserAvatar } from "@/components/common/UserAvatar"
+import { LinkifiedText } from "@/components/common/LinkifiedText"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -189,7 +190,12 @@ export function ChatKelasRealtime({ kelasId, kelasNama }) {
                         : "bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">{msg.pesan}</p>
+                    <p className="whitespace-pre-wrap">
+                      <LinkifiedText
+                        text={msg.pesan}
+                        linkClassName={isMe ? "text-blue-100 hover:text-white" : "text-blue-600 hover:text-blue-700"}
+                      />
+                    </p>
 
                     <div
                       className={`text-[9px] mt-1.5 flex items-center justify-end gap-1 ${

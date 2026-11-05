@@ -3,6 +3,7 @@ import {
   subscribeMeetMessages,
   sendMeetMessage,
 } from "@/services/meet"
+import { LinkifiedText } from "@/components/common/LinkifiedText"
 import { Badge } from "@/components/ui/badge"
 import { Send, X, MessageSquare, ShieldCheck } from "lucide-react"
 
@@ -116,7 +117,12 @@ export function MeetChatDrawer({
                       : "bg-slate-800 text-slate-200 border border-slate-700/80 rounded-tl-none"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap break-words">{m.text}</p>
+                  <p className="whitespace-pre-wrap break-words">
+                    <LinkifiedText
+                      text={m.text}
+                      linkClassName={isMe ? "text-sky-200 hover:text-white" : "text-sky-400 hover:text-sky-300"}
+                    />
+                  </p>
                 </div>
               </div>
             )
