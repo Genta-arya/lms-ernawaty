@@ -106,7 +106,7 @@ export function MateriAiSummaryCard({
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm sm:text-base flex items-center gap-1.5">
-                <span>AI Tutor & Rangkuman Cerdas</span>
+                <span>Rangkuman Cerdas</span>
                 <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                   {isBabAkhir ? "Rangkuman Semua Bab" : `Bab ${currentBagianIndex + 1}`}
                 </span>
@@ -143,19 +143,6 @@ export function MateriAiSummaryCard({
                     <span>Salin</span>
                   </>
                 )}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={loading}
-                onClick={() => handleGenerate(true)}
-                className="h-8 px-2.5 text-xs rounded-lg gap-1.5 font-semibold border-indigo-200 hover:bg-indigo-50 text-indigo-700"
-                title="Perbarui / Generate Ulang"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">Refresh</span>
               </Button>
 
               <Button
@@ -250,11 +237,7 @@ export function MateriAiSummaryCard({
             </ReactMarkdown>
           </div>
 
-          <div className="mt-2.5 flex items-center justify-between text-[11px] text-muted-foreground px-1">
-            <span className="flex items-center gap-1 text-emerald-600 font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Tersimpan di cache lokal (bebas akses tanpa boros token)
-            </span>
+          <div className="mt-2.5 flex items-center justify-end text-[11px] text-muted-foreground px-1">
             <span className="text-slate-400">Powered by Gemini AI</span>
           </div>
         </div>
