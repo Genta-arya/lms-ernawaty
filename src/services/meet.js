@@ -146,7 +146,34 @@ export function subscribeSesiMeetByKelas(kelasId, callback) {
   return onSnapshot(
     q,
     (snap) => {
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      const now = new Date()
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+      const eightHoursAgo = new Date(now.getTime() - 8 * 60 * 60 * 1000)
+
+      const items = snap.docs.map((d) => {
+        const item = { id: d.id, ...d.data() }
+
+        // Auto-expire di client: Jika sesi bukan "selesai" tapi tanggalnya sudah lewat atau live > 8 jam
+        if (item.status !== "selesai") {
+          const sDate = item.waktuMulai?.toDate ? item.waktuMulai.toDate() : new Date(item.waktuMulai || item.createdAt || 0)
+          const isPastDay = sDate.getTime() < startOfToday.getTime()
+          const isExpiredLive = item.status === "berlangsung" && sDate.getTime() < eightHoursAgo.getTime()
+
+          if (isPastDay || isExpiredLive) {
+            // Tandai sebagai selesai di tampilan lokal
+            item.status = "selesai"
+            item.alasanSelesai = isPastDay ? "Otomatis selesai (lewat tanggal)" : "Otomatis selesai (durasi habis)"
+            // Perbarui dokumen di firestore secara background
+            updateDoc(doc(db, COLLECTION_NAME, item.id), {
+              status: "selesai",
+              updatedAt: serverTimestamp(),
+              selesaiAt: serverTimestamp(),
+              alasanSelesai: item.alasanSelesai,
+            }).catch(() => {})
+          }
+        }
+        return item
+      })
       items.sort((a, b) => {
         if (a.status === "berlangsung" && b.status !== "berlangsung") return -1
         if (b.status === "berlangsung" && a.status !== "berlangsung") return 1
@@ -172,7 +199,34 @@ export function subscribeAllSesiMeetGuru(callback) {
   return onSnapshot(
     q,
     (snap) => {
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      const now = new Date()
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+      const eightHoursAgo = new Date(now.getTime() - 8 * 60 * 60 * 1000)
+
+      const items = snap.docs.map((d) => {
+        const item = { id: d.id, ...d.data() }
+
+        // Auto-expire di client: Jika sesi bukan "selesai" tapi tanggalnya sudah lewat atau live > 8 jam
+        if (item.status !== "selesai") {
+          const sDate = item.waktuMulai?.toDate ? item.waktuMulai.toDate() : new Date(item.waktuMulai || item.createdAt || 0)
+          const isPastDay = sDate.getTime() < startOfToday.getTime()
+          const isExpiredLive = item.status === "berlangsung" && sDate.getTime() < eightHoursAgo.getTime()
+
+          if (isPastDay || isExpiredLive) {
+            // Tandai sebagai selesai di tampilan lokal
+            item.status = "selesai"
+            item.alasanSelesai = isPastDay ? "Otomatis selesai (lewat tanggal)" : "Otomatis selesai (durasi habis)"
+            // Perbarui dokumen di firestore secara background
+            updateDoc(doc(db, COLLECTION_NAME, item.id), {
+              status: "selesai",
+              updatedAt: serverTimestamp(),
+              selesaiAt: serverTimestamp(),
+              alasanSelesai: item.alasanSelesai,
+            }).catch(() => {})
+          }
+        }
+        return item
+      })
       items.sort((a, b) => {
         if (a.status === "berlangsung" && b.status !== "berlangsung") return -1
         if (b.status === "berlangsung" && a.status !== "berlangsung") return 1
