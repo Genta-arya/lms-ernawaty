@@ -1630,21 +1630,27 @@ export function AgoraMeetRoom({
             }
 
             return (
-              /* --- MODE 1: STANDAR (Presentasi di Atas, Strip Peserta di Bawah) --- */
-              <div className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar p-2 sm:p-4 flex flex-col gap-2 sm:gap-3 min-h-0">
+              /* --- MODE 1: STANDAR (Presentasi di Atas, Peserta di Bawah) --- */
+              <div className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar p-2 sm:p-4 pb-8 sm:pb-10 flex flex-col gap-2.5 sm:gap-3.5 min-h-0">
                 {/* Layar Utama Presentasi */}
-                {renderPresentationCard("w-full max-w-5xl mx-auto aspect-video max-h-[60vh] sm:max-h-none sm:aspect-auto sm:flex-1")}
+                {renderPresentationCard("w-full max-w-5xl mx-auto aspect-video max-h-[50vh] sm:max-h-none sm:aspect-auto sm:flex-1")}
 
-                {/* Strip Thumbnail Bawah (Peserta Kelas) */}
-                <div className="w-full max-w-5xl mx-auto shrink-0 flex flex-col space-y-1.5 pb-2">
+                {/* Peserta Kelas - Grid 2 Kolom di Mode Potrait Mobile & Horizontal Strip di Layar Desktop */}
+                <div className="w-full max-w-5xl mx-auto shrink-0 flex flex-col space-y-2 pb-6 sm:pb-8">
                   <div className="flex items-center justify-between px-1">
-                    <span className="text-[10px] sm:text-xs font-bold text-slate-400">
-                      Peserta Kelas ({humanRemoteUsers.length + 1})
+                    <span className="text-[11px] sm:text-xs font-bold text-slate-400 flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Peserta Kelas ({humanRemoteUsers.length + 1})</span>
+                    </span>
+                    <span className="text-[9px] text-slate-500 font-semibold sm:hidden">
+                      Grid 2 Kolom
                     </span>
                   </div>
-                  <div className="h-20 sm:h-28 flex items-center gap-2 overflow-x-auto pb-1 shrink-0 no-scrollbar touch-pan-x">
+
+                  {/* Di Layar HP/Potrait: Grid 2 Kolom Rapi & Lega. Di Layar Lebar (sm ke atas): Strip Horizontal */}
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2.5 sm:overflow-x-auto sm:pb-2 shrink-0 sm:no-scrollbar sm:touch-pan-x">
                     {/* Thumbnail Saya */}
-                    <div className="h-full aspect-video shrink-0">
+                    <div className="w-full sm:w-auto sm:h-28 aspect-video shrink-0">
                       <LocalUserVideoCard
                         localTrack={localTracksRef.current?.videoTrack}
                         cameraOn={cameraOn}
@@ -1655,6 +1661,7 @@ export function AgoraMeetRoom({
                         isSpotlight={spotlightUser === userNama}
                         onSpotlight={() => handleSetSpotlight(userNama)}
                         compact={true}
+                        aspectClass="w-full h-full aspect-video"
                       />
                     </div>
 
@@ -1662,18 +1669,18 @@ export function AgoraMeetRoom({
                     {humanRemoteUsers.map((u) => {
                       const isSharer = u.uid === presenterName
                       return (
-                        <div key={u.uid} className="h-full aspect-video shrink-0 relative">
+                        <div key={u.uid} className="w-full sm:w-auto sm:h-28 aspect-video shrink-0 relative">
                           <RemoteUserVideoCard
                             user={u}
                             compact={true}
-                            aspectClass="aspect-video"
+                            aspectClass="w-full h-full aspect-video"
                             isSpeaking={speakingUsers[u.uid]}
                             isSpotlight={spotlightUser === u.uid}
                             isGuruHost={isGuru}
                             onSpotlight={() => handleSetSpotlight(u.uid)}
                           />
                           {isSharer && (
-                            <div className="absolute top-1 left-1 z-20 bg-emerald-600/90 text-white text-[8px] font-bold px-1 py-0.5 rounded shadow flex items-center gap-0.5 backdrop-blur-md">
+                            <div className="absolute top-1 left-1 z-20 bg-emerald-600/90 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-0.5 backdrop-blur-md">
                               <Monitor className="w-2.5 h-2.5" />
                               <span>Presenter</span>
                             </div>
