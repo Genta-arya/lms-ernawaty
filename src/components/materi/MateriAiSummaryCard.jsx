@@ -185,11 +185,8 @@ export function MateriAiSummaryCard({
           <div className="w-8 h-8 rounded-full border-3 border-indigo-200 border-t-indigo-600 animate-spin" />
           <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
             {isBabAkhir
-              ? "AI sedang merangkum komprehensif seluruh bab materi..."
-              : `AI sedang menganalisis dan menyusun penjelasan untuk Bab ${currentBagianIndex + 1}...`}
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            Hasil akan disimpan otomatis di cache sehingga hemat kuota & instan dibuka kembali.
+              ? "AI sedang merangkum seluruh bab materi..."
+              : `AI sedang menyiapkan rangkuman Bab ${currentBagianIndex + 1}...`}
           </p>
         </div>
       )}
