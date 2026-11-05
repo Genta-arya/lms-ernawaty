@@ -545,7 +545,7 @@ export function SpotlightTutorialMurid() {
                         onChange={(e) => setDontShowTodayChecked(e.target.checked)}
                         className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                       />
-                      <span>Jangan tampilkan lagi hari ini (muncul besok)</span>
+                      <span>Jangan tampilkan lagi hari ini</span>
                     </label>
                   </div>
                 </div>
