@@ -119,7 +119,7 @@ export function AgoraMeetRoom({
   const [isTheaterFullscreen, setIsTheaterFullscreen] = useState(false)
   const [showPipCam, setShowPipCam] = useState(true)
   const [dismissRotateTip, setDismissRotateTip] = useState(false)
-  const [shareScreenLayout, setShareScreenLayout] = useState("side-by-side") // 'side-by-side' | 'standard'
+  const [shareScreenLayout, setShareScreenLayout] = useState("standard") // 'standard' | 'side-by-side'
 
   // Zoom & Pan state untuk Berbagi Layar (Share Screen)
   const [zoomLevel, setZoomLevel] = useState(1)
@@ -1431,8 +1431,8 @@ export function AgoraMeetRoom({
                   {/* Badge info presenter */}
                   <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-black/75 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-emerald-400 flex items-center gap-1.5 sm:gap-2 border border-emerald-500/30 z-10">
                     <Monitor className="w-3.5 h-3.5" />
-                    <span className="truncate max-w-[160px] sm:max-w-xs">
-                      Presentasi: {presenterName || (isLocalSharing ? userNama : "Presenter")}
+                    <span className="truncate max-w-[170px] sm:max-w-xs">
+                      {presenterName || (isLocalSharing ? userNama : "Guru Pengajar")}
                     </span>
                   </div>
 
@@ -1561,15 +1561,15 @@ export function AgoraMeetRoom({
 
             if (shareScreenLayout === "side-by-side") {
               return (
-                /* --- MODE 2: SIDE-BY-SIDE ALA ZOOM (Presentasi di Kiri, Peserta Grid Col 1 di Kanan) --- */
+                /* --- MODE 2: SIDE-BY-SIDE ALA ZOOM (Desktop: Sisi Kanan, Mobile/Portrait: 2 Kolom di Bawah) --- */
                 <div className="flex-1 w-full h-full overflow-hidden p-2 sm:p-3 flex flex-col md:flex-row gap-2.5 sm:gap-3.5 min-h-0">
                   {/* Sisi Kiri: Layar Presentasi Utama */}
                   <div className="flex-1 min-w-0 h-full flex flex-col justify-center items-center">
-                    {renderPresentationCard("w-full h-full aspect-video md:aspect-auto max-h-[50vh] md:max-h-full")}
+                    {renderPresentationCard("w-full h-full aspect-video md:aspect-auto max-h-[48vh] md:max-h-full")}
                   </div>
 
-                    {/* Sisi Kanan: Kotak Peserta Grid Col 1 ke Bawah (Scrollable ala Zoom) */}
-                  <div className="w-full md:w-64 lg:w-72 xl:w-80 shrink-0 flex flex-col min-h-0 md:h-full md:border-l md:border-slate-800/80 md:pl-3">
+                  {/* Sisi Kanan / Bawah: Kotak Peserta (Grid 2 Kolom di HP, Col 1 di Desktop) */}
+                  <div className="w-full md:w-64 lg:w-72 xl:w-80 shrink-0 flex flex-col min-h-0 md:h-full md:border-l md:border-slate-800/80 md:pl-3 pb-24 md:pb-0">
                     <div className="flex items-center justify-between pb-2 px-1 shrink-0">
                       <span className="text-[11px] font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5 text-blue-400" />
@@ -1580,8 +1580,8 @@ export function AgoraMeetRoom({
                       </span>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y pr-1 space-y-2.5 custom-scrollbar min-h-0 max-h-[42vh] md:max-h-none">
-                      <div className="grid grid-cols-1 gap-2.5">
+                    <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y pr-1 pb-16 md:pb-4 space-y-2.5 custom-scrollbar min-h-0 max-h-[45vh] md:max-h-none">
+                      <div className="grid grid-cols-2 md:grid-cols-1 gap-2 sm:gap-2.5">
                         {/* Thumbnail Saya */}
                         <LocalUserVideoCard
                           localTrack={localTracksRef.current?.videoTrack}
@@ -1593,18 +1593,18 @@ export function AgoraMeetRoom({
                           isSpotlight={spotlightUser === userNama}
                           onSpotlight={() => handleSetSpotlight(userNama)}
                           compact={false}
-                          aspectClass="aspect-video"
+                          aspectClass="w-full aspect-video"
                         />
 
-                        {/* Thumbnail Peserta Lain - Berjajar ke bawah col 1 & scrollable */}
+                        {/* Thumbnail Peserta Lain */}
                         {humanRemoteUsers.map((u) => {
                           const isSharer = u.uid === presenterName
                           return (
-                            <div key={u.uid} className="relative">
+                            <div key={u.uid} className="relative w-full aspect-video">
                               <RemoteUserVideoCard
                                 user={u}
                                 compact={false}
-                                aspectClass="aspect-video"
+                                aspectClass="w-full h-full aspect-video"
                                 isSpeaking={speakingUsers[u.uid]}
                                 isSpotlight={spotlightUser === u.uid}
                                 isGuruHost={isGuru}
@@ -1614,7 +1614,7 @@ export function AgoraMeetRoom({
                                 onKick={() => handleKickMurid(u.uid)}
                               />
                               {isSharer && (
-                                <div className="absolute top-2 left-2 z-20 bg-emerald-600/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-1 backdrop-blur-md">
+                                <div className="absolute top-1.5 left-1.5 z-20 bg-emerald-600/90 text-white text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-1 backdrop-blur-md">
                                   <Monitor className="w-2.5 h-2.5" />
                                   <span>Presenter</span>
                                 </div>
@@ -1623,6 +1623,9 @@ export function AgoraMeetRoom({
                           )
                         })}
                       </div>
+
+                      {/* Spacer pelindung agar baris paling bawah tidak tertutup tools menu */}
+                      <div className="h-16 md:hidden w-full shrink-0 pointer-events-none" aria-hidden="true" />
                     </div>
                   </div>
                 </div>
@@ -1630,13 +1633,13 @@ export function AgoraMeetRoom({
             }
 
             return (
-              /* --- MODE 1: STANDAR (Presentasi di Atas, Peserta di Bawah) --- */
-              <div className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar p-2 sm:p-4 pb-28 sm:pb-16 flex flex-col gap-3 sm:gap-4 min-h-0">
+              /* --- MODE 1: STANDAR (Presentasi di Atas, Peserta di Bawah Grid 2 Kolom di Portrait) --- */
+              <div className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar p-2 sm:p-4 pb-32 sm:pb-20 flex flex-col gap-3 sm:gap-4 min-h-0">
                 {/* Layar Utama Presentasi */}
                 {renderPresentationCard("w-full max-w-5xl mx-auto aspect-video max-h-[48vh] sm:max-h-none sm:aspect-auto sm:flex-1")}
 
                 {/* Peserta Kelas - Grid 2 Kolom di Mode Potrait Mobile & Horizontal Strip di Layar Desktop */}
-                <div className="w-full max-w-5xl mx-auto shrink-0 flex flex-col space-y-2 pb-16 sm:pb-8">
+                <div className="w-full max-w-5xl mx-auto shrink-0 flex flex-col space-y-2 pb-24 sm:pb-8">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[11px] sm:text-xs font-bold text-slate-400 flex items-center gap-1.5">
                       <Users className="w-3.5 h-3.5 text-blue-400" />
@@ -1690,8 +1693,8 @@ export function AgoraMeetRoom({
                     })}
                   </div>
 
-                  {/* Spacer pelindung agar baris terbawah kamera tidak tertutup toolbar fixed di HP */}
-                  <div className="h-14 sm:hidden w-full shrink-0 pointer-events-none" aria-hidden="true" />
+                  {/* Spacer pelindung ekstra agar baris terbawah kamera benar-benar bebas dari menu toolbar fixed */}
+                  <div className="h-24 sm:hidden w-full shrink-0 pointer-events-none" aria-hidden="true" />
                 </div>
               </div>
             )
