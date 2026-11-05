@@ -46,6 +46,7 @@ export function Murid() {
   // Filter & Search
   const [search, setSearch] = useState("")
   const [selectedKelas, setSelectedKelas] = useState("SEMUA")
+  const [selectedGender, setSelectedGender] = useState("SEMUA")
 
   // Modal Tambah/Edit
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -55,6 +56,7 @@ export function Murid() {
     nama: "",
     kelasId: "",
     email: "",
+    jenisKelamin: "Laki-laki",
   })
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
@@ -90,10 +92,11 @@ export function Murid() {
   // Filtered List
   const filteredList = muridList.filter((m) => {
     const matchKelas = selectedKelas === "SEMUA" || m.kelasId === selectedKelas
+    const matchGender = selectedGender === "SEMUA" || (m.jenisKelamin || "Laki-laki") === selectedGender
     const matchSearch =
       m.nama.toLowerCase().includes(search.toLowerCase()) ||
       m.nisn.includes(search)
-    return matchKelas && matchSearch
+    return matchKelas && matchGender && matchSearch
   })
 
   function handleOpenCreate() {
@@ -103,6 +106,7 @@ export function Murid() {
       nama: "",
       kelasId: kelasList[0]?.id || "",
       email: "",
+      jenisKelamin: "Laki-laki",
     })
     setError("")
     setDialogOpen(true)
@@ -115,6 +119,7 @@ export function Murid() {
       nama: m.nama,
       kelasId: m.kelasId || "",
       email: m.email || m.akunMurid?.email || "",
+      jenisKelamin: m.jenisKelamin || "Laki-laki",
     })
     setError("")
     setDialogOpen(true)
@@ -132,6 +137,7 @@ export function Murid() {
           nama: formData.nama,
           kelasId: formData.kelasId,
           email: formData.email,
+          jenisKelamin: formData.jenisKelamin || "Laki-laki",
         })
         toast.success("Berhasil Disimpan", `Data siswa ${formData.nama} berhasil diperbarui.`)
       } else {
@@ -231,6 +237,7 @@ export function Murid() {
     const exportData = filteredList.map((m) => ({
       NISN: m.nisn,
       Nama: m.nama,
+      JenisKelamin: m.jenisKelamin || "Laki-laki",
       Kelas: kelasMap.get(m.kelasId) || "-",
       Email: m.email || "-",
       StatusAkun: m.isLinked ? "Terhubung" : "Belum Aktif",
@@ -286,20 +293,35 @@ export function Murid() {
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Filter Kelas:</span>
-            <select
-              className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-xs"
-              value={selectedKelas}
-              onChange={(e) => setSelectedKelas(e.target.value)}
-            >
-              <option value="SEMUA">Semua Kelas ({muridList.length})</option>
-              {kelasList.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.nama}
-                </option>
-              ))}
-            </select>
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Filter Kelas:</span>
+              <select
+                className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-xs"
+                value={selectedKelas}
+                onChange={(e) => setSelectedKelas(e.target.value)}
+              >
+                <option value="SEMUA">Semua Kelas ({muridList.length})</option>
+                {kelasList.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Gender:</span>
+              <select
+                className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-xs"
+                value={selectedGender}
+                onChange={(e) => setSelectedGender(e.target.value)}
+              >
+                <option value="SEMUA">Semua Gender</option>
+                <option value="Laki-laki">Laki-laki</option>
+                <option value="Perempuan">Perempuan</option>
+              </select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -312,6 +334,7 @@ export function Murid() {
               <TableRow>
                 <TableHead>NISN</TableHead>
                 <TableHead>Nama Siswa</TableHead>
+                <TableHead>L/P</TableHead>
                 <TableHead>Kelas</TableHead>
                 <TableHead>Email Google</TableHead>
                 <TableHead>Status Akun</TableHead>
@@ -320,10 +343,10 @@ export function Murid() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRowsLoading rows={5} cols={6} />
+                <TableRowsLoading rows={5} cols={7} />
               ) : filteredList.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                     Tidak ada data murid yang sesuai.
                   </TableCell>
                 </TableRow>
@@ -332,6 +355,17 @@ export function Murid() {
                   <TableRow key={m.nisn}>
                     <TableCell className="font-mono text-xs font-semibold">{m.nisn}</TableCell>
                     <TableCell className="font-medium text-foreground text-xs">{m.nama}</TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                          m.jenisKelamin === "Perempuan"
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-blue-50 text-blue-700 border border-blue-200"
+                        }`}
+                      >
+                        {m.jenisKelamin || "Laki-laki"}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline">{kelasMap.get(m.kelasId) || "Belum ada kelas"}</Badge>
                     </TableCell>
@@ -416,6 +450,19 @@ export function Murid() {
                 onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
                 required
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground">Jenis Kelamin</label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
+                value={formData.jenisKelamin}
+                onChange={(e) => setFormData({ ...formData, jenisKelamin: e.target.value })}
+                required
+              >
+                <option value="Laki-laki">Laki-laki</option>
+                <option value="Perempuan">Perempuan</option>
+              </select>
             </div>
 
             <div className="space-y-1.5">
@@ -537,6 +584,7 @@ export function Murid() {
                     <TableRow>
                       <TableHead>NISN</TableHead>
                       <TableHead>Nama</TableHead>
+                      <TableHead>L/P</TableHead>
                       <TableHead>Kelas</TableHead>
                       <TableHead>Email</TableHead>
                     </TableRow>
@@ -546,6 +594,17 @@ export function Murid() {
                       <TableRow key={i}>
                         <TableCell className="font-mono">{r.nisn}</TableCell>
                         <TableCell>{r.nama}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold ${
+                              r.jenisKelamin === "Perempuan"
+                                ? "bg-rose-50 text-rose-700"
+                                : "bg-blue-50 text-blue-700"
+                            }`}
+                          >
+                            {r.jenisKelamin || "Laki-laki"}
+                          </span>
+                        </TableCell>
                         <TableCell>{r.kelas}</TableCell>
                         <TableCell>{r.email || "-"}</TableCell>
                       </TableRow>

@@ -20,6 +20,11 @@ export function parseMuridCsv(file) {
           const nama = (row.nama || "").trim()
           const kelas = (row.kelas || "").trim()
           const email = (row.email || "").trim().toLowerCase()
+          const rawJk = (row.jenis_kelamin || row.jeniskelamin || row.jk || row.gender || row.kelamin || "").toString().trim().toLowerCase()
+          let jenisKelamin = "Laki-laki"
+          if (rawJk.startsWith("p") || rawJk === "wanita" || rawJk === "perempuan" || rawJk === "f") {
+            jenisKelamin = "Perempuan"
+          }
 
           const errors = []
           if (!nisn) {
@@ -44,6 +49,7 @@ export function parseMuridCsv(file) {
               nama,
               kelas,
               email: email || null,
+              jenisKelamin,
             })
           }
         })

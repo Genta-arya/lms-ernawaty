@@ -218,6 +218,7 @@ export async function approveKlaim(claim) {
       nama: claim.nama,
       kelasId: claim.kelasId || "",
       email: claim.email,
+      jenisKelamin: claim.jenisKelamin || "Laki-laki",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })

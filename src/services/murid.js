@@ -35,6 +35,7 @@ export async function getMuridList() {
     list.push({
       nisn: d.id,
       ...data,
+      jenisKelamin: data.jenisKelamin || "Laki-laki",
       email: effectiveEmail,
       isLinked: !!linked,
       akunMurid: linked || null,
@@ -70,6 +71,7 @@ export async function createMurid(data) {
     nama: data.nama.trim(),
     kelasId: data.kelasId,
     email: data.email ? data.email.trim().toLowerCase() : null,
+    jenisKelamin: data.jenisKelamin || "Laki-laki",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
@@ -94,6 +96,7 @@ export async function updateMurid(oldNisn, data) {
       nama: data.nama.trim(),
       kelasId: data.kelasId,
       email: cleanNewEmail,
+      jenisKelamin: data.jenisKelamin || oldData.jenisKelamin || "Laki-laki",
       updatedAt: serverTimestamp(),
     })
 
@@ -148,6 +151,7 @@ export async function updateMurid(oldNisn, data) {
     nama: data.nama.trim(),
     kelasId: data.kelasId,
     email: cleanNewEmail,
+    jenisKelamin: data.jenisKelamin || oldData.jenisKelamin || "Laki-laki",
     updatedAt: serverTimestamp(),
   })
 
@@ -350,6 +354,7 @@ export async function batchImportMurid(muridArray) {
         nama: m.nama,
         kelasId: m.kelasId,
         email: m.email ? m.email.toLowerCase() : null,
+        jenisKelamin: m.jenisKelamin || "Laki-laki",
         updatedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
       },

@@ -64,6 +64,7 @@ export function Profil() {
   const initial = displayName.charAt(0).toUpperCase()
   const nisn = profileData?.nisn || ""
   const kelasNama = profileData?.kelasNama || (profileData?.tingkat ? `Kelas ${profileData.tingkat}` : "-")
+  const jenisKelamin = profileData?.jenisKelamin || "Laki-laki"
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -335,6 +336,8 @@ export function Profil() {
               <span>&bull;</span>
               <span><b>{kelasNama}</b></span>
               <span>&bull;</span>
+              <span className="bg-white/20 px-2 py-0.5 rounded-full text-[11px] font-semibold text-white">{jenisKelamin}</span>
+              <span>&bull;</span>
               <span>{currentUser?.email || "-"}</span>
             </div>
           </div>
@@ -471,8 +474,8 @@ export function Profil() {
             </p>
           </div>
 
-          {/* FIELD 3: KELAS & EMAIL GOOGLE (GRID 2 KOLOM) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* FIELD 3: KELAS, JENIS KELAMIN & EMAIL GOOGLE (GRID) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Kelas */}
             <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-1.5">
               <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
@@ -481,6 +484,23 @@ export function Profil() {
               </label>
               <div className="p-3 rounded-xl bg-white border border-slate-200/80 font-bold text-slate-800 text-xs">
                 {kelasNama}
+              </div>
+            </div>
+
+            {/* Jenis Kelamin */}
+            <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <User className="w-4 h-4 text-blue-600" />
+                Jenis Kelamin:
+              </label>
+              <div className="p-3 rounded-xl bg-white border border-slate-200/80 font-bold text-slate-800 text-xs flex items-center">
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                  jenisKelamin === "Perempuan"
+                    ? "bg-rose-50 text-rose-700 border border-rose-200"
+                    : "bg-blue-50 text-blue-700 border border-blue-200"
+                }`}>
+                  {jenisKelamin}
+                </span>
               </div>
             </div>
 

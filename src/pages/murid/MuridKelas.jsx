@@ -366,8 +366,15 @@ export function MuridKelas() {
                         )}
                       </div>
 
-                      {/* Baris Badge Online / Offline / Terakhir Dilihat */}
+                      {/* Baris Badge Online / Offline / Terakhir Dilihat & Gender */}
                       <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className={`inline-flex items-center px-1.5 py-0.2 rounded-md font-bold text-[9px] ${
+                          murid.jenisKelamin === "Perempuan"
+                            ? "bg-rose-50 text-rose-700 border border-rose-200/60"
+                            : "bg-blue-50 text-blue-700 border border-blue-200/60"
+                        }`}>
+                          {murid.jenisKelamin === "Perempuan" ? "Perempuan" : "Laki-laki"}
+                        </span>
                         {isUserOnline ? (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 font-extrabold text-[10px] border border-emerald-200/60">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -475,6 +482,15 @@ export function MuridKelas() {
                   <p className="text-xs text-slate-500 font-mono mt-0.5">
                     NISN: {selectedMurid.nisn} &bull; Kelas {kelasData?.nama || profileData?.kelasNama}
                   </p>
+                  <div className="mt-1">
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                      selectedMurid.jenisKelamin === "Perempuan"
+                        ? "bg-rose-50 text-rose-700 border border-rose-200"
+                        : "bg-blue-50 text-blue-700 border border-blue-200"
+                    }`}>
+                      {selectedMurid.jenisKelamin || "Laki-laki"}
+                    </span>
+                  </div>
                 </div>
               </div>
 

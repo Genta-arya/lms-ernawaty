@@ -72,7 +72,7 @@ lms-ernawaty/
 | Koleksi | Penjelasan Entitas | Struktur Field Utama |
 | :--- | :--- | :--- |
 | `users` | Dokumen pengguna utama (Guru & Murid) | `uid`, `email`, `nama`, `role` (`guru` / `murid`), `fotoUrl`, `nisn`, `kelasId`, `kelasNama`, `tingkat`, `isClaimed`, `createdAt` |
-| `murid` | Database induk data siswa resmi sekolah | `nisn` (ID Dokumen), `nama`, `kelasId`, `kelasNama`, `tingkat`, `statusKlaim` (`belum` / `diklaim`), `akunMurid: { uid, email, fotoUrl }` |
+| `murid` | Database induk data siswa resmi sekolah | `nisn` (ID Dokumen), `nama`, `jenisKelamin` (`Laki-laki` / `Perempuan`), `kelasId`, `kelasNama`, `tingkat`, `statusKlaim` (`belum` / `diklaim`), `akunMurid: { uid, email, fotoUrl }` |
 | `kelas` | Rombongan belajar (Rombel) | `id`, `nama` (misal: 7A, 8B, 9A), `tingkat` (7, 8, 9), `waliKelas`, `tahunAjaran`, `keterangan`, `totalSiswa` |
 | `klaim_aktivasi` | Antrean verifikasi akun siswa baru | `id`, `uid`, `email`, `nisn`, `nama`, `kelasId`, `kelasNama`, `status` (`pending`, `disetujui`, `ditolak`), `alasanPenolakan`, `createdAt` |
 | `materi` | Modul pembelajaran Kurikulum Merdeka | `id`, `judul`, `deskripsi`, `konten` (Markdown/HTML), `mapel`, `tingkat` (Array: `["VII", "VIII"]`), `status` (`terbit` / `draft`), `penulisNama`, `durasiBacaMenit`, `lampiranUrl`, `createdAt` |
