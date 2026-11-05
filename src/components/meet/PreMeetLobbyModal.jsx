@@ -43,6 +43,8 @@ export function PreMeetLobbyModal({
   const localCamTrackRef = useRef(null)
   const localMicTrackRef = useRef(null)
   const volumeIntervalRef = useRef(null)
+  const [camReady, setCamReady] = useState(false)
+  const [camError, setCamError] = useState(null)
 
   // 1. Muat perangkat dan inisialisasi track preview
   useEffect(() => {
@@ -50,25 +52,36 @@ export function PreMeetLobbyModal({
 
     async function setupPreview() {
       setLoadingDevices(true)
+      setCamError(null)
       try {
-        // Minta izin kamera (kunci ke kamera depan) & mic
+        // Ambil izin dan track kamera
         let vTrack = null
-        let aTrack = null
-
         try {
+          // Coba prioritas kamera depan (user)
           vTrack = await AgoraRTC.createCameraVideoTrack({
             encoderConfig: "480p_1",
             facingMode: "user",
           })
-          localCamTrackRef.current = vTrack
-          if (mounted && previewVideoRef.current && vTrack) {
-            previewVideoRef.current.innerHTML = ""
-            vTrack.play(previewVideoRef.current)
+        } catch (vErr1) {
+          console.warn("FacingMode user gagal, fallback ke kamera default:", vErr1)
+          try {
+            // Fallback tanpa facingMode (kompatibel universal di iOS Safari / Android Chrome tertentu)
+            vTrack = await AgoraRTC.createCameraVideoTrack({
+              encoderConfig: "480p_1",
+            })
+          } catch (vErr2) {
+            console.error("Gagal mendapatkan kamera sama sekali:", vErr2)
+            if (mounted) setCamError("Kamera tidak dapat diakses atau izin ditolak")
           }
-        } catch (vErr) {
-          console.warn("Gagal init kamera preview:", vErr)
         }
 
+        if (vTrack && mounted) {
+          localCamTrackRef.current = vTrack
+          setCamReady(true)
+        }
+
+        // Ambil izin dan track mikrofon
+        let aTrack = null
         try {
           aTrack = await AgoraRTC.createMicrophoneAudioTrack()
           localMicTrackRef.current = aTrack
@@ -81,22 +94,26 @@ export function PreMeetLobbyModal({
         }
 
         // Ambil daftar perangkat dari browser
-        const devices = await AgoraRTC.getDevices()
-        if (mounted) {
-          const cams = devices.filter((d) => d.kind === "videoinput")
-          const mics = devices.filter((d) => d.kind === "audioinput")
-          const spks = devices.filter((d) => d.kind === "audiooutput")
+        try {
+          const devices = await AgoraRTC.getDevices()
+          if (mounted) {
+            const cams = devices.filter((d) => d.kind === "videoinput")
+            const mics = devices.filter((d) => d.kind === "audioinput")
+            const spks = devices.filter((d) => d.kind === "audiooutput")
 
-          setCameras(cams)
-          setMicrophones(mics)
-          setSpeakers(spks)
+            setCameras(cams)
+            setMicrophones(mics)
+            setSpeakers(spks)
 
-          // Kunci kamera depan jika ada
-          const frontCam = cams.find((c) => /front|depan|user|facetime/i.test(c.label))
-          const defaultCam = frontCam || cams[0]
-          if (defaultCam) setSelectedCamId(defaultCam.deviceId)
-          if (mics.length > 0) setSelectedMicId(mics[0].deviceId)
-          if (spks.length > 0) setSelectedSpeakerId(spks[0].deviceId)
+            // Kunci kamera depan jika ada
+            const frontCam = cams.find((c) => /front|depan|user|facetime/i.test(c.label))
+            const defaultCam = frontCam || cams[0]
+            if (defaultCam) setSelectedCamId(defaultCam.deviceId)
+            if (mics.length > 0) setSelectedMicId(mics[0].deviceId)
+            if (spks.length > 0) setSelectedSpeakerId(spks[0].deviceId)
+          }
+        } catch (devErr) {
+          console.warn("Gagal getDevices:", devErr)
         }
       } catch (err) {
         console.warn("Lobby device access error:", err)
@@ -123,15 +140,56 @@ export function PreMeetLobbyModal({
       mounted = false
       if (volumeIntervalRef.current) clearInterval(volumeIntervalRef.current)
       if (localCamTrackRef.current) {
-        localCamTrackRef.current.stop()
-        localCamTrackRef.current.close()
+        try {
+          localCamTrackRef.current.stop()
+          localCamTrackRef.current.close()
+        } catch (_) {}
       }
       if (localMicTrackRef.current) {
-        localMicTrackRef.current.stop()
-        localMicTrackRef.current.close()
+        try {
+          localMicTrackRef.current.stop()
+          localMicTrackRef.current.close()
+        } catch (_) {}
       }
     }
   }, [isGuru])
+
+  // Efek khusus untuk memutar video kamera ke preview element dengan retry (menangani rendering mobile portrait)
+  useEffect(() => {
+    let playTimer = null
+    const track = localCamTrackRef.current
+
+    if (track && previewVideoRef.current && camOn && camReady) {
+      const playVideo = () => {
+        try {
+          if (!previewVideoRef.current) return
+          previewVideoRef.current.innerHTML = ""
+          track.play(previewVideoRef.current)
+
+          // Pastikan video element mobile support inline playback & autoplay
+          const vidEl = previewVideoRef.current.querySelector("video")
+          if (vidEl) {
+            vidEl.setAttribute("playsinline", "true")
+            vidEl.setAttribute("webkit-playsinline", "true")
+            vidEl.style.objectFit = "cover"
+            vidEl.style.width = "100%"
+            vidEl.style.height = "100%"
+            vidEl.play().catch(() => {})
+          }
+        } catch (e) {
+          console.warn("Gagal play video track:", e)
+        }
+      }
+
+      // Mainkan langsung dan jadwalkan retry singkat jika DOM belum tuntas layout
+      playVideo()
+      playTimer = setTimeout(playVideo, 200)
+    }
+
+    return () => {
+      if (playTimer) clearTimeout(playTimer)
+    }
+  }, [camReady, camOn, selectedCamId])
 
   // Ganti Device Kamera
   async function handleChangeCamera(deviceId) {
@@ -240,11 +298,29 @@ export function PreMeetLobbyModal({
           </div>
 
           {/* Kotak Video (Selalu Aktif) */}
-          <div className="relative flex-1 rounded-2xl bg-slate-950 overflow-hidden flex items-center justify-center border border-slate-800/80 my-2">
+          <div className="relative flex-1 rounded-2xl bg-slate-950 overflow-hidden flex items-center justify-center border border-slate-800/80 my-2 min-h-[220px] aspect-[4/3] sm:aspect-auto">
+            {/* Mirror efek video selfie */}
             <div
               ref={previewVideoRef}
-              className="w-full h-full [&>div]:w-full [&>div]:h-full [&>div>video]:object-cover"
+              className="w-full h-full -scale-x-100 [&>div]:w-full [&>div]:h-full [&_video]:!w-full [&_video]:!h-full [&_video]:!object-cover"
             />
+
+            {/* Jika loading kamera */}
+            {loadingDevices && !camReady && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm z-10 gap-2">
+                <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                <span className="text-xs text-slate-300 font-medium">Menyiapkan kamera...</span>
+              </div>
+            )}
+
+            {/* Jika kamera bermasalah atau izin ditolak */}
+            {camError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 p-4 text-center z-10 gap-2">
+                <VideoOff className="w-8 h-8 text-rose-400" />
+                <span className="text-xs text-rose-300 font-semibold">{camError}</span>
+                <span className="text-[11px] text-slate-400">Pastikan izin kamera di browser Anda diizinkan</span>
+              </div>
+            )}
 
             {/* Indikator Level Suara Mikrofon di atas Video */}
             <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2 text-xs">
