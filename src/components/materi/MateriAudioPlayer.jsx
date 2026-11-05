@@ -54,60 +54,64 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
 
   const utteranceRef = useRef(null)
   const fullTextRef = useRef("")
-  const lastCharIndexRef = useRef(0) // Menyimpan posisi karakter terakhir saat jeda
+  const lastCharIndexRef = useRef(0)
+  const timerIntervalRef = useRef(null)
 
   // Bersihkan highlight lama di dokumen DOM
   const clearDomHighlights = () => {
     try {
       const container = document.getElementById("konten-materi-aktif")
       if (!container) return
-      const highlightedElements = container.querySelectorAll(".tts-highlight-active")
+      const highlightedElements = container.querySelectorAll(".tts-highlight-active, .tts-highlight-word")
       highlightedElements.forEach((el) => {
-        el.classList.remove(
-          "tts-highlight-active",
-          "bg-amber-200/90",
-          "dark:bg-amber-500/30",
-          "text-slate-950",
-          "rounded-md",
-          "px-1",
-          "py-0.5",
-          "transition-all",
-          "duration-150"
-        )
+        el.classList.remove("tts-highlight-active", "tts-highlight-word")
       })
     } catch (_) {}
   }
 
-  // Cari dan beri highlight pada kata/kalimat yang sedang dibaca di dalam container materi
-  const highlightWordInDom = (word) => {
-    if (!word || word.length < 2) return
+  // Cari dan beri highlight pada elemen yang sedang dibaca
+  const highlightWordInDom = (word, currentPosition = 0, totalLength = 1) => {
     try {
       const container = document.getElementById("konten-materi-aktif")
       if (!container) return
 
-      const cleanWord = word.trim().replace(/[.,!?;:"'()]/g, "")
-      if (!cleanWord || cleanWord.length < 2) return
+      // Prioritas 1: Pencocokan kata (word match)
+      const cleanWord = word ? word.trim().replace(/[.,!?;:"'()]/g, "") : ""
+      let matched = false
 
-      const textNodes = container.querySelectorAll("p, li, td, th, h1, h2, h3, h4")
-      for (const el of textNodes) {
-        if (el.textContent && el.textContent.toLowerCase().includes(cleanWord.toLowerCase())) {
-          clearDomHighlights()
-          el.classList.add(
-            "tts-highlight-active",
-            "bg-amber-200/90",
-            "dark:bg-amber-500/30",
-            "text-slate-950",
-            "rounded-md",
-            "px-1",
-            "py-0.5",
-            "transition-all",
-            "duration-150"
-          )
-          const rect = el.getBoundingClientRect()
-          if (rect.top < 80 || rect.bottom > window.innerHeight - 80) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" })
+      if (cleanWord && cleanWord.length >= 3) {
+        const textNodes = container.querySelectorAll("p, li, td, th, h1, h2, h3, h4")
+        for (const el of textNodes) {
+          if (el.textContent && el.textContent.toLowerCase().includes(cleanWord.toLowerCase())) {
+            clearDomHighlights()
+            el.classList.add("tts-highlight-active")
+            matched = true
+
+            const rect = el.getBoundingClientRect()
+            if (rect.top < 100 || rect.bottom > window.innerHeight - 100) {
+              el.scrollIntoView({ behavior: "smooth", block: "center" })
+            }
+            break
           }
-          break
+        }
+      }
+
+      // Prioritas 2 (Fallback): Jika browser tidak meng-emit kata spesifik pada onboundary,
+      // hitung proporsi progres pembacaan dan highlight paragraf berdasarkan posisi!
+      if (!matched && totalLength > 0) {
+        const textNodes = Array.from(container.querySelectorAll("p, li, td, h2, h3"))
+        if (textNodes.length > 0) {
+          const ratio = Math.min(1, Math.max(0, currentPosition / totalLength))
+          const targetIndex = Math.min(textNodes.length - 1, Math.floor(ratio * textNodes.length))
+          const el = textNodes[targetIndex]
+          if (el) {
+            clearDomHighlights()
+            el.classList.add("tts-highlight-active")
+            const rect = el.getBoundingClientRect()
+            if (rect.top < 100 || rect.bottom > window.innerHeight - 100) {
+              el.scrollIntoView({ behavior: "smooth", block: "center" })
+            }
+          }
         }
       }
     } catch (err) {
@@ -146,6 +150,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
 
     return () => {
       clearDomHighlights()
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
       try {
         if (window.speechSynthesis) {
           window.speechSynthesis.cancel()
@@ -157,6 +162,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
   // Setiap kali bab berganti, reset status pembacaan & highlight
   useEffect(() => {
     clearDomHighlights()
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
     try {
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel()
@@ -174,6 +180,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
   const playFromIndex = (startIndex = 0) => {
     const synth = window.speechSynthesis
     synth.cancel()
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
 
     const rawFull = `${judulBab}. ${cleanMarkdownForSpeech(kontenMarkdown)}`
     fullTextRef.current = rawFull
@@ -198,9 +205,32 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
       utterance.voice = selectedVoice
     }
 
+    let hasReceivedBoundary = false
+
     utterance.onstart = () => {
       setIsPlaying(true)
       setIsPaused(false)
+
+      // Segera highlight elemen pertama begitu suara mulai
+      highlightWordInDom(judulBab, startIndex, rawFull.length)
+
+      // Fallback timer: Sebagian browser mobile/Chrome tidak selalu meng-emit onboundary secara stabil.
+      // Timer ini memastikan highlight tetap berjalan maju secara progresif mengikuti durasi ucapan!
+      const approxCharPerSecond = 14 * rate // Rata-rata pelafalan Bahasa Indonesia per detik
+      timerIntervalRef.current = setInterval(() => {
+        if (!hasReceivedBoundary) {
+          lastCharIndexRef.current = Math.min(
+            rawFull.length,
+            lastCharIndexRef.current + Math.round(approxCharPerSecond * 0.5)
+          )
+          const nextSpace = rawFull.indexOf(" ", lastCharIndexRef.current)
+          const sliceWord = rawFull.slice(lastCharIndexRef.current, nextSpace !== -1 ? nextSpace : lastCharIndexRef.current + 15).trim()
+          if (sliceWord) {
+            setCurrentSpokenWord(sliceWord)
+            highlightWordInDom(sliceWord, lastCharIndexRef.current, rawFull.length)
+          }
+        }
+      }, 500)
     }
 
     utterance.onend = () => {
@@ -209,6 +239,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
       setCurrentSpokenWord("")
       clearDomHighlights()
       lastCharIndexRef.current = 0
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
     }
 
     utterance.onerror = (e) => {
@@ -216,20 +247,22 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
       setIsPlaying(false)
       setIsPaused(false)
       clearDomHighlights()
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
     }
 
+    // Tangkap kata yang sedang diucapkan secara real-time
     utterance.onboundary = (e) => {
-      if (e.name === "word" || typeof e.charIndex === "number") {
-        // Hitung index absolut pada teks penuh
-        const currentAbsoluteIndex = startIndex + (e.charIndex || 0)
-        lastCharIndexRef.current = currentAbsoluteIndex
+      hasReceivedBoundary = true
+      const charOffset = typeof e.charIndex === "number" ? e.charIndex : 0
+      const currentAbsoluteIndex = startIndex + charOffset
+      lastCharIndexRef.current = currentAbsoluteIndex
 
-        const nextSpace = rawFull.indexOf(" ", currentAbsoluteIndex)
-        const word = rawFull.slice(currentAbsoluteIndex, nextSpace !== -1 ? nextSpace : currentAbsoluteIndex + 15).trim()
-        if (word) {
-          setCurrentSpokenWord(word)
-          highlightWordInDom(word)
-        }
+      const nextSpace = rawFull.indexOf(" ", currentAbsoluteIndex)
+      const word = rawFull.slice(currentAbsoluteIndex, nextSpace !== -1 ? nextSpace : currentAbsoluteIndex + 15).trim()
+
+      if (word) {
+        setCurrentSpokenWord(word)
+        highlightWordInDom(word, currentAbsoluteIndex, rawFull.length)
       }
     }
 
@@ -249,14 +282,14 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
     if (isPaused) {
       setIsPaused(false)
       setIsPlaying(true)
-      // Jalankan dari posisi karakter terakhir saat dijeda
       playFromIndex(lastCharIndexRef.current)
       return
     }
 
     // KASUS 2: Jika sedang berbunyi (isPlaying), JEDA pembacaan
     if (isPlaying) {
-      synth.cancel() // Batalkan speech aktif agar tidak menggantung di browser
+      synth.cancel()
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
       setIsPaused(true)
       setIsPlaying(false)
       return
@@ -270,6 +303,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
 
   const handleStop = () => {
     clearDomHighlights()
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
     try {
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel()
@@ -287,7 +321,6 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
     const nextRate = speeds[nextIdx]
     setRate(nextRate)
 
-    // Jika sedang aktif memutar, lanjutkan dengan speed baru dari posisi sekarang
     if (isPlaying) {
       playFromIndex(lastCharIndexRef.current)
     }
@@ -318,7 +351,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
             )}
           </div>
           <div className="min-w-0 pr-1">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-amber-400" />
                 Narasi Suara AI (Text-to-Speech)
@@ -326,12 +359,12 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
               {isPlaying && (
                 <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-400/40 px-2 py-0.2 rounded-full">
                   <Highlighter className="w-2.5 h-2.5" />
-                  Live Highlight
+                  Live Highlight Kuning
                 </span>
               )}
               {isPaused && (
                 <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-500/30 text-amber-300 px-2 py-0.2 rounded-full">
-                  Dijeda (Bisa Dilanjutkan)
+                  Dijeda
                 </span>
               )}
             </div>
@@ -345,7 +378,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
             <p className="text-[10px] text-blue-200/80 hidden sm:block">
               {isPaused
                 ? "Klik Lanjutkan untuk meneruskan suara dari kalimat terakhir."
-                : "Teks bacaan yang sedang diucapkan akan otomatis disorot (highlight kuning) secara visual."}
+                : "Paragraf/kalimat yang dibaca otomatis disorot kuning dan di-scroll mengikuti suara."}
             </p>
           </div>
         </div>
@@ -419,7 +452,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
             </b>
           </div>
           <span className="text-[10px] text-slate-400 shrink-0">
-            {isPlaying ? "Auto Scroll" : "Siap Dilanjutkan"}
+            {isPlaying ? "Auto Scroll Aktif" : "Siap Dilanjutkan"}
           </span>
         </div>
       )}

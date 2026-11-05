@@ -274,3 +274,21 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.9);
 }
+
+/* TTS Active Highlight Styling */
+.tts-highlight-active {
+  background-color: #fef08a !important; /* amber-200 */
+  color: #0f172a !important; /* slate-900 */
+  border-radius: 0.375rem !important;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.45) !important; /* amber-400 glow ring */
+  transition: all 0.15s ease-in-out !important;
+}
+
+.tts-highlight-word {
+  background-color: #facc15 !important; /* amber-400 */
+  color: #000000 !important;
+  font-weight: 700 !important;
+  border-radius: 0.25rem !important;
+  padding: 0 0.2rem !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
