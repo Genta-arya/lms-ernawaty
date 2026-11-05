@@ -1631,12 +1631,12 @@ export function AgoraMeetRoom({
 
             return (
               /* --- MODE 1: STANDAR (Presentasi di Atas, Peserta di Bawah) --- */
-              <div className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar p-2 sm:p-4 pb-8 sm:pb-10 flex flex-col gap-2.5 sm:gap-3.5 min-h-0">
+              <div className="flex-1 w-full overflow-y-auto overscroll-contain touch-pan-y no-scrollbar p-2 sm:p-4 pb-28 sm:pb-16 flex flex-col gap-3 sm:gap-4 min-h-0">
                 {/* Layar Utama Presentasi */}
-                {renderPresentationCard("w-full max-w-5xl mx-auto aspect-video max-h-[50vh] sm:max-h-none sm:aspect-auto sm:flex-1")}
+                {renderPresentationCard("w-full max-w-5xl mx-auto aspect-video max-h-[48vh] sm:max-h-none sm:aspect-auto sm:flex-1")}
 
                 {/* Peserta Kelas - Grid 2 Kolom di Mode Potrait Mobile & Horizontal Strip di Layar Desktop */}
-                <div className="w-full max-w-5xl mx-auto shrink-0 flex flex-col space-y-2 pb-6 sm:pb-8">
+                <div className="w-full max-w-5xl mx-auto shrink-0 flex flex-col space-y-2 pb-16 sm:pb-8">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[11px] sm:text-xs font-bold text-slate-400 flex items-center gap-1.5">
                       <Users className="w-3.5 h-3.5 text-blue-400" />
@@ -1689,6 +1689,9 @@ export function AgoraMeetRoom({
                       )
                     })}
                   </div>
+
+                  {/* Spacer pelindung agar baris terbawah kamera tidak tertutup toolbar fixed di HP */}
+                  <div className="h-14 sm:hidden w-full shrink-0 pointer-events-none" aria-hidden="true" />
                 </div>
               </div>
             )
