@@ -13,6 +13,7 @@ import { DetailPageSkeleton } from "@/components/ui/loading-skeletons"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { LeaderboardHarian } from "@/components/kuis/LeaderboardHarian"
 import { ForumDiskusi } from "@/components/materi/ForumDiskusi"
+import { MateriAudioPlayer } from "@/components/materi/MateriAudioPlayer"
 import {
   BookOpen,
   CheckCircle,
@@ -276,12 +277,12 @@ export function MateriDetail() {
                               {isDrive
                                 ? "Google Drive / Dokumen"
                                 : isCanva
-                                ? "Desain Canva"
-                                : isPdf
-                                ? "Dokumen PDF"
-                                : isVideo
-                                ? "Video Pembelajaran"
-                                : "Tautan Eksternal"}
+                                  ? "Desain Canva"
+                                  : isPdf
+                                    ? "Dokumen PDF"
+                                    : isVideo
+                                      ? "Video Pembelajaran"
+                                      : "Tautan Eksternal"}
                             </div>
                           </div>
                         </div>
@@ -339,15 +340,14 @@ export function MateriDetail() {
                           setCurrentBagianIndex(idx)
                           scrollToTop()
                         }}
-                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
-                          isCurrent
+                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${isCurrent
                             ? "bg-blue-600 text-white shadow-xs"
                             : isLocked
-                            ? "bg-slate-100/70 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60"
-                            : isPassed
-                            ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 cursor-pointer"
-                            : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 cursor-pointer"
-                        }`}
+                              ? "bg-slate-100/70 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60"
+                              : isPassed
+                                ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 cursor-pointer"
+                                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 cursor-pointer"
+                          }`}
                         title={isLocked ? "Selesaikan Bab sebelumnya terlebih dahulu" : b.judul}
                       >
                         {isLocked ? (
@@ -378,6 +378,12 @@ export function MateriDetail() {
                         {bag.judul}
                       </h2>
                     </div>
+
+                    {/* Fitur Canggih: Text to Speech (Audio Narasi Materi) */}
+                    <MateriAudioPlayer
+                      judulBab={bag.judul}
+                      kontenMarkdown={bag.konten}
+                    />
 
                     <div className="prose prose-slate rich-editor-content max-w-none text-sm sm:text-base leading-relaxed break-words overflow-x-auto">
                       <ReactMarkdown
@@ -492,13 +498,12 @@ export function MateriDetail() {
                       setCurrentBagianIndex(idx)
                       scrollToTop()
                     }}
-                    className={`w-full text-left transition-colors py-1.5 px-2 rounded-lg text-xs truncate flex items-center justify-between gap-1.5 ${
-                      isActive
+                    className={`w-full text-left transition-colors py-1.5 px-2 rounded-lg text-xs truncate flex items-center justify-between gap-1.5 ${isActive
                         ? "bg-blue-50 text-blue-700 font-extrabold"
                         : isLocked
-                        ? "text-slate-400 opacity-60 cursor-not-allowed hover:bg-transparent"
-                        : "text-muted-foreground hover:text-foreground hover:bg-slate-50 cursor-pointer"
-                    }`}
+                          ? "text-slate-400 opacity-60 cursor-not-allowed hover:bg-transparent"
+                          : "text-muted-foreground hover:text-foreground hover:bg-slate-50 cursor-pointer"
+                      }`}
                     title={isLocked ? "Selesaikan Bab sebelumnya terlebih dahulu" : bag.judul}
                   >
                     <span className="truncate">{idx + 1}. {bag.judul}</span>
@@ -564,7 +569,7 @@ export function MateriDetail() {
           type="button"
           onClick={scrollToTop}
           aria-label="Kembali ke atas"
-          className="fixed bottom-20 md:bottom-8 right-5 z-40 p-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-full shadow-xl shadow-blue-500/30 transition-all duration-300 flex items-center justify-center animate-in fade-in zoom-in"
+          className="fixed bottom-24 md:bottom-14 right-5 z-40 p-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-full shadow-xl shadow-blue-500/30 transition-all duration-300 flex items-center justify-center animate-in fade-in zoom-in"
         >
           <ArrowUp className="w-5 h-5 stroke-[2.5]" />
         </button>
