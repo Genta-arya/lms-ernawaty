@@ -6,7 +6,7 @@ import { subscribeTugasPerluNilaiCount } from "@/services/tugas";
 import { NotificationMenu } from "@/components/layout/NotificationMenu";
 import { MuridNotificationMenu } from "@/components/layout/MuridNotificationMenu";
 import { Button } from "@/components/ui/button";
-import { LogOut, ShieldAlert } from "lucide-react";
+import { LogOut, ShieldAlert, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
@@ -260,7 +260,20 @@ export function Navbar() {
 
             {/* Notifikasi Murid untuk Tugas & Pembaharuan Nilai */}
             {currentUser && role === "murid" && (
-              <MuridNotificationMenu />
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("lsm-open-tutorial"))
+                  }}
+                  title="Buka Panduan Tutorial Siswa"
+                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-slate-600 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/80 transition-all text-xs font-semibold"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Panduan</span>
+                </button>
+                <MuridNotificationMenu />
+              </>
             )}
 
             {currentUser ? (

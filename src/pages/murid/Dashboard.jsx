@@ -228,7 +228,7 @@ export function Dashboard() {
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       {/* Header Profil Murid - Minimalis, Elegan & Nama Tidak Terpotong */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-xs space-y-3.5">
+      <div data-tour="murid-profile" className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-xs space-y-3.5">
         <div className="flex items-start justify-between gap-3">
           {/* Avatar & Sapaan Siswa */}
           <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
@@ -287,11 +287,13 @@ export function Dashboard() {
 
       {/* BANNER CAROUSEL PENGUMUMAN DARI IBU GURU */}
       {activeAnnouncements.length > 0 && (
-        <PengumumanCarousel announcements={activeAnnouncements} />
+        <div data-tour="murid-pengumuman">
+          <PengumumanCarousel announcements={activeAnnouncements} />
+        </div>
       )}
 
       {/* ── FITUR MENU CEPAT MOBILE ALA SHOPEE (KHUSUS TAMPILAN MOBILE - GRID 2 BARIS) ── */}
-      <div className="md:hidden bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-xs space-y-3.5">
+      <div data-tour="murid-quickmenu" className="md:hidden bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-xs space-y-3.5">
         {/* Label Header Menu Utama */}
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-1.5">
@@ -460,7 +462,7 @@ export function Dashboard() {
         </div>
 
         {/* 2. Papan Peringkat Skor Kuis Hari Ini */}
-        <div id="peringkat-skor" className="space-y-3 scroll-mt-20">
+        <div id="peringkat-skor" data-tour="murid-leaderboard" className="space-y-3 scroll-mt-20">
           <LeaderboardHarian title="Peringkat Skor Kuis" />
         </div>
       </div>
@@ -474,7 +476,7 @@ export function Dashboard() {
       </div>
 
       {/* Grid: Materi Pembelajaran (Hanya tampil di Desktop, karena di Mobile sudah ada menu khusus Materi) */}
-      <div className="hidden md:block space-y-4">
+      <div data-tour="murid-materi" className="hidden md:block space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold tracking-tight text-foreground">Materi Pembelajaran</h2>
@@ -724,7 +726,7 @@ export function Dashboard() {
       </div>
 
       {/* Grid: Penugasan Mandiri Siswa (Hanya tampil di Desktop) */}
-      <div className="hidden md:block space-y-4 pt-2">
+      <div data-tour="murid-tugas" className="hidden md:block space-y-4 pt-2">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">

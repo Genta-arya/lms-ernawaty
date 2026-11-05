@@ -188,6 +188,10 @@ Dashboard Guru adalah pusat komando operasional pembelajaran yang mencakup 10 mo
    - Unggah berkas jawaban melalui Cloudinary widget.
    - Menerima umpan balik nilai dan catatan evaluasi dari guru.
 6. **Mading Siswa (`Mading.jsx`)**: Menerbitkan karya puisi, pantun, cerpen, serta saling memberikan apresiasi suka dan komentar.
+7. **Spotlight Tutorial Siswa (`SpotlightTutorialMurid.jsx`)**:
+   - Panduan interaktif terpandu dengan efek cutout spotlight yang menyorot langsung elemen-elemen penting (Profil Siswa, Pengumuman, Menu Cepat, Materi & Kuis, Penugasan, serta Leaderboard & Ruang Kelas).
+   - **Mekanisme Supresi Harian**: Jika siswa memilih melewati atau mencentang *"Jangan tampilkan lagi hari ini"*, panduan tidak akan muncul lagi sepanjang hari itu (`localStorage` berbasis stempel tanggal `YYYY-MM-DD`). Keesokan harinya, sistem akan memunculkannya kembali secara otomatis.
+   - **Pemutar Ulang Manual**: Tersedia tombol mengambang *"Panduan LMS"* di sudut kiri bawah dan tombol pemicu di bilah navigasi & halaman profil siswa untuk membuka tutorial sewaktu-waktu.
 
 ---
 

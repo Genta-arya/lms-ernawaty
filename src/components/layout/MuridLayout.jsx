@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom"
 import { Navbar } from "./Navbar"
 import { BottomNav } from "@/components/common/BottomNav"
 import { LiveMeetAlertToast } from "@/components/meet/LiveMeetAlertToast"
+import { SpotlightTutorialMurid } from "@/components/tutorial/SpotlightTutorialMurid"
 
 export function MuridLayout() {
   return (
@@ -17,6 +18,9 @@ export function MuridLayout() {
 
       {/* Global Bottom Navigation Bar */}
       <BottomNav />
+
+      {/* Spotlight Tutorial Menyeluruh Khusus Murid */}
+      <SpotlightTutorialMurid />
     </div>
   )
 }

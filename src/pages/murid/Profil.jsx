@@ -37,6 +37,7 @@ import {
   Loader2,
   Trash2,
   ZoomIn,
+  Compass,
 } from "lucide-react"
 
 export function Profil() {
@@ -514,6 +515,29 @@ export function Profil() {
                 {currentUser?.email || "-"}
               </div>
             </div>
+          </div>
+
+          {/* OPSI BANTUAN & PANDUAN TUTORIAL SPOTLIGHT */}
+          <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-slate-500">
+              <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>Ingin mempelajari kembali cara menggunakan seluruh fitur portal belajar?</span>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigate("/murid")
+                setTimeout(() => {
+                  window.dispatchEvent(new CustomEvent("lsm-open-tutorial"))
+                }, 400)
+              }}
+              className="rounded-xl text-xs font-bold text-blue-600 border-blue-200 hover:bg-blue-50 gap-1.5 w-full sm:w-auto shrink-0"
+            >
+              <Compass className="w-3.5 h-3.5" />
+              <span>Buka Panduan Tutorial</span>
+            </Button>
           </div>
         </CardContent>
       </Card>
