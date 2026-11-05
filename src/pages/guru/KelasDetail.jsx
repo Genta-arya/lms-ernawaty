@@ -2,6 +2,11 @@ import React, { useState, useEffect } from "react"
 import { useParams, Link } from "react-router-dom"
 import { getKelasById } from "@/services/kelas"
 import { getMuridList, createMurid } from "@/services/murid"
+import { subscribeSesiMeetByKelas, updateStatusSesiMeet } from "@/services/meet"
+import { KalenderMeetKelas } from "@/components/meet/KalenderMeetKelas"
+import { AgoraMeetRoom } from "@/components/meet/AgoraMeetRoom"
+import { PreMeetLobbyModal } from "@/components/meet/PreMeetLobbyModal"
+import { useAuth } from "@/context/AuthContext"
 import { useToast } from "@/context/ToastContext"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,9 +26,14 @@ import { ArrowLeft, Plus, CheckCircle2, Clock, Users, AlertCircle } from "lucide
 export function KelasDetail() {
   const { id } = useParams()
   const { toast } = useToast()
+  const { currentUser, profileData } = useAuth()
   const [kelas, setKelas] = useState(null)
   const [muridList, setMuridList] = useState([])
   const [loading, setLoading] = useState(true)
+  const [sesiList, setSesiList] = useState([])
+  const [lobbyMeet, setLobbyMeet] = useState(null)
+  const [activeMeet, setActiveMeet] = useState(null)
+  const [meetInitialSettings, setMeetInitialSettings] = useState(null)
 
   // Quick Add Murid
   const [nisn, setNisn] = useState("")
@@ -49,6 +59,15 @@ export function KelasDetail() {
 
   useEffect(() => {
     loadData()
+  }, [id])
+
+  // Berlangganan sesi meet untuk kelas ini
+  useEffect(() => {
+    if (!id) return
+    const unsub = subscribeSesiMeetByKelas(id, (items) => {
+      setSesiList(items)
+    })
+    return () => unsub()
   }, [id])
 
   async function handleAddMurid(e) {
@@ -221,6 +240,50 @@ export function KelasDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bagian Kalender Jadwal Zoom Meet / Virtual Tatap Muka Kelas */}
+      <div className="pt-2">
+        <KalenderMeetKelas
+          sesiList={sesiList}
+          kelasNama={kelas.nama}
+          isGuru={true}
+          onBukaMeetGuru={(sesi) => setLobbyMeet(sesi)}
+        />
+      </div>
+
+      {/* Modal Preview Pra-Meet Sebelum Guru Membuka Room */}
+      {lobbyMeet && (
+        <PreMeetLobbyModal
+          judulSesi={lobbyMeet.judul}
+          userNama={profileData?.nama || currentUser?.displayName || "Guru"}
+          isGuru={true}
+          onJoin={async (settings) => {
+            setMeetInitialSettings(settings)
+            // Update status ke berlangsung jika sebelumnya belum aktif
+            if (lobbyMeet.status !== "berlangsung") {
+              await updateStatusSesiMeet(lobbyMeet.id, "berlangsung").catch(() => {})
+            }
+            setActiveMeet(lobbyMeet)
+            setLobbyMeet(null)
+          }}
+          onCancel={() => setLobbyMeet(null)}
+        />
+      )}
+
+      {/* Ruang Meet Agora Guru */}
+      {activeMeet && (
+        <AgoraMeetRoom
+          channelName={activeMeet.channelName}
+          judulSesi={activeMeet.judul}
+          userNama={profileData?.nama || currentUser?.displayName || "Guru"}
+          isGuru={true}
+          initialSettings={meetInitialSettings}
+          onLeave={() => {
+            setActiveMeet(null)
+            setMeetInitialSettings(null)
+          }}
+        />
+      )}
     </div>
   )
 }

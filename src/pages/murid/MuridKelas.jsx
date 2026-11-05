@@ -1,4 +1,8 @@
 import { BannerMeetMurid } from "@/components/meet/BannerMeetMurid"
+import { KalenderMeetKelas } from "@/components/meet/KalenderMeetKelas"
+import { subscribeSesiMeetByKelas } from "@/services/meet"
+import { PreMeetLobbyModal } from "@/components/meet/PreMeetLobbyModal"
+import { AgoraMeetRoom } from "@/components/meet/AgoraMeetRoom"
 import React, { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import { Link, useSearchParams } from "react-router-dom"
@@ -27,6 +31,7 @@ import {
   BookOpen,
   MessageSquare,
   MessageCircle,
+  CalendarDays,
 } from "lucide-react"
 
 export function MuridKelas() {
@@ -43,6 +48,10 @@ export function MuridKelas() {
   const [chatTargetMurid, setChatTargetMurid] = useState(null)
   const [presencesMap, setPresencesMap] = useState({})
   const [unreadMap, setUnreadMap] = useState({})
+  const [sesiMeetList, setSesiMeetList] = useState([])
+  const [lobbyMeet, setLobbyMeet] = useState(null)
+  const [activeMeet, setActiveMeet] = useState(null)
+  const [meetInitialSettings, setMeetInitialSettings] = useState(null)
 
   // Buka chat dan hilangkan badge unread secara instan
   const openChatWithTarget = (target) => {
@@ -125,6 +134,16 @@ export function MuridKelas() {
 
     load()
   }, [profileData])
+
+  // Berlangganan sesi meet untuk kalender & banner
+  useEffect(() => {
+    const kelasId = kelasData?.id || profileData?.kelasId
+    if (!kelasId) return
+    const unsub = subscribeSesiMeetByKelas(kelasId, (items) => {
+      setSesiMeetList(items)
+    })
+    return () => unsub()
+  }, [kelasData?.id, profileData?.kelasId])
 
   if (loading) {
     return <DashboardMuridSkeleton />
@@ -233,6 +252,7 @@ export function MuridKelas() {
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl shrink-0 overflow-x-auto no-scrollbar">
           {[
             { id: "semua", label: "Daftar Teman", icon: Users },
+            { id: "kalender-meet", label: "Kalender Meet", icon: CalendarDays },
             { id: "skor-kuis", label: "Peringkat Kuis", icon: Trophy },
             { id: "nilai-tugas", label: "Nilai Tugas", icon: ClipboardList },
             { id: "chat", label: "Obrolan Kelas", icon: MessageSquare },
@@ -263,6 +283,13 @@ export function MuridKelas() {
         <ChatKelasRealtime
           kelasId={kelasData?.id || profileData?.kelasId}
           kelasNama={kelasData?.nama || profileData?.kelasNama}
+        />
+      ) : activeTab === "kalender-meet" ? (
+        <KalenderMeetKelas
+          sesiList={sesiMeetList}
+          kelasNama={kelasData?.nama || profileData?.kelasNama}
+          isGuru={false}
+          onJoinMeet={(sesi) => setLobbyMeet(sesi)}
         />
       ) : sortedTeman.length === 0 ? (
         <div className="text-center py-16 border border-dashed rounded-3xl bg-slate-50/60 p-6">
@@ -599,6 +626,35 @@ export function MuridKelas() {
           </div>,
           document.body
         )}
+      {/* Modal Preview Pra-Meet dari Kalender */}
+      {lobbyMeet && (
+        <PreMeetLobbyModal
+          judulSesi={lobbyMeet.judul}
+          userNama={profileData?.nama || currentUser?.displayName || "Siswa"}
+          isGuru={false}
+          onJoin={(settings) => {
+            setMeetInitialSettings(settings)
+            setActiveMeet(lobbyMeet)
+            setLobbyMeet(null)
+          }}
+          onCancel={() => setLobbyMeet(null)}
+        />
+      )}
+
+      {/* Modal Agora Meet Siswa */}
+      {activeMeet && (
+        <AgoraMeetRoom
+          channelName={activeMeet.channelName}
+          judulSesi={activeMeet.judul}
+          userNama={profileData?.nama || currentUser?.displayName || "Siswa"}
+          isGuru={false}
+          initialSettings={meetInitialSettings}
+          onLeave={() => {
+            setActiveMeet(null)
+            setMeetInitialSettings(null)
+          }}
+        />
+      )}
     </div>
   )
 }
