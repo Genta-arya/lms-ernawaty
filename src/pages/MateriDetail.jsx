@@ -179,7 +179,7 @@ export function MateriDetail() {
   }
 
   return (
-    <div className="container max-w-5xl py-6 md:py-8 overflow-hidden">
+    <div className="container max-w-7xl py-6 md:py-8 overflow-hidden">
       {/* Tombol Kembali ke Beranda Murid */}
       <div className="mb-6">
         <Button variant="ghost" size="sm" asChild className="gap-2 text-slate-600 hover:text-slate-900">
@@ -342,12 +342,12 @@ export function MateriDetail() {
                           scrollToTop()
                         }}
                         className={`px-3 py-1 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${isCurrent
-                            ? "bg-blue-600 text-white shadow-xs"
-                            : isLocked
-                              ? "bg-slate-100/70 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60"
-                              : isPassed
-                                ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 cursor-pointer"
-                                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 cursor-pointer"
+                          ? "bg-blue-600 text-white shadow-xs"
+                          : isLocked
+                            ? "bg-slate-100/70 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60"
+                            : isPassed
+                              ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 cursor-pointer"
+                              : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 cursor-pointer"
                           }`}
                         title={isLocked ? "Selesaikan Bab sebelumnya terlebih dahulu" : b.judul}
                       >
@@ -395,11 +395,10 @@ export function MateriDetail() {
                           <div
                             key={pIdx}
                             data-paragraph-index={pIdx}
-                            className={`transition-all duration-300 rounded-2xl p-3 sm:p-4 -mx-2 sm:-mx-3 ${
-                              isHighlighted
-                                ? "bg-amber-100/95 ring-2 ring-amber-400/90 shadow-md text-slate-950 font-medium"
-                                : ""
-                            }`}
+                            className={`transition-all duration-300 rounded-2xl p-3 sm:p-4 -mx-2 sm:-mx-3 ${isHighlighted
+                              ? "bg-amber-100/95 ring-2 ring-amber-400/90 shadow-md text-slate-950 font-medium"
+                              : ""
+                              }`}
                           >
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
@@ -517,10 +516,10 @@ export function MateriDetail() {
                       scrollToTop()
                     }}
                     className={`w-full text-left transition-colors py-1.5 px-2 rounded-lg text-xs truncate flex items-center justify-between gap-1.5 ${isActive
-                        ? "bg-blue-50 text-blue-700 font-extrabold"
-                        : isLocked
-                          ? "text-slate-400 opacity-60 cursor-not-allowed hover:bg-transparent"
-                          : "text-muted-foreground hover:text-foreground hover:bg-slate-50 cursor-pointer"
+                      ? "bg-blue-50 text-blue-700 font-extrabold"
+                      : isLocked
+                        ? "text-slate-400 opacity-60 cursor-not-allowed hover:bg-transparent"
+                        : "text-muted-foreground hover:text-foreground hover:bg-slate-50 cursor-pointer"
                       }`}
                     title={isLocked ? "Selesaikan Bab sebelumnya terlebih dahulu" : bag.judul}
                   >
