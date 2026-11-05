@@ -394,21 +394,21 @@ export function SpotlightTutorialMurid() {
               title="Klik di luar untuk menutup panduan"
             />
 
-            {/* KARTU DIALOG SPOTLIGHT (TOOLTIP) */}
+            {/* KARTU DIALOG SPOTLIGHT (TOOLTIP) DENGAN OVERFLOW SCROLL */}
             <div
               style={!isMobile && targetRect ? tooltipStyle : {}}
               className={`z-30 pointer-events-auto transition-all duration-300 ease-out ${
                 isMobile || !targetRect
-                  ? "fixed bottom-4 left-4 right-4 max-w-md mx-auto"
-                  : "fixed w-[420px]"
+                  ? "fixed bottom-3 sm:bottom-6 left-3 sm:left-4 right-3 sm:right-4 max-w-md mx-auto"
+                  : "fixed w-[420px] max-w-[calc(100vw-32px)]"
               }`}
             >
-              <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-200/90 text-slate-800 space-y-4 animate-in zoom-in-95 duration-200">
-                {/* Header Kartu: Ikon, Judul & Tombol Tutup */}
-                <div className="flex items-start justify-between gap-3">
+              <div className="bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] border border-slate-200/90 text-slate-800 flex flex-col max-h-[82dvh] sm:max-h-[86vh] overflow-hidden animate-in zoom-in-95 duration-200">
+                {/* 1. Header Kartu (Sticky / Tidak hilang saat scroll) */}
+                <div className="p-4 sm:p-5 pb-3 border-b border-slate-100 flex items-start justify-between gap-3 shrink-0 bg-white rounded-t-3xl">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-11 h-11 rounded-2xl bg-gradient-to-tr ${currentStep.iconColor} text-white flex items-center justify-center shrink-0 shadow-md`}
+                      className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr ${currentStep.iconColor} text-white flex items-center justify-center shrink-0 shadow-md`}
                     >
                       <IconComponent className="w-5 h-5 stroke-[2.2]" />
                     </div>
@@ -421,7 +421,7 @@ export function SpotlightTutorialMurid() {
                           {currentStep.badge}
                         </span>
                       </div>
-                      <h3 className="text-base font-black text-slate-900 tracking-tight mt-0.5">
+                      <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight mt-0.5">
                         {currentStep.title}
                       </h3>
                     </div>
@@ -431,60 +431,66 @@ export function SpotlightTutorialMurid() {
                     type="button"
                     onClick={handleDismiss}
                     title="Tutup panduan hari ini"
-                    className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Deskripsi Langkah */}
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
-                  {currentStep.description}
-                </p>
+                {/* 2. Isi Konten dengan Overflow-Y Auto (DAPAT DISCROLL DENGAN SENTUHAN / MOUSE) */}
+                <div
+                  style={{ WebkitOverflowScrolling: "touch" }}
+                  className="p-4 sm:p-5 overflow-y-auto overscroll-contain space-y-3.5 focus:outline-none scrollbar-thin scrollbar-thumb-slate-200"
+                >
+                  {/* Deskripsi Langkah */}
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+                    {currentStep.description}
+                  </p>
 
-                {/* Tips Cepat */}
-                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 flex items-start gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold text-slate-800">Tips: </span>
-                    <span>{currentStep.tips}</span>
+                  {/* Tips Cepat */}
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 flex items-start gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-slate-800">Tips: </span>
+                      <span>{currentStep.tips}</span>
+                    </div>
+                  </div>
+
+                  {/* Indikator Bar Progress Dots */}
+                  <div className="flex items-center justify-center gap-1.5 pt-1">
+                    {STEPS.map((step, idx) => (
+                      <button
+                        key={step.id}
+                        type="button"
+                        onClick={() => setCurrentStepIndex(idx)}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          idx === currentStepIndex
+                            ? "w-7 bg-blue-600"
+                            : idx < currentStepIndex
+                            ? "w-2.5 bg-blue-300"
+                            : "w-1.5 bg-slate-200"
+                        }`}
+                        title={`Langkah ${idx + 1}: ${step.title}`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Pengaturan "Jangan tampilkan lagi hari ini" */}
+                  <div className="pt-2 flex items-center justify-between border-t border-slate-100 text-[11px] text-slate-500">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={dontShowTodayChecked}
+                        onChange={(e) => setDontShowTodayChecked(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>Jangan tampilkan lagi hari ini (muncul besok)</span>
+                    </label>
                   </div>
                 </div>
 
-                {/* Indikator Bar Progress Dots */}
-                <div className="flex items-center justify-center gap-1.5 pt-1">
-                  {STEPS.map((step, idx) => (
-                    <button
-                      key={step.id}
-                      type="button"
-                      onClick={() => setCurrentStepIndex(idx)}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${
-                        idx === currentStepIndex
-                          ? "w-7 bg-blue-600"
-                          : idx < currentStepIndex
-                          ? "w-2.5 bg-blue-300"
-                          : "w-1.5 bg-slate-200"
-                      }`}
-                      title={`Langkah ${idx + 1}: ${step.title}`}
-                    />
-                  ))}
-                </div>
-
-                {/* Pengaturan "Jangan tampilkan lagi hari ini" */}
-                <div className="pt-1 flex items-center justify-between border-t border-slate-100 text-[11px] text-slate-500">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={dontShowTodayChecked}
-                      onChange={(e) => setDontShowTodayChecked(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span>Jangan tampilkan lagi hari ini (muncul besok)</span>
-                  </label>
-                </div>
-
-                {/* Tombol Aksi: Lewati, Sebelumnya, Lanjut / Selesai */}
-                <div className="flex items-center justify-between gap-2 pt-1">
+                {/* 3. Footer Tombol Aksi (Sticky / Tidak terpotong) */}
+                <div className="p-3 sm:p-4 px-4 sm:px-5 border-t border-slate-100 bg-slate-50/80 rounded-b-3xl flex items-center justify-between gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={handleDismiss}
