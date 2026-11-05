@@ -105,10 +105,10 @@ export function PwaInstallToast() {
   return (
     <aside
       aria-label="Pasang Aplikasi PWA"
-      className={`fixed z-[999999] transition-all duration-300 animate-in fade-in slide-in-from-top-3 pointer-events-auto ${
+      className={`fixed z-[9999] transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 pointer-events-auto ${
         isTablet
-          ? "top-4 left-4 max-w-xs w-auto"
-          : "top-2.5 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-sm"
+          ? "bottom-6 left-6 max-w-xs w-auto"
+          : "bottom-20 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-sm md:bottom-6 md:left-6 md:translate-x-0"
       }`}
     >
       {/* Pill Minimalis Ramping ala Dynamic Island */}
