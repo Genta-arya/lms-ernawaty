@@ -54,6 +54,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
 
   const utteranceRef = useRef(null)
   const fullTextRef = useRef("")
+  const lastCharIndexRef = useRef(0) // Menyimpan posisi karakter terakhir saat jeda
 
   // Bersihkan highlight lama di dokumen DOM
   const clearDomHighlights = () => {
@@ -87,7 +88,6 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
       const cleanWord = word.trim().replace(/[.,!?;:"'()]/g, "")
       if (!cleanWord || cleanWord.length < 2) return
 
-      // Cari elemen teks (p, li, h1, h2, h3, td) di dalam container
       const textNodes = container.querySelectorAll("p, li, td, th, h1, h2, h3, h4")
       for (const el of textNodes) {
         if (el.textContent && el.textContent.toLowerCase().includes(cleanWord.toLowerCase())) {
@@ -103,7 +103,6 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
             "transition-all",
             "duration-150"
           )
-          // Scroll halus jika elemen keluar dari viewport
           const rect = el.getBoundingClientRect()
           if (rect.top < 80 || rect.bottom > window.innerHeight - 80) {
             el.scrollIntoView({ behavior: "smooth", block: "center" })
@@ -166,45 +165,31 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
     setIsPlaying(false)
     setIsPaused(false)
     setCurrentSpokenWord("")
+    lastCharIndexRef.current = 0
   }, [judulBab, kontenMarkdown])
 
-  const handlePlayOrPause = () => {
-    if (!isSupported) {
-      alert("Browser Anda belum mendukung fitur Web Speech Text-to-Speech.")
-      return
-    }
-
+  /**
+   * Fungsi internal untuk memulai pemutaran dari posisi indeks karakter tertentu
+   */
+  const playFromIndex = (startIndex = 0) => {
     const synth = window.speechSynthesis
-
-    // Jika sedang paused, lanjutkan (resume)
-    if (isPaused) {
-      synth.resume()
-      setIsPaused(false)
-      setIsPlaying(true)
-      return
-    }
-
-    // Jika sedang playing, jeda (pause)
-    if (isPlaying) {
-      synth.pause()
-      setIsPaused(true)
-      setIsPlaying(false)
-      return
-    }
-
-    // Mulai pembacaan baru dari awal
     synth.cancel()
-    clearDomHighlights()
 
-    const narasiBab = `${judulBab}. ${cleanMarkdownForSpeech(kontenMarkdown)}`
-    fullTextRef.current = narasiBab
+    const rawFull = `${judulBab}. ${cleanMarkdownForSpeech(kontenMarkdown)}`
+    fullTextRef.current = rawFull
 
-    if (!narasiBab.trim()) {
-      alert("Tidak ada teks konten pada bab ini untuk dibaca.")
+    // Ambil sisa teks yang belum dibaca
+    const textToSpeak = rawFull.slice(startIndex).trim()
+    if (!textToSpeak) {
+      setIsPlaying(false)
+      setIsPaused(false)
+      setCurrentSpokenWord("")
+      clearDomHighlights()
+      lastCharIndexRef.current = 0
       return
     }
 
-    const utterance = new SpeechSynthesisUtterance(narasiBab)
+    const utterance = new SpeechSynthesisUtterance(textToSpeak)
     utterance.lang = "id-ID"
     utterance.rate = rate
     utterance.pitch = 1.0
@@ -223,6 +208,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
       setIsPaused(false)
       setCurrentSpokenWord("")
       clearDomHighlights()
+      lastCharIndexRef.current = 0
     }
 
     utterance.onerror = (e) => {
@@ -232,14 +218,14 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
       clearDomHighlights()
     }
 
-    // Tangkap kata yang sedang diucapkan secara real-time untuk memberi highlight
     utterance.onboundary = (e) => {
       if (e.name === "word" || typeof e.charIndex === "number") {
-        const text = fullTextRef.current
-        const index = e.charIndex
-        // Ambil potongan kata di sekitar charIndex
-        const nextSpace = text.indexOf(" ", index)
-        const word = text.slice(index, nextSpace !== -1 ? nextSpace : index + 15).trim()
+        // Hitung index absolut pada teks penuh
+        const currentAbsoluteIndex = startIndex + (e.charIndex || 0)
+        lastCharIndexRef.current = currentAbsoluteIndex
+
+        const nextSpace = rawFull.indexOf(" ", currentAbsoluteIndex)
+        const word = rawFull.slice(currentAbsoluteIndex, nextSpace !== -1 ? nextSpace : currentAbsoluteIndex + 15).trim()
         if (word) {
           setCurrentSpokenWord(word)
           highlightWordInDom(word)
@@ -249,6 +235,37 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
 
     utteranceRef.current = utterance
     synth.speak(utterance)
+  }
+
+  const handlePlayOrPause = () => {
+    if (!isSupported) {
+      alert("Browser Anda belum mendukung fitur Web Speech Text-to-Speech.")
+      return
+    }
+
+    const synth = window.speechSynthesis
+
+    // KASUS 1: Jika sedang dijeda (isPaused), LANJUTKAN pembacaan dari titik terakhir
+    if (isPaused) {
+      setIsPaused(false)
+      setIsPlaying(true)
+      // Jalankan dari posisi karakter terakhir saat dijeda
+      playFromIndex(lastCharIndexRef.current)
+      return
+    }
+
+    // KASUS 2: Jika sedang berbunyi (isPlaying), JEDA pembacaan
+    if (isPlaying) {
+      synth.cancel() // Batalkan speech aktif agar tidak menggantung di browser
+      setIsPaused(true)
+      setIsPlaying(false)
+      return
+    }
+
+    // KASUS 3: Mulai dari awal (0)
+    lastCharIndexRef.current = 0
+    clearDomHighlights()
+    playFromIndex(0)
   }
 
   const handleStop = () => {
@@ -261,6 +278,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
     setIsPlaying(false)
     setIsPaused(false)
     setCurrentSpokenWord("")
+    lastCharIndexRef.current = 0
   }
 
   const cycleSpeed = () => {
@@ -269,11 +287,9 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
     const nextRate = speeds[nextIdx]
     setRate(nextRate)
 
+    // Jika sedang aktif memutar, lanjutkan dengan speed baru dari posisi sekarang
     if (isPlaying) {
-      handleStop()
-      setTimeout(() => {
-        handlePlayOrPause()
-      }, 150)
+      playFromIndex(lastCharIndexRef.current)
     }
   }
 
@@ -288,10 +304,18 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
             className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform ${
               isPlaying
                 ? "bg-emerald-500 text-white scale-105 shadow-md shadow-emerald-500/30 animate-pulse"
+                : isPaused
+                ? "bg-amber-500 text-slate-950 scale-100"
                 : "bg-white/15 text-blue-200"
             }`}
           >
-            {isPlaying ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5 opacity-80" />}
+            {isPlaying ? (
+              <Volume2 className="w-5 h-5" />
+            ) : isPaused ? (
+              <Pause className="w-5 h-5 fill-current" />
+            ) : (
+              <VolumeX className="w-5 h-5 opacity-80" />
+            )}
           </div>
           <div className="min-w-0 pr-1">
             <div className="flex items-center gap-1.5">
@@ -302,7 +326,12 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
               {isPlaying && (
                 <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-400/40 px-2 py-0.2 rounded-full">
                   <Highlighter className="w-2.5 h-2.5" />
-                  Live Highlight Aktif
+                  Live Highlight
+                </span>
+              )}
+              {isPaused && (
+                <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-500/30 text-amber-300 px-2 py-0.2 rounded-full">
+                  Dijeda (Bisa Dilanjutkan)
                 </span>
               )}
             </div>
@@ -310,11 +339,13 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
               {isPlaying
                 ? "Sedang Membacakan Materi..."
                 : isPaused
-                ? "Narasi Dijeda"
+                ? "Narasi Sedang Dijeda"
                 : "Dengarkan Penjelasan Bab Ini"}
             </h4>
             <p className="text-[10px] text-blue-200/80 hidden sm:block">
-              Teks bacaan yang sedang diucapkan akan otomatis disorot (highlight kuning) secara visual.
+              {isPaused
+                ? "Klik Lanjutkan untuk meneruskan suara dari kalimat terakhir."
+                : "Teks bacaan yang sedang diucapkan akan otomatis disorot (highlight kuning) secara visual."}
             </p>
           </div>
         </div>
@@ -337,7 +368,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
             <button
               type="button"
               onClick={handleStop}
-              title="Hentikan Narasi"
+              title="Hentikan & Reset ke Awal"
               className="p-2 rounded-xl bg-white/10 hover:bg-rose-500/20 hover:text-rose-300 active:scale-95 text-slate-300 border border-white/10 transition-all"
             >
               <RotateCcw className="w-4 h-4" />
@@ -351,6 +382,8 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
             className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md active:scale-95 transition-all ${
               isPlaying
                 ? "bg-amber-500 hover:bg-amber-600 text-slate-950"
+                : isPaused
+                ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/30"
                 : "bg-blue-500 hover:bg-blue-600 text-white shadow-blue-500/30"
             }`}
           >
@@ -369,19 +402,25 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
         </div>
       </div>
 
-      {/* Floating Subtitle / Banner Kata Aktif saat Narasi Berjalan */}
-      {isPlaying && currentSpokenWord && (
+      {/* Floating Subtitle / Banner Kata Aktif saat Narasi Berjalan atau Dijeda */}
+      {(isPlaying || isPaused) && currentSpokenWord && (
         <div className="p-2 px-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-2 animate-in fade-in slide-in-from-top-1">
           <div className="flex items-center gap-2 truncate">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
+            <span
+              className={`w-2 h-2 rounded-full shrink-0 ${
+                isPlaying ? "bg-amber-500 animate-ping" : "bg-amber-500"
+              }`}
+            />
             <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
-              Kata yang sedang dibaca:
+              {isPlaying ? "Kata yang sedang dibaca:" : "Posisi saat dijeda:"}
             </span>
             <b className="text-amber-700 dark:text-amber-300 bg-amber-200/60 dark:bg-amber-900/40 px-1.5 py-0.5 rounded text-xs">
               "{currentSpokenWord}"
             </b>
           </div>
-          <span className="text-[10px] text-slate-400 shrink-0">Auto Scroll</span>
+          <span className="text-[10px] text-slate-400 shrink-0">
+            {isPlaying ? "Auto Scroll" : "Siap Dilanjutkan"}
+          </span>
         </div>
       )}
     </div>
