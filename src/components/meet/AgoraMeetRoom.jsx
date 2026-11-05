@@ -114,6 +114,7 @@ export function AgoraMeetRoom({
 
   const presentationContainerRef = useRef(null)
   const [isFullscreenShare, setIsFullscreenShare] = useState(false)
+  const [isTheaterFullscreen, setIsTheaterFullscreen] = useState(false)
   const [dismissRotateTip, setDismissRotateTip] = useState(false)
   const [shareScreenLayout, setShareScreenLayout] = useState("side-by-side") // 'side-by-side' | 'standard'
 
@@ -124,6 +125,7 @@ export function AgoraMeetRoom({
   const isDraggingRef = useRef(false)
   const dragStartRef = useRef({ x: 0, y: 0 })
   const touchDistanceRef = useRef(null)
+  const lastTapRef = useRef(0)
 
   // Pop-up Notifikasi Peserta Bergabung & Alert Toast Share Screen
   const [joinedToast, setJoinedToast] = useState(null)
@@ -183,7 +185,7 @@ export function AgoraMeetRoom({
   }
 
   function handleZoomIn() {
-    setZoomLevel((prev) => Math.min(3.5, Number((prev + 0.25).toFixed(2))))
+    setZoomLevel((prev) => Math.min(4, Number((prev + 0.25).toFixed(2))))
   }
 
   function handleZoomOut() {
@@ -201,8 +203,17 @@ export function AgoraMeetRoom({
     setPanOffset({ x: 0, y: 0 })
   }
 
+  function handleToggleDoubleZoom() {
+    if (zoomLevel > 1) {
+      handleResetZoom()
+    } else {
+      setZoomLevel(2)
+      setPanOffset({ x: 0, y: 0 })
+    }
+  }
+
   function handleWheel(e) {
-    if (e.ctrlKey || isFullscreenShare) {
+    if (e.ctrlKey || isFullscreenShare || isTheaterFullscreen) {
       e.preventDefault()
       if (e.deltaY < 0) {
         handleZoomIn()
@@ -244,11 +255,22 @@ export function AgoraMeetRoom({
         e.touches[0].clientY - e.touches[1].clientY
       )
       touchDistanceRef.current = dist
-    } else if (e.touches.length === 1 && zoomLevel > 1) {
-      isDraggingRef.current = true
-      dragStartRef.current = {
-        x: e.touches[0].clientX - panOffset.x,
-        y: e.touches[0].clientY - panOffset.y,
+    } else if (e.touches.length === 1) {
+      const now = Date.now()
+      if (now - lastTapRef.current < 300) {
+        // Double tap terdeteksi
+        handleToggleDoubleZoom()
+        lastTapRef.current = 0
+        return
+      }
+      lastTapRef.current = now
+
+      if (zoomLevel > 1) {
+        isDraggingRef.current = true
+        dragStartRef.current = {
+          x: e.touches[0].clientX - panOffset.x,
+          y: e.touches[0].clientY - panOffset.y,
+        }
       }
     }
   }
@@ -262,7 +284,7 @@ export function AgoraMeetRoom({
       const factor = dist / touchDistanceRef.current
       touchDistanceRef.current = dist
       setZoomLevel((prev) => {
-        const next = Math.max(1, Math.min(3.5, Number((prev * factor).toFixed(2))))
+        const next = Math.max(1, Math.min(4, Number((prev * factor).toFixed(2))))
         if (next === 1) setPanOffset({ x: 0, y: 0 })
         return next
       })
@@ -287,27 +309,52 @@ export function AgoraMeetRoom({
   useEffect(() => {
     if (!activeSharer) {
       handleResetZoom()
+      setIsTheaterFullscreen(false)
     }
   }, [activeSharer])
 
-  function toggleFullscreenShare() {
-    if (!presentationContainerRef.current) return
-    if (!document.fullscreenElement) {
-      presentationContainerRef.current.requestFullscreen?.().catch(() => { })
-      setIsFullscreenShare(true)
-    } else {
+  async function toggleFullscreenShare() {
+    if (isTheaterFullscreen) {
+      setIsTheaterFullscreen(false)
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => { })
+      }
+      setIsFullscreenShare(false)
+      return
+    }
+
+    if (!document.fullscreenElement && presentationContainerRef.current) {
+      try {
+        if (presentationContainerRef.current.requestFullscreen) {
+          await presentationContainerRef.current.requestFullscreen()
+          setIsFullscreenShare(true)
+        } else {
+          // Fallback untuk browser mobile / iOS yang tidak support requestFullscreen di div
+          setIsTheaterFullscreen(true)
+        }
+      } catch (err) {
+        // Jika requestFullscreen ditolak browser mobile, aktifkan mode theater fullscreen CSS
+        setIsTheaterFullscreen(true)
+      }
+    } else if (document.fullscreenElement) {
       document.exitFullscreen?.().catch(() => { })
       setIsFullscreenShare(false)
+    } else {
+      setIsTheaterFullscreen((prev) => !prev)
     }
   }
 
   useEffect(() => {
     function onFsChange() {
-      setIsFullscreenShare(!!document.fullscreenElement)
+      const inFs = !!document.fullscreenElement
+      setIsFullscreenShare(inFs)
+      if (!inFs && !isTheaterFullscreen) {
+        // user keluar fullscreen
+      }
     }
     document.addEventListener("fullscreenchange", onFsChange)
     return () => document.removeEventListener("fullscreenchange", onFsChange)
-  }, [])
+  }, [isTheaterFullscreen])
 
   useEffect(() => {
     micOnRef.current = micOn
@@ -982,6 +1029,16 @@ export function AgoraMeetRoom({
     (activeSharer === userNama && isScreenSharing) ||
     (!!activeSharer && (remoteUsers.length === 0 || remoteUsers.some((u) => String(u.uid) === String(activeSharer) || u.hasVideo)))
 
+  // Auto-fokus ke sharescreen saat ada yang mulai presentasi
+  useEffect(() => {
+    if (isSomeoneSharing) {
+      handleResetZoom()
+      // Tutup panel chat dan peserta agar layar presentasi tidak terhalang
+      setShowChat(false)
+      setShowParticipantList(false)
+    }
+  }, [isSomeoneSharing, activeSharer])
+
   // Siapa pembicara aktif di Speaker View
   const currentSpeakerUid =
     spotlightUser ||
@@ -1270,148 +1327,177 @@ export function AgoraMeetRoom({
              ZOOM SCREEN SHARE MODE (STANDAR vs SIDE-BY-SIDE ALA ZOOM)
              ========================================================================= */
           (() => {
-            const renderPresentationCard = (extraClass = "") => (
-              <div
-                ref={presentationContainerRef}
-                className={`relative rounded-xl sm:rounded-2xl bg-black border border-slate-800/80 overflow-hidden shadow-2xl flex items-center justify-center min-h-0 ${extraClass}`}
-              >
-                {/* Zoom & Pan Wrapper */}
+            const renderPresentationCard = (extraClass = "") => {
+              const inAnyFullscreen = isFullscreenShare || isTheaterFullscreen
+              return (
                 <div
-                  className="w-full h-full overflow-hidden relative flex items-center justify-center select-none"
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
-                  onWheel={handleWheel}
+                  ref={presentationContainerRef}
+                  className={`relative rounded-xl sm:rounded-2xl bg-black border border-slate-800/80 overflow-hidden shadow-2xl flex items-center justify-center min-h-0 ${
+                    isTheaterFullscreen
+                      ? "!fixed !inset-0 !z-[99999999] !w-screen !h-[100dvh] !max-w-none !max-h-none !rounded-none !border-0 bg-black"
+                      : extraClass
+                  }`}
                 >
+                  {/* Zoom & Pan Wrapper */}
                   <div
-                    className={`w-full h-full flex items-center justify-center ${zoomLevel > 1 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : ""
-                      }`}
-                    style={{
-                      transform: `scale(${zoomLevel}) translate(${panOffset.x / zoomLevel}px, ${panOffset.y / zoomLevel}px)`,
-                      transformOrigin: "center center",
-                      transition: isDragging || touchDistanceRef.current ? "none" : "transform 0.15s ease-out",
-                    }}
+                    className="w-full h-full overflow-hidden relative flex items-center justify-center select-none"
+                    onDoubleClick={handleToggleDoubleZoom}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onWheel={handleWheel}
                   >
-                    {activeSharer === userNama ? (
-                      <LocalScreenShareView screenTrack={screenTrackRef.current} />
-                    ) : (
-                      <RemoteScreenShareView
-                        sharerUser={remoteUsers.find((u) => u.uid === activeSharer)}
-                      />
-                    )}
+                    <div
+                      className={`w-full h-full flex items-center justify-center ${zoomLevel > 1 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : ""
+                        }`}
+                      style={{
+                        transform: `scale(${zoomLevel}) translate(${panOffset.x / zoomLevel}px, ${panOffset.y / zoomLevel}px)`,
+                        transformOrigin: "center center",
+                        transition: isDragging || touchDistanceRef.current ? "none" : "transform 0.15s ease-out",
+                      }}
+                    >
+                      {activeSharer === userNama ? (
+                        <LocalScreenShareView screenTrack={screenTrackRef.current} />
+                      ) : (
+                        <RemoteScreenShareView
+                          sharerUser={remoteUsers.find((u) => u.uid === activeSharer)}
+                        />
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Badge info presenter */}
-                <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-black/75 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-emerald-400 flex items-center gap-1.5 sm:gap-2 border border-emerald-500/30 z-10">
-                  <Monitor className="w-3.5 h-3.5" />
-                  <span>Presentasi: {activeSharer === userNama ? "Layar Anda" : activeSharer}</span>
-                </div>
-
-                {/* Indikator Mode Zoom Aktif */}
-                {zoomLevel > 1 && (
-                  <div className="absolute top-11 sm:top-12 left-2.5 sm:left-3 bg-black/80 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[9px] sm:text-[10px] text-emerald-300 font-bold border border-emerald-500/30 shadow-lg z-10 animate-in fade-in">
-                    Mode Zoom Aktif • Geser layar untuk menjelajah
+                  {/* Badge info presenter */}
+                  <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-black/75 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-emerald-400 flex items-center gap-1.5 sm:gap-2 border border-emerald-500/30 z-10">
+                    <Monitor className="w-3.5 h-3.5" />
+                    <span className="truncate max-w-[160px] sm:max-w-xs">Presentasi: {activeSharer === userNama ? "Layar Anda" : activeSharer}</span>
                   </div>
-                )}
 
-                {/* Action Buttons: Fullscreen & Toggle Layout & Stop Share */}
-                <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 flex items-center gap-1.5 z-10">
-                  {/* Tombol Toggle Layout Samping vs Bawah */}
-                  <button
-                    type="button"
-                    onClick={() => setShareScreenLayout(shareScreenLayout === "standard" ? "side-by-side" : "standard")}
-                    className="bg-black/75 hover:bg-black/90 text-white px-2 py-1.5 rounded-xl text-xs font-bold border border-white/20 backdrop-blur-md shadow-md active:scale-95 transition-all flex items-center gap-1.5"
-                    title={shareScreenLayout === "standard" ? "Ganti ke Tampilan Samping (Side-by-Side)" : "Ganti ke Tampilan Standar (Bawah)"}
-                  >
-                    {shareScreenLayout === "standard" ? (
-                      <>
-                        <Columns2 className="w-3.5 h-3.5 text-blue-400" />
-                        <span className="hidden lg:inline text-[10px]">Side-by-Side</span>
-                      </>
-                    ) : (
-                      <>
-                        <Rows3 className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="hidden lg:inline text-[10px]">Standar</span>
-                      </>
+                  {/* Indikator Mode Zoom Aktif */}
+                  {zoomLevel > 1 && (
+                    <div className="absolute top-11 sm:top-12 left-2.5 sm:left-3 bg-black/80 backdrop-blur-md px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[9px] sm:text-[10px] text-emerald-300 font-bold border border-emerald-500/30 shadow-lg z-10 animate-in fade-in flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Zoom {Math.round(zoomLevel * 100)}% • Geser untuk geser layar</span>
+                    </div>
+                  )}
+
+                  {/* Action Buttons: Fullscreen & Toggle Layout & Stop Share */}
+                  <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 flex items-center gap-1.5 z-10">
+                    {/* Tombol Toggle Layout Samping vs Bawah (hanya saat tidak fullscreen) */}
+                    {!inAnyFullscreen && (
+                      <button
+                        type="button"
+                        onClick={() => setShareScreenLayout(shareScreenLayout === "standard" ? "side-by-side" : "standard")}
+                        className="bg-black/75 hover:bg-black/90 text-white px-2 py-1.5 rounded-xl text-xs font-bold border border-white/20 backdrop-blur-md shadow-md active:scale-95 transition-all flex items-center gap-1.5"
+                        title={shareScreenLayout === "standard" ? "Ganti ke Tampilan Samping (Side-by-Side)" : "Ganti ke Tampilan Standar (Bawah)"}
+                      >
+                        {shareScreenLayout === "standard" ? (
+                          <>
+                            <Columns2 className="w-3.5 h-3.5 text-blue-400" />
+                            <span className="hidden lg:inline text-[10px]">Side-by-Side</span>
+                          </>
+                        ) : (
+                          <>
+                            <Rows3 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="hidden lg:inline text-[10px]">Standar</span>
+                          </>
+                        )}
+                      </button>
                     )}
-                  </button>
 
-                  <button
-                    type="button"
-                    onClick={toggleFullscreenShare}
-                    className="bg-black/70 hover:bg-black/90 text-white p-1.5 rounded-xl text-xs font-bold border border-white/20 backdrop-blur-md shadow-md active:scale-95 transition-all"
-                    title={isFullscreenShare ? "Keluar Layar Penuh" : "Layar Penuh"}
-                  >
-                    {isFullscreenShare ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                  </button>
-                  {isGuru && activeSharer !== userNama && (
+                    {/* Tombol Fullscreen / Layar Penuh */}
                     <button
                       type="button"
-                      onClick={handleHentikanShareScreenMurid}
-                      className="bg-rose-600/90 hover:bg-rose-600 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold flex items-center gap-1 shadow-lg active:scale-95 transition-all"
+                      onClick={toggleFullscreenShare}
+                      className={`p-1.5 sm:p-2 rounded-xl text-xs font-bold border backdrop-blur-md shadow-md active:scale-95 transition-all flex items-center gap-1.5 ${
+                        inAnyFullscreen
+                          ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-400/50 shadow-blue-900/40"
+                          : "bg-black/75 hover:bg-black/90 text-white border-white/20"
+                      }`}
+                      title={inAnyFullscreen ? "Keluar Layar Penuh" : "Layar Penuh"}
                     >
-                      <MonitorOff className="w-3.5 h-3.5" />
-                      <span>Hentikan</span>
+                      {inAnyFullscreen ? (
+                        <>
+                          <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          <span className="text-[10px] hidden sm:inline">Keluar Penuh</span>
+                        </>
+                      ) : (
+                        <>
+                          <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          <span className="text-[10px] hidden sm:inline">Layar Penuh</span>
+                        </>
+                      )}
                     </button>
+
+                    {isGuru && activeSharer !== userNama && (
+                      <button
+                        type="button"
+                        onClick={handleHentikanShareScreenMurid}
+                        className="bg-rose-600/90 hover:bg-rose-600 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold flex items-center gap-1 shadow-lg active:scale-95 transition-all"
+                      >
+                        <MonitorOff className="w-3.5 h-3.5" />
+                        <span>Hentikan</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Kontrol Zoom In / Zoom Out saat Presentasi & Layar Penuh */}
+                  <div className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 flex items-center gap-1 bg-black/85 backdrop-blur-md p-1 sm:p-1.5 rounded-xl border border-white/20 shadow-2xl z-20">
+                    <button
+                      type="button"
+                      onClick={handleZoomOut}
+                      disabled={zoomLevel <= 1}
+                      className="p-1 sm:p-1.5 rounded-lg text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-95 flex items-center justify-center"
+                      title="Perkecil / Zoom Out (-)"
+                      aria-label="Zoom Out"
+                    >
+                      <ZoomOut className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetZoom}
+                      className={`px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-mono font-bold transition-all ${zoomLevel > 1 ? "bg-emerald-500/25 text-emerald-400 hover:bg-emerald-500/35 ring-1 ring-emerald-500/40" : "text-slate-300 hover:text-white"
+                        }`}
+                      title="Klik untuk reset zoom ke 100%"
+                    >
+                      {Math.round(zoomLevel * 100)}%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleZoomIn}
+                      disabled={zoomLevel >= 4}
+                      className="p-1 sm:p-1.5 rounded-lg text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-95 flex items-center justify-center"
+                      title="Perbesar / Zoom In (+)"
+                      aria-label="Zoom In"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Petunjuk Rotasi Mobile (Bisa di-close siswa) */}
+                  {!dismissRotateTip && zoomLevel <= 1 && !inAnyFullscreen && (
+                    <div className="flex sm:hidden absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md pl-2.5 pr-1.5 py-1 rounded-full border border-white/15 text-[10px] text-slate-200 items-center gap-1.5 shadow-xl z-20 animate-in fade-in slide-in-from-bottom-2">
+                      <RotateCcw className="w-3 h-3 text-blue-400 shrink-0" />
+                      <span className="truncate max-w-[200px]">Double tap untuk zoom &bull; Putar HP</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDismissRotateTip(true)
+                        }}
+                        className="p-0.5 hover:bg-white/20 rounded-full text-slate-400 hover:text-white transition-all ml-0.5 active:scale-95"
+                        title="Tutup petunjuk"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
                 </div>
-
-                {/* Kontrol Zoom In / Zoom Out saat Presentasi & Layar Penuh */}
-                <div className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 flex items-center gap-1 bg-black/80 backdrop-blur-md p-1 sm:p-1.5 rounded-xl border border-white/20 shadow-2xl z-20">
-                  <button
-                    type="button"
-                    onClick={handleZoomOut}
-                    disabled={zoomLevel <= 1}
-                    className="p-1 sm:p-1.5 rounded-lg text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-95"
-                    title="Zoom Out (-)"
-                  >
-                    <ZoomOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleResetZoom}
-                    className={`px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-mono font-bold transition-all ${zoomLevel > 1 ? "bg-emerald-500/25 text-emerald-400 hover:bg-emerald-500/35" : "text-slate-300"
-                      }`}
-                    title="Klik untuk reset zoom (100%)"
-                  >
-                    {Math.round(zoomLevel * 100)}%
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleZoomIn}
-                    disabled={zoomLevel >= 3.5}
-                    className="p-1 sm:p-1.5 rounded-lg text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-transparent transition-all active:scale-95"
-                    title="Zoom In (+)"
-                  >
-                    <ZoomIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  </button>
-                </div>
-
-                {/* Petunjuk Rotasi Mobile (Bisa di-close siswa) */}
-                {!dismissRotateTip && zoomLevel <= 1 && (
-                  <div className="flex sm:hidden absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/85 backdrop-blur-md pl-2.5 pr-1.5 py-1 rounded-full border border-white/15 text-[10px] text-slate-200 items-center gap-1.5 shadow-xl z-20 animate-in fade-in slide-in-from-bottom-2">
-                    <RotateCcw className="w-3 h-3 text-blue-400 shrink-0" />
-                    <span className="truncate max-w-[200px]">Bisa putar HP untuk layar penuh</span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDismissRotateTip(true)
-                      }}
-                      className="p-0.5 hover:bg-white/20 rounded-full text-slate-400 hover:text-white transition-all ml-0.5 active:scale-95"
-                      title="Tutup petunjuk"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
+              )
+            }
 
             if (shareScreenLayout === "side-by-side") {
               return (
