@@ -245,3 +245,98 @@ export async function uploadToCloudinary(file) {
 
   return resData.secure_url
 }
+
+/**
+ * Membuka Cloudinary Upload Widget khusus untuk dokumen dan materi pembelajaran di Ruang Meet
+ * Mendukung dokumen PDF, Word, PowerPoint, Excel, Gambar, ZIP/RAR, dll.
+ * Hanya dipanggil oleh Guru.
+ */
+export async function openCloudinaryMeetFileWidget({ onSuccess, onError, onClose }) {
+  try {
+    await loadCloudinaryScript()
+  } catch (err) {
+    if (onError) onError(err)
+    return
+  }
+
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim() || "ephsphyt"
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET?.trim() || "lmsernawaty"
+
+  if (!window.cloudinary) {
+    if (onError) onError(new Error("Cloudinary Widget belum siap. Silakan muat ulang halaman."))
+    return
+  }
+
+  const widget = window.cloudinary.createUploadWidget(
+    {
+      cloudName: cloudName,
+      uploadPreset: uploadPreset,
+      sources: ["local", "url"],
+      multiple: false,
+      resourceType: "auto", // auto mendeteksi raw/document/image
+      maxFileSize: 20971520, // 20MB
+      folder: "lsm_materi_meet",
+      theme: "minimal",
+      language: "id",
+      text: {
+        id: {
+          or: "atau",
+          back: "Kembali",
+          close: "Tutup",
+          no_results: "Tidak ada hasil",
+          search_placeholder: "Cari file...",
+          menu: {
+            files: "Pilih Berkas dari Komputer",
+            web: "Alamat Web (URL)",
+          },
+          local: {
+            browse: "Pilih File / Dokumen",
+            dd_title_single: "Seret dokumen materi ke sini",
+            drop_title_single: "Lepaskan file materi untuk diunggah",
+          },
+        },
+      },
+      styles: {
+        palette: {
+          window: "#0F172A",
+          windowBorder: "#334155",
+          tabIcon: "#38BDF8",
+          menuIcons: "#94A3B8",
+          textDark: "#0F172A",
+          textLight: "#F8FAFC",
+          link: "#38BDF8",
+          action: "#2563EB",
+          inactiveTabIcon: "#64748B",
+          error: "#F87171",
+          inProgress: "#38BDF8",
+          complete: "#34D399",
+          sourceBg: "#1E293B",
+        },
+      },
+    },
+    (error, result) => {
+      if (error) {
+        console.error("Cloudinary Meet File Widget error:", error)
+        if (onError) onError(error)
+        return
+      }
+
+      if (result && result.event === "success") {
+        const info = result.info
+        if (onSuccess) {
+          onSuccess({
+            url: info.secure_url,
+            name: info.original_filename ? `${info.original_filename}.${info.format || "file"}` : "Berkas Materi",
+            format: info.format,
+            bytes: info.bytes,
+            resourceType: info.resource_type,
+          })
+        }
+      } else if (result && result.event === "close") {
+        if (onClose) onClose()
+      }
+    }
+  )
+
+  widget.open()
+}

@@ -431,15 +431,19 @@ export async function setSpotlightUser(channelName, userAccount) {
 }
 
 /**
- * Mengirim pesan chat dalam meet
+ * Mengirim pesan chat dalam meet (mendukung teks dan lampiran file/materi guru)
  */
-export async function sendMeetMessage(channelName, { senderNama, senderRole, text }) {
-  if (!channelName || !text?.trim()) return
+export async function sendMeetMessage(channelName, { senderNama, senderRole, text, fileUrl = null, fileName = null, fileType = null, fileSize = null }) {
+  if (!channelName || (!text?.trim() && !fileUrl)) return
   const colRef = collection(db, "meetControls", channelName, "messages")
   await addDoc(colRef, {
     senderNama,
     senderRole: senderRole || "murid",
-    text: text.trim(),
+    text: text ? text.trim() : "",
+    fileUrl: fileUrl || null,
+    fileName: fileName || null,
+    fileType: fileType || null,
+    fileSize: fileSize || null,
     createdAt: serverTimestamp(),
   })
 }
