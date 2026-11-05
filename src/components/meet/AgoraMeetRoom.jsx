@@ -1432,7 +1432,7 @@ export function AgoraMeetRoom({
                   <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-black/75 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-emerald-400 flex items-center gap-1.5 sm:gap-2 border border-emerald-500/30 z-10">
                     <Monitor className="w-3.5 h-3.5" />
                     <span className="truncate max-w-[160px] sm:max-w-xs">
-                      Presentasi: {isLocalSharing ? "Layar Anda" : presenterName || "Layar Presenter"}
+                      Presentasi: {presenterName || (isLocalSharing ? userNama : "Presenter")}
                     </span>
                   </div>
 
@@ -1503,82 +1503,6 @@ export function AgoraMeetRoom({
                       </button>
                     )}
                   </div>
-
-                  {/* Floating Camera Presenter (PiP) - Kamera Guru / Presenter Tetap Muncul & Tidak Replace */}
-                  {showPipCam && (
-                    <div className="absolute top-12 sm:top-14 right-2.5 sm:right-3 w-28 sm:w-44 md:w-52 aspect-video rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-700/80 bg-slate-900/95 backdrop-blur-xl z-30 ring-1 ring-black/50 animate-in fade-in zoom-in-95 duration-200">
-                      {isLocalSharing ? (
-                        /* Kamera Saya Saat Saya Presentasi */
-                        <div className="relative w-full h-full flex items-center justify-center bg-black">
-                          <LocalUserVideoCard
-                            localTrack={localTracksRef.current?.videoTrack}
-                            cameraOn={cameraOn}
-                            micOn={micOn}
-                            userNama={userNama}
-                            isScreenSharing={false}
-                            compact={true}
-                            aspectClass="w-full h-full aspect-video"
-                          />
-                        </div>
-                      ) : (
-                        /* Kamera Presenter / Guru Saat Orang Lain Presentasi */
-                        <div className="relative w-full h-full flex items-center justify-center bg-black">
-                          {(() => {
-                            const presenterUser =
-                              humanRemoteUsers.find((u) => u.uid === presenterName) ||
-                              remoteUsers.find((u) => u.uid === presenterName)
-
-                            if (presenterUser) {
-                              return (
-                                <RemoteUserVideoCard
-                                  user={presenterUser}
-                                  compact={true}
-                                  aspectClass="w-full h-full aspect-video"
-                                  isSpeaking={speakingUsers[presenterUser.uid]}
-                                  isSpotlight={false}
-                                  isGuruHost={false}
-                                />
-                              )
-                            }
-                            return (
-                              <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
-                                <Video className="w-4 h-4 text-emerald-400 animate-pulse" />
-                                <span className="text-[9px] font-bold text-slate-300 truncate max-w-[90px]">{presenterName || "Presenter"}</span>
-                              </div>
-                            )
-                          })()}
-                        </div>
-                      )}
-
-                      {/* Header floating PIP: Label & Tombol Tutup/Minimalkan */}
-                      <div className="absolute top-1 left-1.5 right-1 flex items-center justify-between pointer-events-auto z-40">
-                        <span className="text-[8px] sm:text-[9px] font-extrabold text-white bg-black/70 px-1.5 py-0.5 rounded backdrop-blur-md truncate max-w-[80px] sm:max-w-[120px]">
-                          Cam: {isLocalSharing ? "Anda" : presenterName || "Presenter"}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setShowPipCam(false)}
-                          className="w-4 h-4 rounded-full bg-black/80 hover:bg-rose-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
-                          title="Sembunyikan Kamera Terapung"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Tombol Restore PiP Camera jika disembunyikan */}
-                  {!showPipCam && (
-                    <button
-                      type="button"
-                      onClick={() => setShowPipCam(true)}
-                      className="absolute top-12 sm:top-14 right-2.5 sm:right-3 bg-slate-900/90 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-700/80 px-2 py-1 rounded-xl text-[10px] font-bold shadow-xl backdrop-blur-md flex items-center gap-1.5 z-20 active:scale-95 transition-all"
-                      title="Tampilkan Kamera Presenter"
-                    >
-                      <Video className="w-3.5 h-3.5 text-blue-400" />
-                      <span>Kamera</span>
-                    </button>
-                  )}
 
                   {/* Kontrol Zoom In / Zoom Out saat Presentasi & Layar Penuh */}
                   <div className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 flex items-center gap-1 bg-black/85 backdrop-blur-md p-1 sm:p-1.5 rounded-xl border border-white/20 shadow-2xl z-20">
