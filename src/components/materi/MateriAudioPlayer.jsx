@@ -11,35 +11,36 @@ import {
 } from "lucide-react"
 
 /**
- * Helper untuk membersihkan format markdown menjadi teks narasi polos yang enak didengar
+ * Memecah teks menjadi potongan kalimat-kalimat (sentence chunks)
  */
-function cleanMarkdownForSpeech(markdownText) {
-  if (!markdownText) return ""
-  return markdownText
-    // Hapus format gambar & link markdown [teks](url) -> teks
+function splitIntoSentences(text) {
+  if (!text) return []
+  // Pisahkan berdasarkan tanda titik, tanda seru, tanda tanya, atau baris baru
+  const rawSentences = text
+    .split(/(?<=[.!?\n])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+  return rawSentences
+}
+
+/**
+ * Membersihkan format markdown
+ */
+function cleanMarkdown(text) {
+  if (!text) return ""
+  return text
     .replace(/!\[.*?\]\(.*?\)/g, "")
     .replace(/\[(.*?)\]\(.*?\)/g, "$1")
-    // Hapus kode blok ```code``` dan `inline code`
     .replace(/```[\s\S]*?```/g, "")
     .replace(/`([^`]+)`/g, "$1")
-    // Hapus header markdown #, ##, ###
     .replace(/#{1,6}\s+/g, "")
-    // Hapus bold/italic **teks**, *teks*, __teks__
     .replace(/(\*\*|__)(.*?)\1/g, "$2")
     .replace(/(\*|_)(.*?)\1/g, "$2")
-    // Hapus blockquote >
     .replace(/^\s*>\s+/gm, "")
-    // Hapus garis horizontal ---, ***
     .replace(/^[-*_]{3,}\s*$/gm, "")
-    // Hapus list bullets -, *, +, 1.
     .replace(/^\s*[-*+]\s+/gm, "")
     .replace(/^\s*\d+\.\s+/gm, "")
-    // Hapus tag HTML jika ada
     .replace(/<[^>]*>/g, "")
-    // Normalisasi spasi dan baris baru
-    .replace(/\n{2,}/g, ". ")
-    .replace(/\n/g, " ")
-    .replace(/\s+/g, " ")
     .trim()
 }
 
@@ -50,76 +51,107 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
   const [selectedVoice, setSelectedVoice] = useState(null)
   const [availableVoices, setAvailableVoices] = useState([])
   const [isSupported, setIsSupported] = useState(true)
-  const [currentSpokenWord, setCurrentSpokenWord] = useState("")
+  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0)
+  const [currentSentenceText, setCurrentSentenceText] = useState("")
 
-  const utteranceRef = useRef(null)
-  const fullTextRef = useRef("")
-  const lastCharIndexRef = useRef(0)
-  const timerIntervalRef = useRef(null)
+  const sentencesRef = useRef([])
+  const sentenceIndexRef = useRef(0)
+  const isPlayingRef = useRef(false)
+  const isPausedRef = useRef(false)
+  const rateRef = useRef(rate)
 
-  // Bersihkan highlight lama di dokumen DOM
+  useEffect(() => {
+    rateRef.current = rate
+  }, [rate])
+
+  // Menyiapkan array kalimat saat bab / konten berubah
+  useEffect(() => {
+    const rawClean = cleanMarkdown(kontenMarkdown)
+    const sentences = [judulBab, ...splitIntoSentences(rawClean)].filter(Boolean)
+    sentencesRef.current = sentences
+    sentenceIndexRef.current = 0
+    isPlayingRef.current = false
+    isPausedRef.current = false
+
+    setIsPlaying(false)
+    setIsPaused(false)
+    setCurrentSentenceIndex(0)
+    setCurrentSentenceText("")
+    clearDomHighlights()
+
+    try {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel()
+      }
+    } catch (_) {}
+  }, [judulBab, kontenMarkdown])
+
+  // Bersihkan highlight di DOM
   const clearDomHighlights = () => {
     try {
       const container = document.getElementById("konten-materi-aktif")
       if (!container) return
-      const highlightedElements = container.querySelectorAll(".tts-highlight-active, .tts-highlight-word")
-      highlightedElements.forEach((el) => {
-        el.classList.remove("tts-highlight-active", "tts-highlight-word")
-      })
+      const highlighted = container.querySelectorAll(".tts-highlight-active")
+      highlighted.forEach((el) => el.classList.remove("tts-highlight-active"))
     } catch (_) {}
   }
 
-  // Cari dan beri highlight pada elemen yang sedang dibaca
-  const highlightWordInDom = (word, currentPosition = 0, totalLength = 1) => {
+  // Highlight kalimat aktif di konten materi
+  const highlightSentenceInDom = (sentence, index) => {
     try {
       const container = document.getElementById("konten-materi-aktif")
-      if (!container) return
+      if (!container || !sentence) return
 
-      // Prioritas 1: Pencocokan kata (word match)
-      const cleanWord = word ? word.trim().replace(/[.,!?;:"'()]/g, "") : ""
-      let matched = false
+      clearDomHighlights()
 
-      if (cleanWord && cleanWord.length >= 3) {
+      // Ambil beberapa kata kunci dari kalimat (minimal 4 karakter)
+      const words = sentence
+        .replace(/[.,!?;:"'()]/g, "")
+        .split(/\s+/)
+        .filter((w) => w.length >= 4)
+
+      let matchedEl = null
+
+      if (words.length > 0) {
         const textNodes = container.querySelectorAll("p, li, td, th, h1, h2, h3, h4")
         for (const el of textNodes) {
-          if (el.textContent && el.textContent.toLowerCase().includes(cleanWord.toLowerCase())) {
-            clearDomHighlights()
-            el.classList.add("tts-highlight-active")
-            matched = true
-
-            const rect = el.getBoundingClientRect()
-            if (rect.top < 100 || rect.bottom > window.innerHeight - 100) {
-              el.scrollIntoView({ behavior: "smooth", block: "center" })
-            }
+          const elText = el.textContent || ""
+          // Cek apakah kalimat ada di dalam elemen, atau minimal 2 kata kuncinya ada
+          if (elText.includes(sentence.slice(0, 20))) {
+            matchedEl = el
+            break
+          }
+          const matches = words.filter((w) => elText.toLowerCase().includes(w.toLowerCase()))
+          if (matches.length >= Math.min(2, words.length)) {
+            matchedEl = el
             break
           }
         }
       }
 
-      // Prioritas 2 (Fallback): Jika browser tidak meng-emit kata spesifik pada onboundary,
-      // hitung proporsi progres pembacaan dan highlight paragraf berdasarkan posisi!
-      if (!matched && totalLength > 0) {
+      // Fallback proporsional jika tidak match
+      if (!matchedEl) {
         const textNodes = Array.from(container.querySelectorAll("p, li, td, h2, h3"))
         if (textNodes.length > 0) {
-          const ratio = Math.min(1, Math.max(0, currentPosition / totalLength))
-          const targetIndex = Math.min(textNodes.length - 1, Math.floor(ratio * textNodes.length))
-          const el = textNodes[targetIndex]
-          if (el) {
-            clearDomHighlights()
-            el.classList.add("tts-highlight-active")
-            const rect = el.getBoundingClientRect()
-            if (rect.top < 100 || rect.bottom > window.innerHeight - 100) {
-              el.scrollIntoView({ behavior: "smooth", block: "center" })
-            }
-          }
+          const ratio = Math.min(1, index / Math.max(1, sentencesRef.current.length - 1))
+          const targetIdx = Math.min(textNodes.length - 1, Math.floor(ratio * textNodes.length))
+          matchedEl = textNodes[targetIdx]
+        }
+      }
+
+      if (matchedEl) {
+        matchedEl.classList.add("tts-highlight-active")
+        const rect = matchedEl.getBoundingClientRect()
+        if (rect.top < 100 || rect.bottom > window.innerHeight - 100) {
+          matchedEl.scrollIntoView({ behavior: "smooth", block: "center" })
         }
       }
     } catch (err) {
-      console.warn("Highlight error:", err)
+      console.warn("Highlight sentence error:", err)
     }
   }
 
-  // Inisialisasi daftar suara Bahasa Indonesia
+  // Load voices
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       setIsSupported(false)
@@ -139,7 +171,7 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
           }
         }
       } catch (err) {
-        console.warn("Gagal memuat voices:", err)
+        console.warn("Gagal load voices:", err)
       }
     }
 
@@ -150,123 +182,63 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
 
     return () => {
       clearDomHighlights()
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
       try {
-        if (window.speechSynthesis) {
-          window.speechSynthesis.cancel()
-        }
+        if (window.speechSynthesis) window.speechSynthesis.cancel()
       } catch (_) {}
     }
   }, [])
 
-  // Setiap kali bab berganti, reset status pembacaan & highlight
-  useEffect(() => {
-    clearDomHighlights()
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
-    try {
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel()
-      }
-    } catch (_) {}
-    setIsPlaying(false)
-    setIsPaused(false)
-    setCurrentSpokenWord("")
-    lastCharIndexRef.current = 0
-  }, [judulBab, kontenMarkdown])
-
-  /**
-   * Fungsi internal untuk memulai pemutaran dari posisi indeks karakter tertentu
-   */
-  const playFromIndex = (startIndex = 0) => {
+  // Fungsi rekursif membacakan kalimat per kalimat
+  const speakCurrentSentence = () => {
     const synth = window.speechSynthesis
     synth.cancel()
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
 
-    const rawFull = `${judulBab}. ${cleanMarkdownForSpeech(kontenMarkdown)}`
-    fullTextRef.current = rawFull
+    const index = sentenceIndexRef.current
+    const sentences = sentencesRef.current
 
-    // Ambil sisa teks yang belum dibaca
-    const textToSpeak = rawFull.slice(startIndex).trim()
-    if (!textToSpeak) {
+    if (index >= sentences.length || !isPlayingRef.current) {
+      // Selesai membaca semua kalimat
       setIsPlaying(false)
       setIsPaused(false)
-      setCurrentSpokenWord("")
+      isPlayingRef.current = false
+      isPausedRef.current = false
+      setCurrentSentenceText("")
       clearDomHighlights()
-      lastCharIndexRef.current = 0
       return
     }
 
-    const utterance = new SpeechSynthesisUtterance(textToSpeak)
+    const text = sentences[index]
+    setCurrentSentenceIndex(index)
+    setCurrentSentenceText(text)
+    highlightSentenceInDom(text, index)
+
+    const utterance = new SpeechSynthesisUtterance(text)
     utterance.lang = "id-ID"
-    utterance.rate = rate
+    utterance.rate = rateRef.current
     utterance.pitch = 1.0
 
     if (selectedVoice) {
       utterance.voice = selectedVoice
     }
 
-    let hasReceivedBoundary = false
-
-    utterance.onstart = () => {
-      setIsPlaying(true)
-      setIsPaused(false)
-
-      // Segera highlight elemen pertama begitu suara mulai
-      highlightWordInDom(judulBab, startIndex, rawFull.length)
-
-      // Fallback timer: Sebagian browser mobile/Chrome tidak selalu meng-emit onboundary secara stabil.
-      // Timer ini memastikan highlight tetap berjalan maju secara progresif mengikuti durasi ucapan!
-      const approxCharPerSecond = 14 * rate // Rata-rata pelafalan Bahasa Indonesia per detik
-      timerIntervalRef.current = setInterval(() => {
-        if (!hasReceivedBoundary) {
-          lastCharIndexRef.current = Math.min(
-            rawFull.length,
-            lastCharIndexRef.current + Math.round(approxCharPerSecond * 0.5)
-          )
-          const nextSpace = rawFull.indexOf(" ", lastCharIndexRef.current)
-          const sliceWord = rawFull.slice(lastCharIndexRef.current, nextSpace !== -1 ? nextSpace : lastCharIndexRef.current + 15).trim()
-          if (sliceWord) {
-            setCurrentSpokenWord(sliceWord)
-            highlightWordInDom(sliceWord, lastCharIndexRef.current, rawFull.length)
-          }
-        }
-      }, 500)
-    }
-
     utterance.onend = () => {
-      setIsPlaying(false)
-      setIsPaused(false)
-      setCurrentSpokenWord("")
-      clearDomHighlights()
-      lastCharIndexRef.current = 0
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
-    }
-
-    utterance.onerror = (e) => {
-      console.warn("Speech synthesis error:", e)
-      setIsPlaying(false)
-      setIsPaused(false)
-      clearDomHighlights()
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
-    }
-
-    // Tangkap kata yang sedang diucapkan secara real-time
-    utterance.onboundary = (e) => {
-      hasReceivedBoundary = true
-      const charOffset = typeof e.charIndex === "number" ? e.charIndex : 0
-      const currentAbsoluteIndex = startIndex + charOffset
-      lastCharIndexRef.current = currentAbsoluteIndex
-
-      const nextSpace = rawFull.indexOf(" ", currentAbsoluteIndex)
-      const word = rawFull.slice(currentAbsoluteIndex, nextSpace !== -1 ? nextSpace : currentAbsoluteIndex + 15).trim()
-
-      if (word) {
-        setCurrentSpokenWord(word)
-        highlightWordInDom(word, currentAbsoluteIndex, rawFull.length)
+      // Jika saat selesai kalimat sedang tidak dalam status paused, lanjut ke kalimat berikutnya
+      if (isPlayingRef.current && !isPausedRef.current) {
+        sentenceIndexRef.current += 1
+        speakCurrentSentence()
       }
     }
 
-    utteranceRef.current = utterance
+    utterance.onerror = (e) => {
+      if (e.error !== "canceled" && e.error !== "interrupted") {
+        console.warn("TTS sentence error:", e)
+        if (isPlayingRef.current && !isPausedRef.current) {
+          sentenceIndexRef.current += 1
+          speakCurrentSentence()
+        }
+      }
+    }
+
     synth.speak(utterance)
   }
 
@@ -278,41 +250,47 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
 
     const synth = window.speechSynthesis
 
-    // KASUS 1: Jika sedang dijeda (isPaused), LANJUTKAN pembacaan dari titik terakhir
+    // KASUS 1: Jika sedang dijeda (isPaused), LANJUTKAN dari kalimat terakhir
     if (isPaused) {
       setIsPaused(false)
       setIsPlaying(true)
-      playFromIndex(lastCharIndexRef.current)
+      isPausedRef.current = false
+      isPlayingRef.current = true
+      speakCurrentSentence()
       return
     }
 
-    // KASUS 2: Jika sedang berbunyi (isPlaying), JEDA pembacaan
+    // KASUS 2: Jika sedang berbunyi (isPlaying), JEDA pembacaan pada kalimat saat ini
     if (isPlaying) {
-      synth.cancel()
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
+      synth.cancel() // Hentikan ucapan aktif
       setIsPaused(true)
       setIsPlaying(false)
+      isPausedRef.current = true
+      isPlayingRef.current = false
+      // Highlight tetap bertahan di kalimat yang sedang dijeda agar siswa tahu di mana jedanya!
       return
     }
 
-    // KASUS 3: Mulai dari awal (0)
-    lastCharIndexRef.current = 0
-    clearDomHighlights()
-    playFromIndex(0)
+    // KASUS 3: Mulai dari awal (kalimat 0)
+    sentenceIndexRef.current = 0
+    setIsPlaying(true)
+    setIsPaused(false)
+    isPlayingRef.current = true
+    isPausedRef.current = false
+    speakCurrentSentence()
   }
 
   const handleStop = () => {
-    clearDomHighlights()
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
     try {
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel()
-      }
+      if (window.speechSynthesis) window.speechSynthesis.cancel()
     } catch (_) {}
+    sentenceIndexRef.current = 0
+    isPlayingRef.current = false
+    isPausedRef.current = false
     setIsPlaying(false)
     setIsPaused(false)
-    setCurrentSpokenWord("")
-    lastCharIndexRef.current = 0
+    setCurrentSentenceText("")
+    clearDomHighlights()
   }
 
   const cycleSpeed = () => {
@@ -320,9 +298,11 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
     const nextIdx = (speeds.indexOf(rate) + 1) % speeds.length
     const nextRate = speeds[nextIdx]
     setRate(nextRate)
+    rateRef.current = nextRate
 
+    // Jika sedang play, langsung ulangi kalimat saat ini dengan kecepatan baru
     if (isPlaying) {
-      playFromIndex(lastCharIndexRef.current)
+      speakCurrentSentence()
     }
   }
 
@@ -364,20 +344,20 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
               )}
               {isPaused && (
                 <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-500/30 text-amber-300 px-2 py-0.2 rounded-full">
-                  Dijeda
+                  Dijeda di Kalimat {currentSentenceIndex + 1}
                 </span>
               )}
             </div>
             <h4 className="text-xs sm:text-sm font-extrabold text-white truncate mt-0.5">
               {isPlaying
-                ? "Sedang Membacakan Materi..."
+                ? `Membacakan Kalimat ${currentSentenceIndex + 1} dari ${sentencesRef.current.length}...`
                 : isPaused
                 ? "Narasi Sedang Dijeda"
                 : "Dengarkan Penjelasan Bab Ini"}
             </h4>
             <p className="text-[10px] text-blue-200/80 hidden sm:block">
               {isPaused
-                ? "Klik Lanjutkan untuk meneruskan suara dari kalimat terakhir."
+                ? "Klik Lanjutkan untuk meneruskan tepat dari kalimat ini."
                 : "Paragraf/kalimat yang dibaca otomatis disorot kuning dan di-scroll mengikuti suara."}
             </p>
           </div>
@@ -435,24 +415,24 @@ export function MateriAudioPlayer({ judulBab = "", kontenMarkdown = "" }) {
         </div>
       </div>
 
-      {/* Floating Subtitle / Banner Kata Aktif saat Narasi Berjalan atau Dijeda */}
-      {(isPlaying || isPaused) && currentSpokenWord && (
-        <div className="p-2 px-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-2 animate-in fade-in slide-in-from-top-1">
+      {/* Floating Subtitle / Banner Kalimat Aktif */}
+      {(isPlaying || isPaused) && currentSentenceText && (
+        <div className="p-2.5 px-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-2 animate-in fade-in slide-in-from-top-1">
           <div className="flex items-center gap-2 truncate">
             <span
               className={`w-2 h-2 rounded-full shrink-0 ${
                 isPlaying ? "bg-amber-500 animate-ping" : "bg-amber-500"
               }`}
             />
-            <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
-              {isPlaying ? "Kata yang sedang dibaca:" : "Posisi saat dijeda:"}
+            <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 shrink-0">
+              {isPlaying ? "Sedang dibaca:" : "Dijeda pada:"}
             </span>
-            <b className="text-amber-700 dark:text-amber-300 bg-amber-200/60 dark:bg-amber-900/40 px-1.5 py-0.5 rounded text-xs">
-              "{currentSpokenWord}"
-            </b>
+            <span className="text-amber-800 dark:text-amber-300 font-bold truncate text-xs">
+              "{currentSentenceText}"
+            </span>
           </div>
-          <span className="text-[10px] text-slate-400 shrink-0">
-            {isPlaying ? "Auto Scroll Aktif" : "Siap Dilanjutkan"}
+          <span className="text-[10px] text-slate-400 shrink-0 font-bold">
+            {currentSentenceIndex + 1}/{sentencesRef.current.length}
           </span>
         </div>
       )}
