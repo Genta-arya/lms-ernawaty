@@ -1645,9 +1645,6 @@ export function AgoraMeetRoom({
                       <Users className="w-3.5 h-3.5 text-blue-400" />
                       <span>Peserta Kelas ({humanRemoteUsers.length + 1})</span>
                     </span>
-                    <span className="text-[9px] text-slate-500 font-semibold sm:hidden">
-                      Grid 2 Kolom
-                    </span>
                   </div>
 
                   {/* Di Layar HP/Potrait: Grid 2 Kolom Rapi & Lega. Di Layar Lebar (sm ke atas): Strip Horizontal */}

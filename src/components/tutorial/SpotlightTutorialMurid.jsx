@@ -132,6 +132,7 @@ export function SpotlightTutorialMurid() {
   const [targetRect, setTargetRect] = useState(null)
   const [dontShowTodayChecked, setDontShowTodayChecked] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const [isPillDismissed, setIsPillDismissed] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -376,21 +377,36 @@ export function SpotlightTutorialMurid() {
 
   return (
     <>
-      {/* ── TOMBOL FLOATING PEMICU TUTORIAL MANUAL ── */}
-      <div className="fixed bottom-20 md:bottom-6 left-4 z-40 pointer-events-auto">
-        <button
-          type="button"
-          onClick={handleManualStart}
-          title="Buka Panduan Tutorial Siswa"
-          className="group flex items-center gap-2 px-3 py-2 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-600 shadow-md border border-slate-200/80 backdrop-blur-md text-xs font-bold transition-all hover:scale-105 active:scale-95"
-        >
-          <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:rotate-12 transition-transform">
-            <Sparkles className="w-3.5 h-3.5" />
-          </div>
-          <span className="hidden sm:inline">Panduan LMS</span>
-          <span className="sm:hidden text-[11px]">Tutorial</span>
-        </button>
-      </div>
+      {/* ── TOMBOL FLOATING PEMICU TUTORIAL MANUAL (Mobile: Kanan Bawah di Atas BottomNav dengan Tombol X) ── */}
+      {!isPillDismissed && (
+        <div className="fixed bottom-24 md:bottom-6 right-4 md:right-auto md:left-4 z-40 pointer-events-auto flex items-center shadow-lg rounded-full bg-white/95 hover:bg-white border border-slate-200/90 backdrop-blur-md p-0.5 transition-all animate-in fade-in slide-in-from-bottom-3 duration-300">
+          <button
+            type="button"
+            onClick={handleManualStart}
+            title="Buka Panduan Tutorial Siswa"
+            className="group flex items-center gap-2 pl-2 pr-2.5 py-1.5 text-slate-700 hover:text-blue-600 text-xs font-bold transition-all active:scale-95"
+          >
+            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:rotate-12 transition-transform">
+              <Sparkles className="w-3.5 h-3.5" />
+            </div>
+            <span className="hidden sm:inline">Panduan LMS</span>
+            <span className="sm:hidden text-[11px]">Tutorial</span>
+          </button>
+
+          {/* Tombol X untuk menutup pill tutorial jika mengganggu pandangan */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsPillDismissed(true)
+            }}
+            title="Sembunyikan tombol tutorial"
+            className="w-5 h-5 mr-1 rounded-full hover:bg-slate-100 active:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {/* ── SPOTLIGHT OVERLAY MENGGUNAKAN PORTAL KE BODY ── */}
       {isOpen &&
