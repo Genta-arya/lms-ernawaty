@@ -158,6 +158,8 @@ Dashboard Guru adalah pusat komando operasional pembelajaran yang mencakup 10 mo
 - Pembuatan sesi tatap muka online berbasis Agora RTC.
 - Status sesi: *Terjadwal, Berlangsung, dan Selesai*.
 - Guru bertindak sebagai **Host**: Mengontrol mikrofon/kamera, melihat daftar peserta hadir, menerima angkat tangan siswa, berbagi layar, dan mengakhiri sesi untuk seluruh peserta.
+- **Pembersihan Kontrol Guru**: Tombol pembagian hak screenshare ke murid dihilangkan agar otoritas dan ketertiban ruang kelas virtual tetap terpusat di tangan guru.
+- **In-Meet Chat Notification**: Guru dan siswa menerima notifikasi mengambang (*toast alert*) serta indikator badge merah (*unread counter*) saat ada pesan baru di drawer obrolan tatap muka.
 
 ### 4.12. Profil & Keamanan Akun Guru (`/guru/profil` -> `Profil.jsx`)
 - Pengaturan biodata, NIP, nomor kontak WhatsApp, dan mata pelajaran ampu.
@@ -173,11 +175,28 @@ Dashboard Guru adalah pusat komando operasional pembelajaran yang mencakup 10 mo
    - Melihat teman sekelas dan wali kelas.
    - Ruang **Chat Kelas Realtime** untuk diskusi terbuka.
    - Fitur **Chat Pribadi Terenkripsi** (`ModalChatPribadi.jsx`) antar sesama siswa dengan enkripsi AES-GCM 256-bit dan indikator online.
+   - **Dekripsi Notifikasi Mengambang Real-time (`GlobalChatNotification.jsx`)**: Pesan obrolan pribadi terenkripsi secara otomatis didekripsi di sisi klien (*on-the-fly*) sebelum ditampilkan pada floating toast notification, sehingga murid dapat langsung membaca pesan tanpa melihat kode acak (*ciphertext*).
    - Modal profil dan riwayat capaian belajar teman.
-3. **Modul Belajar Mandiri (`MateriBelajar.jsx` & `MateriDetail.jsx`)**:
-   - Membaca modul materi dengan typography ramah mata.
+3. **Modul Belajar Mandiri Interaktif (`MateriBelajar.jsx` & `MateriDetail.jsx`)**:
+   - Membaca modul materi dengan typography ramah mata dan navigasi antar bab terstruktur.
+   - **Fitur Canggih: Text-to-Speech (TTS) Narasi Materi (`MateriAudioPlayer.jsx`)**:
+     - Memanfaatkan Web Speech API browser bawaan (`window.speechSynthesis`) dengan suara Bahasa Indonesia (`id-ID`).
+     - Kontrol pemutaran lengkap: Putar (Play), Jeda (Pause), Lanjutkan (Resume), Ulangi dari awal (Reset), dan pengatur kecepatan suara (*playback rate* 0.8x hingga 1.5x).
+     - **Visual Highlight 100% Presisi & Smooth Auto-Scroll**:
+       - Menggunakan pemetaan deterministik 1:1 antara antrean partisi suara dan partisi blok Markdown melalui atribut `data-paragraph-index`.
+       - Blok paragraf yang sedang dibacakan narator otomatis disorot dengan warna kuning beraksen amber lembut (`bg-amber-100/95 ring-2 ring-amber-400/90 shadow-md text-slate-950`).
+       - Tampilan layar otomatis bergeser secara halus (*smooth scroll into center*) mengikuti paragraf aktif.
+       - Jeda (*pause*) dan lanjutkan (*resume*) berjalan presisi tanpa kehilangan suara dan tanpa melompat kembali ke awal bab.
+   - **Fitur Canggih: Rangkuman Cerdas AI per Bab & Seluruh Bab (`MateriAiSummaryCard.jsx`)**:
+     - Terletak strategis di atas bagian ruang diskusi & tanya jawab materi.
+     - **Mode Bab Biasa**: Menjelaskan konsep inti bab dalam konteks Kurikulum Merdeka Bahasa Indonesia Fase D SMP, menyusun poin-poin penting yang sering keluar pada kuis, serta memberikan tips konkret untuk mengingat materi.
+     - **Mode Bab Terakhir**: Secara otomatis menyajikan rangkuman terpadu komprehensif dari **seluruh bab** (dari Bab 1 hingga bab penutup) sebagai bekal kesiapan kuis & evaluasi formatif.
+     - **Smart Local Caching**: Hasil yang di-generate otomatis disimpan di `localStorage` per ID materi dan indeks bab (`lms_ai_summary_v2_*`), sehingga murid bebas membaca ulang tanpa menggunakan token API (hemat kuota dan instan dibuka).
+     - Ditenagai oleh model resmi `gemini-3.5-flash` dengan mekanisme failover multi-key Round-Robin.
+     - Pesan error teknis disesuaikan khusus siswa secara santun tanpa sapaan formal guru.
+     - Dilengkapi tombol salin teks (*Copy to Clipboard*) dan buka-tutup kartu (*collapse/expand*).
    - Forum tanya jawab bertingkat di bawah setiap materi.
-   - Pelacak status selesai baca otomatis yang dicatat ke sistem.
+   - Pelacak status selesai baca otomatis yang dicatat ke sistem dan membuka akses kuis formatif.
 4. **Pengerjaan Kuis Real-Time (`KuisKerjakan.jsx` & `Hasil.jsx`)**:
    - Countdown timer otomatis.
    - Navigasi nomor soal fleksibel.
@@ -190,8 +209,15 @@ Dashboard Guru adalah pusat komando operasional pembelajaran yang mencakup 10 mo
 6. **Mading Siswa (`Mading.jsx`)**: Menerbitkan karya puisi, pantun, cerpen, serta saling memberikan apresiasi suka dan komentar.
 7. **Spotlight Tutorial Siswa (`SpotlightTutorialMurid.jsx`)**:
    - Panduan interaktif terpandu dengan efek cutout spotlight yang menyorot langsung elemen-elemen penting (Profil Siswa, Pengumuman, Menu Cepat, Materi & Kuis, Penugasan, serta Leaderboard & Ruang Kelas).
-   - **Mekanisme Supresi Harian**: Jika siswa memilih melewati atau mencentang *"Jangan tampilkan lagi hari ini"*, panduan tidak akan muncul lagi sepanjang hari itu (`localStorage` berbasis stempel tanggal `YYYY-MM-DD`). Keesokan harinya, sistem akan memunculkannya kembali secara otomatis.
+   - **Mekanisme Supresi Harian**: Jika siswa memilih melewati atau mencentang *"Jangan tampilkan lagi hari ini"*, status supresi disimpan secara sinkron ke `localStorage` dan `sessionStorage` berbasis tanggal lokal perangkat (`YYYY-MM-DD`). Panduan tidak akan muncul lagi sepanjang hari itu dan otomatis aktif kembali keesokan harinya.
    - **Pemutar Ulang Manual**: Tersedia tombol mengambang *"Panduan LMS"* di sudut kiri bawah dan tombol pemicu di bilah navigasi & halaman profil siswa untuk membuka tutorial sewaktu-waktu.
+8. **Deteksi Tautan Otomatis di Seluruh Ruang Chat (`LinkifiedText.jsx`)**:
+   - Seluruh teks obrolan di Chat Kelas, Chat Pribadi, Diskusi Materi, dan Ruang Temu Virtual Agora otomatis mendeteksi URL (`http://`, `https://`, `www.`).
+   - Tautan ditampilkan sebagai pranala aktif (`<a href="...">`) dengan atribut keamanan `target="_blank"` dan `rel="noopener noreferrer"`.
+9. **Ruang Tatap Muka Virtual Siswa (`AgoraMeetRoom.jsx`)**:
+   - Mengikuti sesi tatap muka video interaktif yang diselenggarakan oleh guru.
+   - Dilengkapi notifikasi mengambang dan badge unread counter untuk pesan obrolan kelas selama tatap muka berlangsung.
+   - Kontrol screenshare dibatasi hanya untuk host (guru) guna menjaga ketertiban kelas online.
 
 ---
 
@@ -216,3 +242,6 @@ Dashboard Guru adalah pusat komando operasional pembelajaran yang mencakup 10 mo
      ```bash
      npm run deploy:rules
      ```
+6. **Otomatisasi Serverless Cronjob (Vercel)**:
+   - Sistem pembersihan berkala sesi tatap muka virtual Agora yang telah kedaluwarsa dijalankan secara otomatis melalui Vercel Cron (`api/cron/cleanup-expired-meets.js`).
+   - Jadwal cron diatur pada frekuensi harian (`"schedule": "0 17 * * *"` atau pukul 00:00 WIB) dalam `vercel.json` guna mematuhi kuota Vercel Hobby Plan (maksimal 1 kali per hari) sekaligus dilengkapi failover pembersihan otomatis di sisi klien saat pengguna membuka daftar sesi.
