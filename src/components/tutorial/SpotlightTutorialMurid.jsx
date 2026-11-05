@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button"
 
 const STORAGE_KEY = "lsm_murid_spotlight_dismiss_date"
+const LEGACY_STORAGE_KEY = "lsm_spotlight_tutorial_dismissed_today"
 
 export function getTodayDateString() {
   const now = new Date()
@@ -31,8 +32,16 @@ export function getTodayDateString() {
 
 export function isTutorialDismissedToday() {
   try {
+    const today = getTodayDateString()
     const saved = localStorage.getItem(STORAGE_KEY)
-    return saved === getTodayDateString()
+    const savedLegacy = localStorage.getItem(LEGACY_STORAGE_KEY)
+    const sessionDismissed = sessionStorage.getItem(STORAGE_KEY)
+
+    // Jika sudah di-dismiss hari ini di salah satu storage, jangan buka otomatis lagi
+    if (saved === today || savedLegacy === today || sessionDismissed === today) {
+      return true
+    }
+    return false
   } catch {
     return false
   }
@@ -40,15 +49,23 @@ export function isTutorialDismissedToday() {
 
 export function setTutorialDismissedToday() {
   try {
-    localStorage.setItem(STORAGE_KEY, getTodayDateString())
+    const today = getTodayDateString()
+    localStorage.setItem(STORAGE_KEY, today)
+    localStorage.setItem(LEGACY_STORAGE_KEY, today)
+    sessionStorage.setItem(STORAGE_KEY, today)
   } catch (err) {
     console.warn("Gagal simpan tanggal tutorial:", err)
+    try {
+      sessionStorage.setItem(STORAGE_KEY, getTodayDateString())
+    } catch (_) {}
   }
 }
 
 export function resetTutorialDate() {
   try {
     localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(LEGACY_STORAGE_KEY)
+    sessionStorage.removeItem(STORAGE_KEY)
   } catch (err) {
     console.warn("Gagal reset tanggal tutorial:", err)
   }
@@ -294,6 +311,7 @@ export function SpotlightTutorialMurid() {
   }, [isOpen, currentStepIndex, dontShowTodayChecked])
 
   function handleDismiss() {
+    // Jika dicentang atau ditutup biasa, simpan supresi hari ini
     if (dontShowTodayChecked) {
       setTutorialDismissedToday()
     }
@@ -301,6 +319,7 @@ export function SpotlightTutorialMurid() {
   }
 
   function handleFinish() {
+    // Selesai selalu menandai tutorial telah dituntaskan hari ini
     setTutorialDismissedToday()
     setIsOpen(false)
   }
