@@ -42,7 +42,9 @@ export function PreMeetLobbyModal({
   const previewVideoRef = useRef(null)
   const localCamTrackRef = useRef(null)
   const localMicTrackRef = useRef(null)
-  const volumeIntervalRef = useRef(null)
+  const audioContextRef = useRef(null)
+  const audioAnalyserRef = useRef(null)
+  const animFrameRef = useRef(null)
   const [camReady, setCamReady] = useState(false)
   const [camError, setCamError] = useState(null)
 
@@ -124,21 +126,14 @@ export function PreMeetLobbyModal({
 
     setupPreview()
 
-    // Interval pembacaan level mic
-    volumeIntervalRef.current = setInterval(() => {
-      if (localMicTrackRef.current && micOn) {
-        try {
-          const level = localMicTrackRef.current.getVolumeLevel()
-          setMicVolume(Math.round(level * 100))
-        } catch (_) {}
-      } else {
-        setMicVolume(0)
-      }
-    }, 150)
-
     return () => {
       mounted = false
-      if (volumeIntervalRef.current) clearInterval(volumeIntervalRef.current)
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+      if (audioContextRef.current) {
+        try {
+          audioContextRef.current.close()
+        } catch (_) {}
+      }
       if (localCamTrackRef.current) {
         try {
           localCamTrackRef.current.stop()
@@ -153,6 +148,93 @@ export function PreMeetLobbyModal({
       }
     }
   }, [isGuru])
+
+  // Real-time audio analyser (Kompatibel dengan semua mobile browser / iOS Safari / Android Chrome)
+  useEffect(() => {
+    let active = true
+
+    if (!micOn || !localMicTrackRef.current) {
+      setMicVolume(0)
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+      return
+    }
+
+    try {
+      // Pastikan AudioContext di-resume jika dalam state suspended (kebijakan autoplay di mobile)
+      const AudioCtx = window.AudioContext || window.webkitAudioContext
+      if (!AudioCtx) return
+
+      const ctx = new AudioCtx()
+      audioContextRef.current = ctx
+
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {})
+      }
+
+      const mediaStreamTrack = localMicTrackRef.current.getMediaStreamTrack
+        ? localMicTrackRef.current.getMediaStreamTrack()
+        : null
+
+      let analyser = null
+      let dataArray = null
+
+      if (mediaStreamTrack) {
+        const stream = new MediaStream([mediaStreamTrack])
+        const source = ctx.createMediaStreamSource(stream)
+        analyser = ctx.createAnalyser()
+        analyser.fftSize = 256
+        analyser.smoothingTimeConstant = 0.3
+        source.connect(analyser)
+        dataArray = new Uint8Array(analyser.frequencyBinCount)
+        audioAnalyserRef.current = analyser
+      }
+
+      const updateVolume = () => {
+        if (!active) return
+
+        let currentVol = 0
+
+        // Metode 1: Analyser Web Audio API (Sangat akurat di HP/Tablet)
+        if (analyser && dataArray) {
+          analyser.getByteFrequencyData(dataArray)
+          let sum = 0
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i]
+          }
+          const avg = sum / dataArray.length
+          // Skala sensitivitas untuk pembacaan suara normal (0 - 100)
+          currentVol = Math.min(100, Math.round((avg / 60) * 100))
+        }
+
+        // Metode 2: Fallback bawaan Agora getVolumeLevel jika tersedia
+        if (currentVol === 0 && localMicTrackRef.current) {
+          try {
+            const agoraVol = localMicTrackRef.current.getVolumeLevel()
+            if (agoraVol > 0) {
+              currentVol = Math.round(agoraVol * 100)
+            }
+          } catch (_) {}
+        }
+
+        setMicVolume(currentVol)
+        animFrameRef.current = requestAnimationFrame(updateVolume)
+      }
+
+      animFrameRef.current = requestAnimationFrame(updateVolume)
+    } catch (e) {
+      console.warn("Audio analyser setup error:", e)
+    }
+
+    return () => {
+      active = false
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+      if (audioContextRef.current) {
+        try {
+          audioContextRef.current.close()
+        } catch (_) {}
+      }
+    }
+  }, [micOn, selectedMicId, loadingDevices])
 
   // Efek khusus untuk memutar video kamera ke preview element dengan retry (menangani rendering mobile portrait)
   useEffect(() => {
