@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import AgoraRTC from "agora-rtc-sdk-ng"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -225,7 +226,7 @@ export function PreMeetLobbyModal({
     })
   }
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 w-full h-full min-h-[100dvh] z-[999999] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
       <div className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[92dvh]">
         {/* Kolom Kiri: Layar Preview Kamera (Otomatis Aktif & Kunci Kamera Depan) */}
@@ -433,5 +434,11 @@ export function PreMeetLobbyModal({
       </div>
     </div>
   )
+
+  if (typeof document !== "undefined") {
+    return createPortal(modalContent, document.body)
+  }
+
+  return modalContent
 }
 
