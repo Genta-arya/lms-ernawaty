@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase"
 import { UserAvatar } from "@/components/common/UserAvatar"
 import { ModalChatPribadi } from "@/components/kelas/ModalChatPribadi"
 import { markMuridNotificationAsRead } from "@/services/notifikasiMurid"
+import { decryptChatMessage } from "@/services/cryptoChat"
 import { MessageCircle, X } from "lucide-react"
 
 export function GlobalChatNotification() {
@@ -44,7 +45,7 @@ export function GlobalChatNotification() {
           return
         }
 
-        snap.docChanges().forEach((change) => {
+        snap.docChanges().forEach(async (change) => {
           if (change.type === "added") {
             const data = change.doc.data()
             
@@ -62,6 +63,16 @@ export function GlobalChatNotification() {
             // Jika pesan dibuat sebelum halaman ini dibuka, abaikan (mencegah spam histori)
             if (timeMillis < initialLoadTimeRef.current - 5000) return
 
+            // Dekripsi pesan jika terenkripsi E2EE
+            let decryptedPesan = data.pesan || ""
+            if (data.chatId && data.pesan) {
+              try {
+                decryptedPesan = await decryptChatMessage(data.pesan, data.chatId)
+              } catch (decErr) {
+                console.warn("Gagal dekripsi floating chat notif:", decErr)
+              }
+            }
+
             // Tampilkan popup notifikasi WA style
             const bannerData = {
               id: change.doc.id,
@@ -69,7 +80,7 @@ export function GlobalChatNotification() {
               senderNisn: data.pengirimNisn || (pengirimId.length <= 12 ? pengirimId : ""),
               senderName: data.pengirimNama || "Teman Kelas",
               senderFoto: data.pengirimFoto || data.pengirimFotoUrl || null,
-              pesan: data.pesan || "",
+              pesan: decryptedPesan,
               chatId: data.chatId,
             }
 
