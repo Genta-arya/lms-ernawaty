@@ -24,13 +24,13 @@ const AGORA_APP_ID = "5960c48ec498439798df7c0d1249ae4d"
  */
 export async function fetchAgoraToken(channelName, userAccount = "Peserta", role = "publisher") {
   // Jika sedang berjalan di dev server lokal (Vite) di mana serverless /api tidak berjalan,
-  // arahkan pemanggilan ke endpoint live Vercel
+  // arahkan pemanggilan ke endpoint live Vercel / custom domain
   const isLocalDev =
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
 
   const endpoint = isLocalDev
-    ? "https://lms-ernawaty.vercel.app/api/agora-token"
+    ? "https://lms.ernawaty.my.id/api/agora-token"
     : "/api/agora-token"
 
   let res = await fetch(endpoint, {
@@ -39,10 +39,10 @@ export async function fetchAgoraToken(channelName, userAccount = "Peserta", role
     body: JSON.stringify({ channelName, userAccount, role }),
   })
 
-  // Fallback cadangan: jika pemanggilan relatif mengembalikan 404, coba fallback ke domain produksi
-  if (!res.ok && res.status === 404 && endpoint !== "https://lms-ernawaty.vercel.app/api/agora-token") {
+  // Fallback cadangan: jika pemanggilan relatif mengembalikan 404, coba fallback ke domain live
+  if (!res.ok && res.status === 404 && endpoint !== "https://lms.ernawaty.my.id/api/agora-token") {
     console.warn("Endpoint lokal /api/agora-token 404, mencoba fallback ke server produksi...")
-    res = await fetch("https://lms-ernawaty.vercel.app/api/agora-token", {
+    res = await fetch("https://lms.ernawaty.my.id/api/agora-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ channelName, userAccount, role }),
