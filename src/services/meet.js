@@ -20,13 +20,35 @@ const AGORA_APP_ID = "5960c48ec498439798df7c0d1249ae4d"
 
 /**
  * Mengambil token Agora RTC dari serverless function menggunakan String userAccount (Nama Peserta)
+ * Mendukung fallback cerdas ke domain produksi jika sedang dijalankan di Vite dev server lokal (localhost)
  */
 export async function fetchAgoraToken(channelName, userAccount = "Peserta", role = "publisher") {
-  const res = await fetch("/api/agora-token", {
+  // Jika sedang berjalan di dev server lokal (Vite) di mana serverless /api tidak berjalan,
+  // arahkan pemanggilan ke endpoint live Vercel
+  const isLocalDev =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+
+  const endpoint = isLocalDev
+    ? "https://lms-ernawaty.vercel.app/api/agora-token"
+    : "/api/agora-token"
+
+  let res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ channelName, userAccount, role }),
   })
+
+  // Fallback cadangan: jika pemanggilan relatif mengembalikan 404, coba fallback ke domain produksi
+  if (!res.ok && res.status === 404 && endpoint !== "https://lms-ernawaty.vercel.app/api/agora-token") {
+    console.warn("Endpoint lokal /api/agora-token 404, mencoba fallback ke server produksi...")
+    res = await fetch("https://lms-ernawaty.vercel.app/api/agora-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channelName, userAccount, role }),
+    })
+  }
+
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}))
     throw new Error(errData.error || `Server token error (${res.status})`)
