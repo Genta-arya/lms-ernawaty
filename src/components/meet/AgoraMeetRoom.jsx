@@ -84,6 +84,8 @@ export function AgoraMeetRoom({
   const [testingSpeaker, setTestingSpeaker] = useState(false)
 
   const clientRef = useRef(null)
+  const screenClientRef = useRef(null)
+  const appIdRef = useRef("5960c48ec498439798df7c0d1249ae4d")
   const localTracksRef = useRef({ audioTrack: null, videoTrack: null })
   const screenTrackRef = useRef(null)
   const localVideoRef = useRef(null)
@@ -104,7 +106,7 @@ export function AgoraMeetRoom({
 
   useEffect(() => {
     function handleBeforeUnload() {
-      if (isScreenSharingRef.current || activeSharerRef.current === userNama) {
+      if (isScreenSharingRef.current || activeSharerRef.current === userNama || activeSharerRef.current === `${userNama}_screen`) {
         setActiveScreenSharer(channelName, null).catch(() => { })
       }
     }
@@ -371,7 +373,11 @@ export function AgoraMeetRoom({
       setSpotlightUserState(controls?.spotlightUser || null)
 
       // Deteksi jika Firestore mencatat diri saya sedang sharing padahal tidak
-      if (isGuru && currentActiveSharer === userNama && !isScreenSharingRef.current) {
+      if (
+        isGuru &&
+        (currentActiveSharer === userNama || currentActiveSharer === `${userNama}_screen`) &&
+        !isScreenSharingRef.current
+      ) {
         console.log("Mereset activeSharer orphan di Firestore...")
         setActiveScreenSharer(channelName, null).catch(() => { })
         setActiveSharer(null)
@@ -450,7 +456,8 @@ export function AgoraMeetRoom({
     })
 
     client.on("user-joined", (user) => {
-      if (hasInitialJoinFinishedRef.current) {
+      const isScreenUid = String(user.uid).endsWith("_screen")
+      if (hasInitialJoinFinishedRef.current && !isScreenUid) {
         const nama =
           typeof user.uid === "string" && isNaN(Number(user.uid))
             ? user.uid
@@ -512,11 +519,16 @@ export function AgoraMeetRoom({
     })
 
     client.on("user-unpublished", (user, mediaType) => {
-      if (mediaType === "video" && user.uid === activeSharerRef.current) {
+      const isSharerEnding =
+        user.uid === activeSharerRef.current ||
+        user.uid === `${activeSharerRef.current}_screen` ||
+        String(user.uid).endsWith("_screen")
+
+      if (mediaType === "video" && isSharerEnding && activeSharerRef.current) {
         console.log("Sharer menghentikan publish video:", user.uid)
         setActiveSharer(null)
         handleResetZoom()
-        if (isGuru || user.uid === userNama) {
+        if (isGuru || user.uid === `${userNama}_screen` || user.uid === userNama) {
           setActiveScreenSharer(channelName, null).catch(() => { })
         }
       }
@@ -554,7 +566,12 @@ export function AgoraMeetRoom({
     })
 
     client.on("user-left", (user) => {
-      if (user.uid === activeSharerRef.current) {
+      const isSharerLeaving =
+        user.uid === activeSharerRef.current ||
+        user.uid === `${activeSharerRef.current}_screen` ||
+        String(user.uid).endsWith("_screen")
+
+      if (isSharerLeaving && activeSharerRef.current) {
         console.log("Sharer keluar dari Agora channel:", user.uid)
         setActiveSharer(null)
         handleResetZoom()
@@ -572,6 +589,7 @@ export function AgoraMeetRoom({
 
         const tokenData = await fetchAgoraToken(channelName, userNama)
         const appId = tokenData.appId || "5960c48ec498439798df7c0d1249ae4d"
+        appIdRef.current = appId
         const token = tokenData.token
 
         await client.join(appId, channelName, token, userNama)
@@ -703,7 +721,7 @@ export function AgoraMeetRoom({
 
   async function leaveChannel(endOption = null) {
     try {
-      if (isScreenSharingRef.current || activeSharerRef.current === userNama) {
+      if (isScreenSharingRef.current || activeSharerRef.current === userNama || activeSharerRef.current === `${userNama}_screen`) {
         await setActiveScreenSharer(channelName, null).catch(() => { })
       }
       const { audioTrack, videoTrack } = localTracksRef.current
@@ -718,6 +736,13 @@ export function AgoraMeetRoom({
       if (screenTrackRef.current) {
         screenTrackRef.current.stop()
         screenTrackRef.current.close()
+        screenTrackRef.current = null
+      }
+      if (screenClientRef.current) {
+        try {
+          await screenClientRef.current.leave()
+        } catch (_) { }
+        screenClientRef.current = null
       }
       if (clientRef.current) {
         await clientRef.current.leave()
@@ -727,6 +752,7 @@ export function AgoraMeetRoom({
     } finally {
       document.body.style.overflow = "auto"
       setJoined(false)
+      setIsScreenSharing(false)
       setShowEndMeetModal(false)
       if (onLeave) onLeave(endOption)
     }
@@ -830,17 +856,16 @@ export function AgoraMeetRoom({
     }, 600)
   }
 
-  // Toggle Berbagi Layar (Screen Sharing - Kompatibel Browser HP & Desktop)
+  // Toggle Berbagi Layar (Screen Sharing - Menggunakan Secondary Client agar kamera tidak bentrok)
   async function toggleScreenShare() {
     if (!isGuru && !allowStudentScreenShare) {
       alert("Berbagi layar oleh murid belum diizinkan oleh guru pengajar.")
       return
     }
-    const client = clientRef.current
-    if (!client) return
 
-    if (activeSharer && activeSharer !== userNama) {
-      alert(`Peserta "${activeSharer}" sedang berbagi layar. Mohon tunggu giliran.`)
+    const currentSharerName = activeSharer ? String(activeSharer).replace(/_screen$/, "") : null
+    if (currentSharerName && currentSharerName !== userNama) {
+      alert(`Peserta "${currentSharerName}" sedang berbagi layar. Mohon tunggu giliran.`)
       return
     }
 
@@ -910,9 +935,20 @@ export function AgoraMeetRoom({
 
         screenTrackRef.current = screenTrack
 
-        // Publish track presentasi layar (kamera guru tetap aktif dipublish dan TIDAK di-replace)
-        await client.publish(screenTrack)
-        await setActiveScreenSharer(channelName, userNama)
+        // 2. Hubungkan Secondary Screen Client agar tidak bentrok dengan video kamera (Dual-Client)
+        const screenUid = `${userNama}_screen`
+        const screenClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" })
+        screenClientRef.current = screenClient
+
+        const tokenData = await fetchAgoraToken(channelName, screenUid)
+        const appId = tokenData.appId || appIdRef.current || "5960c48ec498439798df7c0d1249ae4d"
+        const token = tokenData.token
+
+        await screenClient.join(appId, channelName, token, screenUid)
+        await screenClient.publish(screenTrack)
+
+        // Catat active sharer di Firestore
+        await setActiveScreenSharer(channelName, screenUid)
 
         // Tangani saat pengguna menekan tombol bawaan "Stop sharing" di notifikasi sistem HP/PC
         const handleTrackEnded = async () => {
@@ -947,30 +983,39 @@ export function AgoraMeetRoom({
   }
 
   async function stopScreenSharing() {
-    const client = clientRef.current
-    if (screenTrackRef.current && client) {
+    if (screenTrackRef.current) {
       try {
-        await client.unpublish(screenTrackRef.current)
+        if (screenClientRef.current) {
+          await screenClientRef.current.unpublish(screenTrackRef.current)
+        }
       } catch (_) { }
       screenTrackRef.current.stop()
       screenTrackRef.current.close()
       screenTrackRef.current = null
-      await setActiveScreenSharer(channelName, null)
-
-      // Pastikan track kamera tetap aktif
-      if (localTracksRef.current.videoTrack) {
-        if (!cameraOn) {
-          try {
-            await localTracksRef.current.videoTrack.setMuted(true)
-          } catch (_) { }
-        }
-        if (localVideoRef.current && cameraOn) {
-          localVideoRef.current.innerHTML = ""
-          localTracksRef.current.videoTrack.play(localVideoRef.current)
-        }
-      }
-      setIsScreenSharing(false)
     }
+
+    if (screenClientRef.current) {
+      try {
+        await screenClientRef.current.leave()
+      } catch (_) { }
+      screenClientRef.current = null
+    }
+
+    await setActiveScreenSharer(channelName, null).catch(() => { })
+
+    // Pastikan track kamera tetap aktif di local card
+    if (localTracksRef.current.videoTrack) {
+      if (!cameraOn) {
+        try {
+          await localTracksRef.current.videoTrack.setMuted(true)
+        } catch (_) { }
+      }
+      if (localVideoRef.current && cameraOn) {
+        localVideoRef.current.innerHTML = ""
+        localTracksRef.current.videoTrack.play(localVideoRef.current)
+      }
+    }
+    setIsScreenSharing(false)
   }
 
   // Guru mematikan paksa sharescreen murid
@@ -1018,11 +1063,18 @@ export function AgoraMeetRoom({
     await setSpotlightUser(channelName, spotlightUser === nama ? null : nama)
   }
 
+  // Filter peserta remote manusia (bukan secondary client share screen _screen)
+  const humanRemoteUsers = remoteUsers.filter((u) => !String(u.uid).endsWith("_screen"))
+
   // Cek apakah ada yang sedang share screen:
-  // Aktif jika diri sendiri sedang sharing, ATAU Firestore mencatat activeSharer, ATAU ada remote user yang publish video track
+  // Aktif jika diri sendiri sedang sharing, ATAU Firestore mencatat activeSharer, ATAU ada remote track _screen
   const isSomeoneSharing =
-    (activeSharer === userNama && isScreenSharing) ||
-    (!!activeSharer && (remoteUsers.length === 0 || remoteUsers.some((u) => String(u.uid) === String(activeSharer) || u.hasVideo)))
+    isScreenSharing ||
+    (!!activeSharer && (
+      activeSharer === `${userNama}_screen` ||
+      activeSharer === userNama ||
+      remoteUsers.some((u) => u.uid === activeSharer || String(u.uid).endsWith("_screen"))
+    ))
 
   // Auto-fokus ke sharescreen saat ada yang mulai presentasi
   useEffect(() => {
@@ -1179,7 +1231,7 @@ export function AgoraMeetRoom({
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
               <span className="font-bold text-emerald-400 hidden sm:inline">Meet LSM</span>
               <span className="hidden sm:inline">&bull;</span>
-              <span>{remoteUsers.length + 1} Peserta</span>
+              <span>{humanRemoteUsers.length + 1} Peserta</span>
             </div>
           </div>
         </div>
@@ -1292,7 +1344,7 @@ export function AgoraMeetRoom({
             title="Kelola Peserta"
           >
             <Users className="w-4 h-4 shrink-0" />
-            <span className="text-[11px] hidden sm:inline">{remoteUsers.length + 1}</span>
+            <span className="text-[11px] hidden sm:inline">{humanRemoteUsers.length + 1}</span>
           </button>
         </div>
       </div>
@@ -1322,6 +1374,9 @@ export function AgoraMeetRoom({
              ZOOM SCREEN SHARE MODE (STANDAR vs SIDE-BY-SIDE ALA ZOOM)
              ========================================================================= */
           (() => {
+            const presenterName = activeSharer ? String(activeSharer).replace(/_screen$/, "") : (isScreenSharing ? userNama : null)
+            const isLocalSharing = isScreenSharing || presenterName === userNama
+
             const renderPresentationCard = (extraClass = "") => {
               const inAnyFullscreen = isFullscreenShare || isTheaterFullscreen
               return (
@@ -1355,11 +1410,15 @@ export function AgoraMeetRoom({
                         transition: isDragging || touchDistanceRef.current ? "none" : "transform 0.15s ease-out",
                       }}
                     >
-                      {activeSharer === userNama ? (
+                      {isLocalSharing ? (
                         <LocalScreenShareView screenTrack={screenTrackRef.current} />
                       ) : (
                         <RemoteScreenShareView
-                          sharerUser={remoteUsers.find((u) => u.uid === activeSharer)}
+                          sharerUser={
+                            remoteUsers.find((u) => u.uid === activeSharer) ||
+                            remoteUsers.find((u) => u.uid === `${presenterName}_screen`) ||
+                            remoteUsers.find((u) => String(u.uid).endsWith("_screen"))
+                          }
                         />
                       )}
                     </div>
@@ -1368,7 +1427,9 @@ export function AgoraMeetRoom({
                   {/* Badge info presenter */}
                   <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-black/75 backdrop-blur-md px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-emerald-400 flex items-center gap-1.5 sm:gap-2 border border-emerald-500/30 z-10">
                     <Monitor className="w-3.5 h-3.5" />
-                    <span className="truncate max-w-[160px] sm:max-w-xs">Presentasi: {activeSharer === userNama ? "Layar Anda" : activeSharer}</span>
+                    <span className="truncate max-w-[160px] sm:max-w-xs">
+                      Presentasi: {isLocalSharing ? "Layar Anda" : presenterName || "Layar Presenter"}
+                    </span>
                   </div>
 
                   {/* Indikator Mode Zoom Aktif */}
@@ -1427,7 +1488,7 @@ export function AgoraMeetRoom({
                       )}
                     </button>
 
-                    {isGuru && activeSharer !== userNama && (
+                    {isGuru && !isLocalSharing && (
                       <button
                         type="button"
                         onClick={handleHentikanShareScreenMurid}
@@ -1442,7 +1503,7 @@ export function AgoraMeetRoom({
                   {/* Floating Camera Presenter (PiP) - Kamera Guru / Presenter Tetap Muncul & Tidak Replace */}
                   {showPipCam && (
                     <div className="absolute top-12 sm:top-14 right-2.5 sm:right-3 w-28 sm:w-44 md:w-52 aspect-video rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-700/80 bg-slate-900/95 backdrop-blur-xl z-30 ring-1 ring-black/50 animate-in fade-in zoom-in-95 duration-200">
-                      {activeSharer === userNama ? (
+                      {isLocalSharing ? (
                         /* Kamera Saya Saat Saya Presentasi */
                         <div className="relative w-full h-full flex items-center justify-center bg-black">
                           <LocalUserVideoCard
@@ -1459,14 +1520,17 @@ export function AgoraMeetRoom({
                         /* Kamera Presenter / Guru Saat Orang Lain Presentasi */
                         <div className="relative w-full h-full flex items-center justify-center bg-black">
                           {(() => {
-                            const sharerUser = remoteUsers.find((u) => u.uid === activeSharer)
-                            if (sharerUser) {
+                            const presenterUser =
+                              humanRemoteUsers.find((u) => u.uid === presenterName) ||
+                              remoteUsers.find((u) => u.uid === presenterName)
+
+                            if (presenterUser) {
                               return (
                                 <RemoteUserVideoCard
-                                  user={sharerUser}
+                                  user={presenterUser}
                                   compact={true}
                                   aspectClass="w-full h-full aspect-video"
-                                  isSpeaking={speakingUsers[sharerUser.uid]}
+                                  isSpeaking={speakingUsers[presenterUser.uid]}
                                   isSpotlight={false}
                                   isGuruHost={false}
                                 />
@@ -1475,7 +1539,7 @@ export function AgoraMeetRoom({
                             return (
                               <div className="flex flex-col items-center justify-center p-2 text-center text-slate-400 space-y-1">
                                 <Video className="w-4 h-4 text-emerald-400 animate-pulse" />
-                                <span className="text-[9px] font-bold text-slate-300 truncate max-w-[90px]">{activeSharer}</span>
+                                <span className="text-[9px] font-bold text-slate-300 truncate max-w-[90px]">{presenterName || "Presenter"}</span>
                               </div>
                             )
                           })()}
@@ -1485,7 +1549,7 @@ export function AgoraMeetRoom({
                       {/* Header floating PIP: Label & Tombol Tutup/Minimalkan */}
                       <div className="absolute top-1 left-1.5 right-1 flex items-center justify-between pointer-events-auto z-40">
                         <span className="text-[8px] sm:text-[9px] font-extrabold text-white bg-black/70 px-1.5 py-0.5 rounded backdrop-blur-md truncate max-w-[80px] sm:max-w-[120px]">
-                          Cam: {activeSharer === userNama ? "Anda" : activeSharer}
+                          Cam: {isLocalSharing ? "Anda" : presenterName || "Presenter"}
                         </span>
                         <button
                           type="button"
@@ -1576,12 +1640,12 @@ export function AgoraMeetRoom({
                     {renderPresentationCard("w-full h-full aspect-video md:aspect-auto max-h-[50vh] md:max-h-full")}
                   </div>
 
-                  {/* Sisi Kanan: Kotak Peserta Grid Col 1 ke Bawah (Scrollable ala Zoom) */}
+                    {/* Sisi Kanan: Kotak Peserta Grid Col 1 ke Bawah (Scrollable ala Zoom) */}
                   <div className="w-full md:w-64 lg:w-72 xl:w-80 shrink-0 flex flex-col min-h-0 md:h-full md:border-l md:border-slate-800/80 md:pl-3">
                     <div className="flex items-center justify-between pb-2 px-1 shrink-0">
                       <span className="text-[11px] font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5 text-blue-400" />
-                        <span>Peserta ({remoteUsers.length + 1})</span>
+                        <span>Peserta ({humanRemoteUsers.length + 1})</span>
                       </span>
                       <span className="text-[9px] text-emerald-400 font-bold bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 rounded-md">
                         Side-by-Side
@@ -1605,8 +1669,8 @@ export function AgoraMeetRoom({
                         />
 
                         {/* Thumbnail Peserta Lain - Berjajar ke bawah col 1 & scrollable */}
-                        {remoteUsers.map((u) => {
-                          const isSharer = u.uid === activeSharer
+                        {humanRemoteUsers.map((u) => {
+                          const isSharer = u.uid === presenterName
                           return (
                             <div key={u.uid} className="relative">
                               <RemoteUserVideoCard
@@ -1647,7 +1711,7 @@ export function AgoraMeetRoom({
                 <div className="w-full max-w-5xl mx-auto shrink-0 flex flex-col space-y-1.5 pb-2">
                   <div className="flex items-center justify-between px-1">
                     <span className="text-[10px] sm:text-xs font-bold text-slate-400">
-                      Peserta Kelas ({remoteUsers.length + 1})
+                      Peserta Kelas ({humanRemoteUsers.length + 1})
                     </span>
                   </div>
                   <div className="h-20 sm:h-28 flex items-center gap-2 overflow-x-auto pb-1 shrink-0 no-scrollbar touch-pan-x">
@@ -1667,8 +1731,8 @@ export function AgoraMeetRoom({
                     </div>
 
                     {/* Thumbnail Peserta Lain */}
-                    {remoteUsers.map((u) => {
-                      const isSharer = u.uid === activeSharer
+                    {humanRemoteUsers.map((u) => {
+                      const isSharer = u.uid === presenterName
                       return (
                         <div key={u.uid} className="h-full aspect-video shrink-0 relative">
                           <RemoteUserVideoCard
@@ -1742,7 +1806,7 @@ export function AgoraMeetRoom({
             <div className="w-full max-w-4xl lg:max-w-5xl mx-auto flex-1 min-h-0 flex flex-col space-y-1.5">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
-                  Peserta Lainnya ({remoteUsers.length})
+                  Peserta Lainnya ({humanRemoteUsers.length})
                 </span>
               </div>
 
@@ -1791,7 +1855,7 @@ export function AgoraMeetRoom({
                 </div>
 
                 {/* Thumbnail Peserta Lain */}
-                {remoteUsers.map((u) => {
+                {humanRemoteUsers.map((u) => {
                   const isActiveOnStage = currentSpeakerUid === u.uid
                   return (
                     <div
@@ -1827,12 +1891,12 @@ export function AgoraMeetRoom({
              GALLERY VIEW MODE (RESPONSIF MOBILE / TABLET / DESKTOP)
              ========================================================================= */
           (() => {
-            const totalParticipants = 1 + remoteUsers.length
+            const totalParticipants = 1 + humanRemoteUsers.length
             const isOdd = totalParticipants % 2 !== 0 && totalParticipants > 1
 
             const participants = [
               { isLocal: true, uid: userNama, name: userNama },
-              ...remoteUsers.map((u) => ({ isLocal: false, user: u, uid: u.uid })),
+              ...humanRemoteUsers.map((u) => ({ isLocal: false, user: u, uid: u.uid })),
             ]
 
             let gridLayoutClass = "grid-cols-2 md:grid-cols-2 max-w-4xl mx-auto"
@@ -1963,7 +2027,7 @@ export function AgoraMeetRoom({
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div>
                 <span className="text-xs font-extrabold text-slate-200">
-                  Daftar Peserta ({remoteUsers.length + 1})
+                  Daftar Peserta ({humanRemoteUsers.length + 1})
                 </span>
                 {isGuru && (
                   <p className="text-[10px] text-slate-400">Kontrol penuh guru pengajar</p>
@@ -2030,7 +2094,7 @@ export function AgoraMeetRoom({
               </div>
 
               {/* Teman / Murid */}
-              {remoteUsers.map((u) => {
+              {humanRemoteUsers.map((u) => {
                 const nama = u.uid
                 return (
                   <div
