@@ -234,6 +234,14 @@ export function MuridKelas() {
       {/* Banner Sesi Virtual Meet Live / Terjadwal dari Guru */}
       <BannerMeetMurid kelasId={kelasData?.id} />
 
+      {/* Kalender Jadwal Zoom Meet Langsung Tampil di Bawah Header Kelas */}
+      <KalenderMeetKelas
+        sesiList={sesiMeetList}
+        kelasNama={kelasData?.nama || profileData?.kelasNama}
+        isGuru={false}
+        onJoinMeet={(sesi) => setLobbyMeet(sesi)}
+      />
+
       {/* Filter Tab & Pencarian Teman */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {/* Input Cari */}
@@ -252,7 +260,6 @@ export function MuridKelas() {
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl shrink-0 overflow-x-auto no-scrollbar">
           {[
             { id: "semua", label: "Daftar Teman", icon: Users },
-            { id: "kalender-meet", label: "Kalender Meet", icon: CalendarDays },
             { id: "skor-kuis", label: "Peringkat Kuis", icon: Trophy },
             { id: "nilai-tugas", label: "Nilai Tugas", icon: ClipboardList },
             { id: "chat", label: "Obrolan Kelas", icon: MessageSquare },
@@ -283,13 +290,6 @@ export function MuridKelas() {
         <ChatKelasRealtime
           kelasId={kelasData?.id || profileData?.kelasId}
           kelasNama={kelasData?.nama || profileData?.kelasNama}
-        />
-      ) : activeTab === "kalender-meet" ? (
-        <KalenderMeetKelas
-          sesiList={sesiMeetList}
-          kelasNama={kelasData?.nama || profileData?.kelasNama}
-          isGuru={false}
-          onJoinMeet={(sesi) => setLobbyMeet(sesi)}
         />
       ) : sortedTeman.length === 0 ? (
         <div className="text-center py-16 border border-dashed rounded-3xl bg-slate-50/60 p-6">
