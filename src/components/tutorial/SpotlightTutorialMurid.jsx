@@ -57,7 +57,7 @@ export function setTutorialDismissedToday() {
     console.warn("Gagal simpan tanggal tutorial:", err)
     try {
       sessionStorage.setItem(STORAGE_KEY, getTodayDateString())
-    } catch (_) {}
+    } catch (_) { }
   }
 }
 
@@ -491,13 +491,12 @@ export function SpotlightTutorialMurid() {
             <div
               ref={cardRef}
               style={!isMobile && targetRect ? tooltipStyle : {}}
-              className={`z-30 pointer-events-auto transition-all duration-300 ease-out ${
-                isMobile || !targetRect
+              className={`z-30 pointer-events-auto transition-all duration-300 ease-out ${isMobile || !targetRect
                   ? isTargetInLowerHalf
                     ? "fixed top-3 sm:top-5 left-3 sm:left-4 right-3 sm:right-4 max-w-md mx-auto"
                     : "fixed bottom-3 sm:bottom-6 left-3 sm:left-4 right-3 sm:right-4 max-w-md mx-auto"
                   : "fixed w-[420px] max-w-[calc(100vw-32px)]"
-              }`}
+                }`}
             >
               <div className="bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] border border-slate-200/90 text-slate-800 flex flex-col max-h-[min(540px,78dvh)] sm:max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200">
                 {/* 1. Header Kartu (Sticky / Shrink-0) */}
@@ -559,13 +558,12 @@ export function SpotlightTutorialMurid() {
                         key={step.id}
                         type="button"
                         onClick={() => setCurrentStepIndex(idx)}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${
-                          idx === currentStepIndex
+                        className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentStepIndex
                             ? "w-7 bg-blue-600"
                             : idx < currentStepIndex
-                            ? "w-2.5 bg-blue-300"
-                            : "w-1.5 bg-slate-200"
-                        }`}
+                              ? "w-2.5 bg-blue-300"
+                              : "w-1.5 bg-slate-200"
+                          }`}
                         title={`Langkah ${idx + 1}: ${step.title}`}
                       />
                     ))}

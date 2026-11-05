@@ -280,7 +280,7 @@ export function Dashboard() {
           </span>
           <span className="text-slate-300">•</span>
           <span className="text-[11px] text-slate-500 flex items-center gap-1">
-            Mata Pelajaran: <span className="text-slate-800 font-semibold">{guruData?.mapel || "Bahasa Indonesia"}</span>
+            Mata Pelajaran: <span className="text-slate-800 font-semibold">Bahasa Indonesia</span>
           </span>
         </div>
       </div>
@@ -802,10 +802,10 @@ export function Dashboard() {
                           {isGraded
                             ? "Lihat Nilai"
                             : isDeadlinePassed
-                            ? "Lihat Detail"
-                            : isSubmitted
-                            ? "Perbarui Tautan"
-                            : "Kumpulkan Tugas"}
+                              ? "Lihat Detail"
+                              : isSubmitted
+                                ? "Perbarui Tautan"
+                                : "Kumpulkan Tugas"}
                         </span>
                         <ArrowRight className="w-3.5 h-3.5 ml-1" />
                       </Link>

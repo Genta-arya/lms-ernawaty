@@ -46,6 +46,7 @@ export function MateriDetail() {
   const [showScrollTop, setShowScrollTop] = useState(false)
   const [currentBagianIndex, setCurrentBagianIndex] = useState(0)
   const [maxUnlockedIndex, setMaxUnlockedIndex] = useState(0)
+  const [activeParagraphIndex, setActiveParagraphIndex] = useState(-1)
 
   // Tujuan tombol kembali: jika murid/login ke /murid, jika guru ke /guru/materi, lainnya ke /murid
   const backTarget = role === "guru" ? "/guru/materi" : role === "murid" ? "/murid/materi" : "/"
@@ -383,24 +384,41 @@ export function MateriDetail() {
                     <MateriAudioPlayer
                       judulBab={bag.judul}
                       kontenMarkdown={bag.konten}
+                      activeParagraphIndex={activeParagraphIndex}
+                      onParagraphChange={setActiveParagraphIndex}
                     />
 
-                    <div className="prose prose-slate rich-editor-content max-w-none text-sm sm:text-base leading-relaxed break-words overflow-x-auto">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          table: ({ node, ...props }) => (
-                            <div className="w-full overflow-x-auto my-4 rounded-xl border border-slate-200 shadow-xs">
-                              <table className="w-full text-left text-xs sm:text-sm divide-y divide-slate-200" {...props} />
-                            </div>
-                          ),
-                          pre: ({ node, ...props }) => (
-                            <pre className="overflow-x-auto p-4 rounded-xl bg-slate-900 text-slate-100 text-xs sm:text-sm leading-relaxed" {...props} />
-                          ),
-                        }}
-                      >
-                        {bag.konten}
-                      </ReactMarkdown>
+                    <div className="prose prose-slate rich-editor-content max-w-none text-sm sm:text-base leading-relaxed break-words overflow-x-auto space-y-4">
+                      {(bag.konten || "").split(/\n\s*\n/).filter((b) => b.trim().length > 0).map((block, pIdx) => {
+                        const isHighlighted = activeParagraphIndex === pIdx
+                        return (
+                          <div
+                            key={pIdx}
+                            data-paragraph-index={pIdx}
+                            className={`transition-all duration-300 rounded-2xl p-3 sm:p-4 -mx-2 sm:-mx-3 ${
+                              isHighlighted
+                                ? "bg-amber-100/95 ring-2 ring-amber-400/90 shadow-md text-slate-950 font-medium"
+                                : ""
+                            }`}
+                          >
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                table: ({ node, ...props }) => (
+                                  <div className="w-full overflow-x-auto my-4 rounded-xl border border-slate-200 shadow-xs">
+                                    <table className="w-full text-left text-xs sm:text-sm divide-y divide-slate-200" {...props} />
+                                  </div>
+                                ),
+                                pre: ({ node, ...props }) => (
+                                  <pre className="overflow-x-auto p-4 rounded-xl bg-slate-900 text-slate-100 text-xs sm:text-sm leading-relaxed" {...props} />
+                                ),
+                              }}
+                            >
+                              {block}
+                            </ReactMarkdown>
+                          </div>
+                        )
+                      })}
                     </div>
 
                     {/* Navigasi Interaktif Bab Sebelumnya / Selanjutnya */}
