@@ -5,9 +5,7 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
-  BookOpen,
   Award,
-  Layers,
   CheckCircle2,
   AlertCircle,
   Copy,
@@ -98,12 +96,12 @@ export function MateriAiSummaryCard({
   }
 
   return (
-    <div className="bg-linear-to-br from-indigo-50/70 via-white to-sky-50/60 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl p-4 sm:p-5 shadow-xs transition-all">
+    <div className="bg-gradient-to-br from-indigo-50/80 via-white to-blue-50/60 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/40 border border-indigo-100/90 dark:border-indigo-900/60 rounded-2xl p-4 sm:p-5 shadow-sm transition-all">
       {/* Header Kartu */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-start sm:items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-linear-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
-            {isBabAkhir ? <Award className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/25 shrink-0">
+            {isBabAkhir ? <Award className="w-5 h-5 text-white" /> : <Bot className="w-5 h-5 text-white" />}
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -114,7 +112,7 @@ export function MateriAiSummaryCard({
                 </span>
               </h3>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               {isBabAkhir
                 ? "Menjelaskan bab penutup & merangkum seluruh bab materi ini agar siap kuis."
                 : `Penjelasan konsep inti & kesimpulan penting untuk Bab ${currentBagianIndex + 1}.`}
@@ -153,7 +151,7 @@ export function MateriAiSummaryCard({
                 size="sm"
                 disabled={loading}
                 onClick={() => handleGenerate(true)}
-                className="h-8 px-2.5 text-xs rounded-lg gap-1.5 font-medium border-indigo-200 hover:bg-indigo-50 text-indigo-700"
+                className="h-8 px-2.5 text-xs rounded-lg gap-1.5 font-semibold border-indigo-200 hover:bg-indigo-50 text-indigo-700"
                 title="Perbarui / Generate Ulang"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -176,28 +174,28 @@ export function MateriAiSummaryCard({
 
       {/* Konten Belum Di-generate */}
       {!summary && !loading && !error && (
-        <div className="mt-4 pt-4 border-t border-indigo-100/70 dark:border-indigo-900/40 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white/60 dark:bg-slate-950/40 p-4 rounded-xl">
-          <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300">
-            <Sparkles className="w-4 h-4 text-indigo-500 shrink-0" />
+        <div className="mt-4 pt-3.5 border-t border-indigo-100 dark:border-indigo-900/50 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-950/50 p-3.5 sm:p-4 rounded-xl border border-indigo-50 shadow-2xs">
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-medium">
+            <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
             <span>
               Ingin penjelasan ringkas dan rangkuman poin penting {isBabAkhir ? "seluruh bab" : "bab ini"} yang mudah dipahami?
             </span>
           </div>
-          <Button
+          <button
             type="button"
             onClick={() => handleGenerate(false)}
-            className="w-full sm:w-auto text-xs font-bold bg-linear-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl h-9 px-4 shadow-xs gap-1.5 shrink-0"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl h-9 px-4 shadow-sm transition-colors shrink-0 cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkles className="w-3.5 h-3.5 text-white" />
             <span>{isBabAkhir ? "Rangkum Semua Bab (AI)" : "Jelaskan & Rangkum Bab Ini"}</span>
-          </Button>
+          </button>
         </div>
       )}
 
       {/* Indikator Loading */}
       {loading && (
-        <div className="mt-4 pt-4 border-t border-indigo-100/70 dark:border-indigo-900/40 flex flex-col items-center justify-center py-6 text-center space-y-2.5">
-          <div className="w-9 h-9 rounded-full border-3 border-indigo-200 border-t-indigo-600 animate-spin" />
+        <div className="mt-4 pt-4 border-t border-indigo-100 dark:border-indigo-900/50 flex flex-col items-center justify-center py-6 text-center space-y-2.5">
+          <div className="w-8 h-8 rounded-full border-3 border-indigo-200 border-t-indigo-600 animate-spin" />
           <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
             {isBabAkhir
               ? "AI sedang merangkum komprehensif seluruh bab materi..."
@@ -230,8 +228,8 @@ export function MateriAiSummaryCard({
 
       {/* Konten Rangkuman Markdown */}
       {summary && isExpanded && !loading && (
-        <div className="mt-4 pt-4 border-t border-indigo-100/80 dark:border-indigo-900/50">
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs border border-indigo-100/60 dark:border-indigo-950 rounded-xl p-4 sm:p-5 prose prose-indigo max-w-none text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200">
+        <div className="mt-4 pt-4 border-t border-indigo-100 dark:border-indigo-900/50">
+          <div className="bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-950 rounded-xl p-4 sm:p-5 prose prose-indigo max-w-none text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200 shadow-2xs">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -264,4 +262,3 @@ export function MateriAiSummaryCard({
     </div>
   )
 }
-
