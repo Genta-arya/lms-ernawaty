@@ -48,6 +48,9 @@ export function getNextApiKey() {
 
 // Model urutan prioritas: gemini-3.5-flash 
 export const GEMINI_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
   "gemini-3.5-flash"
 ]
 
@@ -360,6 +363,122 @@ ${materiJudul ? `Terkait materi: "${materiJudul}"\n` : ""}Permintaan guru:
 
         const rawJson = await callGeminiApi(currentApiKey, modelToTry, systemPrompt, userPrompt)
         return safeParseJson(rawJson)
+      } catch (err) {
+        lastError = err
+        const is503 = err.status === 503 || err.message?.includes("503") || err.message?.includes("high demand") || err.message?.includes("UNAVAILABLE")
+        if (is503) {
+          console.warn(`Model ${modelToTry} sedang 503, mencoba model cadangan...`)
+          continue
+        }
+        console.warn(`Gemini Key #${keyIndex + 1} (${modelToTry}) kendala:`, err.message)
+        break
+      }
+    }
+  }
+
+  throw new Error(formatAiFriendlyError(lastError))
+}
+
+/**
+ * Merangkum dan menjelaskan bab materi (atau seluruh materi jika bab terakhir)
+ * Menggunakan format Markdown yang ramah siswa SMP, interaktif, dan mudah dimengerti.
+ */
+export async function generatePenjelasanDanRangkumanBabAi({
+  materiJudul = "",
+  babJudul = "",
+  kontenBab = "",
+  isBabAkhir = false,
+  semuaBab = []
+}) {
+  const keys = getGeminiKeys()
+  if (!keys || keys.length === 0) {
+    throw new Error("Kunci API Gemini tidak ditemukan. Pastikan VITE_GEMINI_API_KEYS sudah terisi di file .env")
+  }
+
+  const systemPrompt = `Anda adalah asisten tutor AI yang cerdas, ramah, dan komunikatif untuk siswa SMP (Fase D).
+Gaya bahasa Anda menarik, mudah dipahami siswa remaja (tidak kaku), menggunakan analogi nyata sehari-hari jika relevan, dan terstruktur rapi.
+
+Format respon dalam Markdown yang indah:
+1. 💡 **Penjelasan Inti (Konsep Mudah Dipahami)**: Jelaskan konsep utama bab ini dengan bahasa yang sangat mudah dicerna siswa SMP.
+2. 📌 **Poin-Poin Penting / Rangkuman Cepat**: Bullet points kesimpulan penting yang wajib diingat untuk kuis/ujian.
+3. 🎯 **Contoh Penerapan / Tips Mengingat**: Trik mudah mengingat atau contoh konkret.
+${isBabAkhir ? `\n4. 🌟 **Rangkuman Komprehensif Seluruh Bab**: Berikan ringkasan terpadu yang merangkum kesinambungan seluruh bab dari awal hingga akhir sebagai bekal menghadapi kuis/evaluasi akhir!` : ""}
+
+Gunakan icon emoji yang relevan dan format bold/bullet list yang rapi agar menyenangkan dibaca.`
+
+  let userPrompt = ""
+  if (isBabAkhir && semuaBab.length > 0) {
+    const babSemuaTeks = semuaBab
+      .map((b, i) => `--- Bab ${i + 1}: ${b.judul || `Bagian ${i + 1}`} ---\n${b.konten || ""}`)
+      .join("\n\n")
+
+    userPrompt = `Materi: "${materiJudul}"
+Ini adalah BAB TERAKHIR ("${babJudul}").
+Mohon jelaskan bab ini, dan buatkan rangkuman menyeluruh untuk SELURUH bab berikut:
+
+${babSemuaTeks}`
+  } else {
+    userPrompt = `Materi: "${materiJudul}"
+Bab: "${babJudul}"
+
+Konten Bab yang dipelajari:
+"""
+${kontenBab}
+"""
+
+Mohon jelaskan konsep bab ini secara menyenangkan dan berikan rangkuman poin-poin kuncinya.`
+  }
+
+  let lastError = null
+  const startIndex = parseInt(localStorage.getItem(ROUND_ROBIN_INDEX_KEY) || "0", 10) % keys.length
+
+  for (let i = 0; i < keys.length; i++) {
+    const keyIndex = (startIndex + i) % keys.length
+    const currentApiKey = keys[keyIndex]
+
+    for (const modelToTry of GEMINI_MODELS) {
+      try {
+        localStorage.setItem(ROUND_ROBIN_INDEX_KEY, String((keyIndex + 1) % keys.length))
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelToTry}:generateContent?key=${currentApiKey}`
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: `${systemPrompt}\n\nPermintaan:\n${userPrompt}`,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              maxOutputTokens: 4096,
+              temperature: 0.7,
+            },
+          }),
+        })
+
+        if (!response.ok) {
+          let errMsg = `Gemini API Error (${response.status})`
+          try {
+            const errJson = await response.json()
+            if (errJson?.error?.message) errMsg = errJson.error.message
+          } catch (_) {}
+          const err = new Error(errMsg)
+          err.status = response.status
+          throw err
+        }
+
+        const data = await response.json()
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+        if (!text) throw new Error("Tidak menerima teks balasan dari Gemini.")
+        return text.trim()
       } catch (err) {
         lastError = err
         const is503 = err.status === 503 || err.message?.includes("503") || err.message?.includes("high demand") || err.message?.includes("UNAVAILABLE")

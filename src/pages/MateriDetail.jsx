@@ -14,6 +14,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { LeaderboardHarian } from "@/components/kuis/LeaderboardHarian"
 import { ForumDiskusi } from "@/components/materi/ForumDiskusi"
 import { MateriAudioPlayer } from "@/components/materi/MateriAudioPlayer"
+import { MateriAiSummaryCard } from "@/components/materi/MateriAiSummaryCard"
 import {
   BookOpen,
   CheckCircle,
@@ -476,6 +477,20 @@ export function MateriDetail() {
                   </section>
                 )
               })()}
+            </div>
+          )}
+
+          {/* AI Tutor & Rangkuman Cerdas per Bab (Disimpan di Cache) */}
+          {materi.bagian?.length > 0 && (
+            <div className="pt-2">
+              <MateriAiSummaryCard
+                materiId={materi.id}
+                materiJudul={materi.judul}
+                currentBagianIndex={currentBagianIndex}
+                currentBagian={materi.bagian[currentBagianIndex]}
+                totalBagian={materi.bagian.length}
+                semuaBagian={materi.bagian}
+              />
             </div>
           )}
 
