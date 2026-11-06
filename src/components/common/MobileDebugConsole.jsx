@@ -122,6 +122,26 @@ export function MobileDebugConsole() {
           return body
         }
       }
+      if (typeof FormData !== "undefined" && body instanceof FormData) {
+        try {
+          const entries = {}
+          for (const [key, value] of body.entries()) {
+            if (value instanceof File) {
+              entries[key] = `[File: ${value.name} (${value.type || "unknown"}, ${value.size} bytes)]`
+            } else if (value instanceof Blob) {
+              entries[key] = `[Blob: (${value.type || "unknown"}, ${value.size} bytes)]`
+            } else {
+              entries[key] = value
+            }
+          }
+          return JSON.stringify(entries, null, 2)
+        } catch (_) {
+          return "[FormData object]"
+        }
+      }
+      if (typeof Blob !== "undefined" && body instanceof Blob) {
+        return `[Blob: ${body.type || "unknown"}, ${body.size} bytes]`
+      }
       if (typeof body === "object") {
         try {
           return JSON.stringify(body, null, 2)

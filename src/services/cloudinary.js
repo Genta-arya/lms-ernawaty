@@ -267,15 +267,45 @@ export async function uploadMeetFileDirectly(file) {
   fd.append("upload_preset", uploadPreset)
   fd.append("folder", "lsm_materi_meet")
 
-  // Gunakan endpoint /auto/upload agar Cloudinary otomatis mengenali image/raw/video
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
-    method: "POST",
-    body: fd,
-  })
+  // Tentukan apakah file adalah image atau raw/auto
+  const isImage = file.type?.startsWith("image/")
+  const uploadType = isImage ? "image" : "auto"
+  const directEndpoint = `https://api.cloudinary.com/v1_1/${cloudName}/${uploadType}/upload`
+  const proxyEndpoint = `/api/upload-meet-file`
 
-  const resData = await res.json()
-  if (!res.ok) {
-    throw new Error(resData?.error?.message || "Gagal mengunggah berkas ke server.")
+  let resData = null
+
+  // Coba unggah langsung ke Cloudinary terlebih dahulu
+  try {
+    const res = await fetch(directEndpoint, {
+      method: "POST",
+      body: fd,
+    })
+    resData = await res.json()
+    if (!res.ok) {
+      throw new Error(resData?.error?.message || `HTTP ${res.status}: Gagal upload Cloudinary`)
+    }
+  } catch (directErr) {
+    console.warn("Direct Cloudinary upload gagal / diblokir, mencoba via proxy Vercel:", directErr)
+
+    // Fallback: Upload melalui serverless proxy backend (/api/upload-meet-file)
+    try {
+      const proxyRes = await fetch(proxyEndpoint, {
+        method: "POST",
+        body: fd,
+      })
+      resData = await proxyRes.json()
+      if (!proxyRes.ok) {
+        throw new Error(resData?.error?.message || `HTTP ${proxyRes.status}: Gagal upload via proxy`)
+      }
+    } catch (proxyErr) {
+      console.error("Gagal upload berkas baik langsung maupun via proxy:", proxyErr)
+      throw new Error(
+        proxyErr?.message?.includes("Failed to fetch")
+          ? "Gagal menghubungi server. Periksa koneksi internet atau nonaktifkan penghemat data/adblocker."
+          : (proxyErr.message || directErr.message || "Gagal mengunggah berkas materi.")
+      )
+    }
   }
 
   const ext = file.name.includes(".") ? file.name.split(".").pop() : resData.format
