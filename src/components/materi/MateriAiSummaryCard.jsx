@@ -27,8 +27,8 @@ export function MateriAiSummaryCard({
 }) {
   const isBabAkhir = currentBagianIndex === totalBagian - 1
 
-  // Cache key per bab (disertai v2 agar cache yang sempat salah mata pelajaran otomatis di-reset)
-  const cacheKey = `lms_ai_summary_v2_${materiId || "temp"}_bab_${currentBagianIndex}`
+  // Cache key per bab (disertai v3 agar cache yang sempat salah mata pelajaran otomatis di-reset ke Bahasa Indonesia)
+  const cacheKey = `lms_ai_summary_v3_${materiId || "temp"}_bab_${currentBagianIndex}`
 
   const [summary, setSummary] = useState("")
   const [loading, setLoading] = useState(false)
@@ -126,6 +126,19 @@ export function MateriAiSummaryCard({
         <div className="flex items-center gap-2 self-end sm:self-center">
           {summary && (
             <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => handleGenerate(true)}
+                disabled={loading}
+                className="h-8 px-2.5 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg flex items-center gap-1"
+                title="Perbarui / Susun Ulang Rangkuman AI"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Perbarui</span>
+              </Button>
+
               <Button
                 type="button"
                 variant="ghost"

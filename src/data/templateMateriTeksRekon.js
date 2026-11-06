@@ -1,13 +1,13 @@
 /**
  * Template Materi Teks Rekon (Lampiran A)
- * Berdasarkan Kurikulum Merdeka Fase D (Bahasa Inggris) untuk SMPN 3 Ketapang
+ * Berdasarkan Kurikulum Merdeka Fase D (Bahasa Indonesia) untuk SMPN 3 Ketapang
  */
 export const templateMateriTeksRekon = [
   {
     judul: "Teks Rekon: Pengertian, Jenis, dan Struktur",
     slug: "teks-rekon-struktur",
-    topik: "Recount Text",
-    mapel: "Bahasa Inggris",
+    topik: "Teks Rekon (Cerita Ulang)",
+    mapel: "Bahasa Indonesia",
     fase: "D",
     tingkat: ["VII", "VIII", "IX"],
     urutan: 1,
@@ -131,8 +131,8 @@ Siap menguji pemahamanmu? Kerjakan **Kuis 1: Struktur Teks Rekon**.`
   {
     judul: "Unsur Kebahasaan Teks Rekon",
     slug: "teks-rekon-kebahasaan",
-    topik: "Recount Text",
-    mapel: "Bahasa Inggris",
+    topik: "Teks Rekon (Cerita Ulang)",
+    mapel: "Bahasa Indonesia",
     fase: "D",
     tingkat: ["VII", "VIII", "IX"],
     urutan: 2,
@@ -274,8 +274,8 @@ Kerjakan **Kuis 2: Kebahasaan Teks Rekon** untuk berlatih.`
   {
     judul: "Menulis Teks Rekon (Pengayaan)",
     slug: "teks-rekon-menulis",
-    topik: "Recount Text",
-    mapel: "Bahasa Inggris",
+    topik: "Teks Rekon (Cerita Ulang)",
+    mapel: "Bahasa Indonesia",
     fase: "D",
     tingkat: ["VII", "VIII", "IX"],
     urutan: 3,

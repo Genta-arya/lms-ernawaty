@@ -197,7 +197,7 @@ export function MateriDetail() {
           {/* Header Materi */}
           <div className="border-b pb-6 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">{materi.topik || "Bahasa Inggris"}</Badge>
+              <Badge variant="secondary">{materi.topik || materi.mapel || "Bahasa Indonesia"}</Badge>
               <Badge variant="outline">Fase D</Badge>
               {materi.tingkat?.map((t) => (
                 <Badge key={t} variant="outline" className="bg-primary/5 text-primary border-primary/20">

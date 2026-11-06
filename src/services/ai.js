@@ -411,15 +411,21 @@ export async function generatePenjelasanDanRangkumanBabAi({
     throw new Error("Kunci API Gemini tidak ditemukan. Pastikan VITE_GEMINI_API_KEYS sudah terisi di file .env")
   }
 
-  const systemPrompt = `Anda adalah asisten tutor AI yang cerdas, ramah, dan komunikatif untuk siswa SMP (Fase D).
-Mata Pelajaran: ${mapel}.
-PENTING: Gunakan bahasa pengantar dan materi sesuai mata pelajaran "${mapel}". JANGAN menganggap materi ini bahasa Inggris jika mata pelajarannya adalah "${mapel}". Teks Rekon adalah materi pembelajaran Bahasa Indonesia (teks yang menceritakan kembali peristiwa masa lalu secara kronologis dalam Bahasa Indonesia).
-Gaya bahasa Anda menarik, mudah dipahami siswa SMP (tidak kaku), menggunakan analogi nyata sehari-hari jika relevan, dan terstruktur rapi.
+  const systemPrompt = `Anda adalah asisten tutor AI resmi untuk mata pelajaran BAHASA INDONESIA jenjang SMP (Kurikulum Merdeka Fase D).
+Mata Pelajaran: BAHASA INDONESIA.
+TOPIK PEMBELAJARAN: Teks Rekon / Cerita Ulang dalam BAHASA INDONESIA (menceritakan kembali pengalaman, peristiwa nyata/sejarah, atau imajinatif di masa lampau menggunakan kaidah Bahasa Indonesia yang baik dan benar).
+
+⚠️ PERATURAN MUTLAK & TEGAS:
+1. Kelas ini adalah KELAS BAHASA INDONESIA, BUKAN Bahasa Inggris!
+2. JANGAN PERNAH menganggap materi ini sebagai pelajaran Bahasa Inggris atau bahasa asing!
+3. JANGAN mengaitkan atau menjelaskan konsep bahasa Inggris (seperti Simple Past Tense, Regular/Irregular Verbs, dsb.) KECUALI jika teks materi secara eksplisit memuat istilah tersebut sebagai perbandingan istilah.
+4. Seluruh penjelasan, rangkuman, contoh kalimat, kata hubung waktu (konjungsi temporal: setelah itu, kemudian, lalu, dsb.), dan tips HARUS 100% dalam konteks tata BAHASA INDONESIA.
+5. Gaya bahasa komunikatif, ramah, dan memotivasi siswa SMP (Fase D).
 
 Format respon dalam Markdown yang indah:
-1. 💡 **Penjelasan Inti (Konsep Mudah Dipahami)**: Jelaskan konsep utama bab ini dengan bahasa yang sangat mudah dicerna siswa SMP.
-2. 📌 **Poin-Poin Penting / Rangkuman Cepat**: Bullet points kesimpulan penting yang wajib diingat untuk kuis/ujian.
-3. 🎯 **Contoh Penerapan / Tips Mengingat**: Trik mudah mengingat atau contoh konkret.
+1. 💡 **Penjelasan Inti (Konsep Bahasa Indonesia)**: Jelaskan konsep utama bab ini dengan bahasa yang sangat mudah dicerna siswa SMP.
+2. 📌 **Poin-Poin Penting / Rangkuman Cepat**: Bullet points kesimpulan penting yang wajib diingat untuk kuis/ujian Bahasa Indonesia.
+3. 🎯 **Contoh Penerapan / Tips Mengingat**: Trik mudah mengingat atau contoh kalimat Bahasa Indonesia yang konkret.
 ${isBabAkhir ? `\n4. 🌟 **Rangkuman Komprehensif Seluruh Bab**: Berikan ringkasan terpadu yang merangkum kesinambungan seluruh bab dari awal hingga akhir sebagai bekal menghadapi kuis/evaluasi akhir!` : ""}
 
 Gunakan icon emoji yang relevan dan format bold/bullet list yang rapi agar menyenangkan dibaca.`
@@ -430,14 +436,14 @@ Gunakan icon emoji yang relevan dan format bold/bullet list yang rapi agar menye
       .map((b, i) => `--- Bab ${i + 1}: ${b.judul || `Bagian ${i + 1}`} ---\n${b.konten || ""}`)
       .join("\n\n")
 
-    userPrompt = `Mata Pelajaran: ${mapel}
+    userPrompt = `Mata Pelajaran: BAHASA INDONESIA
 Materi: "${materiJudul}"
 Ini adalah BAB TERAKHIR ("${babJudul}").
-Mohon jelaskan bab ini dalam konteks pelajaran ${mapel}, dan buatkan rangkuman menyeluruh untuk SELURUH bab berikut:
+Mohon jelaskan bab ini dalam konteks penuh mata pelajaran BAHASA INDONESIA, dan buatkan rangkuman menyeluruh untuk SELURUH bab berikut:
 
 ${babSemuaTeks}`
   } else {
-    userPrompt = `Mata Pelajaran: ${mapel}
+    userPrompt = `Mata Pelajaran: BAHASA INDONESIA
 Materi: "${materiJudul}"
 Bab: "${babJudul}"
 
@@ -446,7 +452,7 @@ Konten Bab yang dipelajari:
 ${kontenBab}
 """
 
-Mohon jelaskan konsep bab ini dalam konteks mata pelajaran ${mapel} secara menyenangkan dan berikan rangkuman poin-poin kuncinya.`
+Mohon jelaskan konsep bab ini murni dalam konteks mata pelajaran BAHASA INDONESIA secara menyenangkan dan berikan rangkuman poin-poin kuncinya.`
   }
 
   let lastError = null
