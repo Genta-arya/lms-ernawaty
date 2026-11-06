@@ -247,6 +247,48 @@ export async function uploadToCloudinary(file) {
 }
 
 /**
+ * Direct REST fallback jika widget Cloudinary error atau gagal di browser
+ * Mendukung dokumen (PDF, Word, PPT, Excel, dll) dan gambar tanpa widget popup
+ */
+export async function uploadMeetFileDirectly(file) {
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim() || "ephsphyt"
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET?.trim() || "lmsernawaty"
+
+  if (!file) throw new Error("Tidak ada file yang dipilih.")
+
+  // Maksimal 20MB
+  const MAX_SIZE = 20 * 1024 * 1024
+  if (file.size > MAX_SIZE) {
+    throw new Error("Ukuran berkas melebihi batas 20MB.")
+  }
+
+  const fd = new FormData()
+  fd.append("file", file)
+  fd.append("upload_preset", uploadPreset)
+  fd.append("folder", "lsm_materi_meet")
+
+  // Gunakan endpoint /auto/upload agar Cloudinary otomatis mengenali image/raw/video
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+    method: "POST",
+    body: fd,
+  })
+
+  const resData = await res.json()
+  if (!res.ok) {
+    throw new Error(resData?.error?.message || "Gagal mengunggah berkas ke server.")
+  }
+
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : resData.format
+  return {
+    url: resData.secure_url,
+    name: file.name || resData.original_filename || "Berkas Materi",
+    format: ext || resData.format || "file",
+    bytes: resData.bytes || file.size,
+    resourceType: resData.resource_type || "auto",
+  }
+}
+
+/**
  * Membuka Cloudinary Upload Widget khusus untuk dokumen dan materi pembelajaran di Ruang Meet
  * Mendukung dokumen PDF, Word, PowerPoint, Excel, Gambar, ZIP/RAR, dll.
  * Hanya dipanggil oleh Guru.

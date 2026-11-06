@@ -3,7 +3,7 @@ import {
   subscribeMeetMessages,
   sendMeetMessage,
 } from "@/services/meet"
-import { openCloudinaryMeetFileWidget } from "@/services/cloudinary"
+import { uploadMeetFileDirectly } from "@/services/cloudinary"
 import { LinkifiedText } from "@/components/common/LinkifiedText"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -30,6 +30,7 @@ export function MeetChatDrawer({
   const [attachedFile, setAttachedFile] = useState(null)
   const [uploadingFile, setUploadingFile] = useState(false)
   const bottomRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (!channelName) return
@@ -72,23 +73,33 @@ export function MeetChatDrawer({
     }
   }
 
-  function handleAttachFile() {
+  function handleAttachClick() {
     if (!isGuru || uploadingFile) return
-    setUploadingFile(true)
+    fileInputRef.current?.click()
+  }
 
-    openCloudinaryMeetFileWidget({
-      onSuccess: (fileInfo) => {
-        setAttachedFile(fileInfo)
-        setUploadingFile(false)
-      },
-      onError: (err) => {
-        console.error("Gagal attach file materi:", err)
-        setUploadingFile(false)
-      },
-      onClose: () => {
-        setUploadingFile(false)
-      },
-    })
+  async function handleFileSelected(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const MAX_SIZE = 20 * 1024 * 1024
+    if (file.size > MAX_SIZE) {
+      alert("Ukuran file terlalu besar! Maksimal 20MB.")
+      if (fileInputRef.current) fileInputRef.current.value = ""
+      return
+    }
+
+    setUploadingFile(true)
+    try {
+      const fileInfo = await uploadMeetFileDirectly(file)
+      setAttachedFile(fileInfo)
+    } catch (err) {
+      console.error("Gagal attach file materi:", err)
+      alert(err.message || "Gagal mengunggah berkas materi ke Cloudinary.")
+    } finally {
+      setUploadingFile(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
   }
 
   function formatTime(timestamp) {
@@ -253,23 +264,32 @@ export function MeetChatDrawer({
       <form onSubmit={handleSend} className="pt-2 border-t border-slate-800 flex items-center gap-1.5">
         {/* Tombol Attach File - KHUSUS GURU */}
         {isGuru && (
-          <button
-            type="button"
-            onClick={handleAttachFile}
-            disabled={uploadingFile || sending}
-            className={`p-2 rounded-xl transition-all ${
-              attachedFile
-                ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/40"
-                : "bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80"
-            }`}
-            title="Bagikan Dokumen/Materi Pembelajaran (Cloudinary)"
-          >
-            {uploadingFile ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
-            ) : (
-              <Paperclip className="w-3.5 h-3.5" />
-            )}
-          </button>
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleFileSelected}
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,image/*"
+            />
+            <button
+              type="button"
+              onClick={handleAttachClick}
+              disabled={uploadingFile || sending}
+              className={`p-2 rounded-xl transition-all ${
+                attachedFile
+                  ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/40"
+                  : "bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80"
+              }`}
+              title="Bagikan Dokumen/Materi Pembelajaran (Cloudinary)"
+            >
+              {uploadingFile ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+              ) : (
+                <Paperclip className="w-3.5 h-3.5" />
+              )}
+            </button>
+          </>
         )}
 
         <input
