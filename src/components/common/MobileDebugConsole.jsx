@@ -182,40 +182,9 @@ export function MobileDebugConsole() {
 
       setRequests((prev) => [newReq, ...prev].slice(0, 80))
 
+      let response
       try {
-        const response = await originalFetch.apply(window, args)
-        const duration = Math.round(performance.now() - startTime)
-        const ok = response.ok
-
-        // Clone response agar tidak mengonsumsi stream asli aplikasi
-        let responseBody = null
-        try {
-          const clone = response.clone()
-          const contentType = clone.headers.get("content-type") || ""
-          if (contentType.includes("application/json") || contentType.includes("text/")) {
-            const text = await clone.text()
-            responseBody = parsePayload(text)
-          } else {
-            responseBody = `[Binary/Stream data: ${contentType}]`
-          }
-        } catch (_) {
-          responseBody = "[Tidak dapat membaca response stream]"
-        }
-
-        setRequests((prev) =>
-          prev.map((r) =>
-            r.id === reqId
-              ? {
-                  ...r,
-                  status: ok ? "success" : "failed",
-                  statusCode: response.status,
-                  duration,
-                  response: responseBody,
-                }
-              : r
-          )
-        )
-        return response
+        response = await originalFetch.apply(window, args)
       } catch (err) {
         const duration = Math.round(performance.now() - startTime)
         setRequests((prev) =>
@@ -233,6 +202,64 @@ export function MobileDebugConsole() {
         )
         throw err
       }
+
+      const duration = Math.round(performance.now() - startTime)
+      const ok = response.ok
+
+      // Clone response secara non-blocking agar tidak mengganggu stream pemanggil asli
+      try {
+        const clone = response.clone()
+        const contentType = clone.headers.get("content-type") || ""
+        if (contentType.includes("application/json") || contentType.includes("text/")) {
+          clone.text().then((text) => {
+            const responseBody = parsePayload(text)
+            setRequests((prev) =>
+              prev.map((r) =>
+                r.id === reqId
+                  ? {
+                      ...r,
+                      status: ok ? "success" : "failed",
+                      statusCode: response.status,
+                      duration,
+                      response: responseBody,
+                    }
+                  : r
+              )
+            )
+          }).catch(() => {})
+        } else {
+          const responseBody = `[Binary/Stream data: ${contentType}]`
+          setRequests((prev) =>
+            prev.map((r) =>
+              r.id === reqId
+                ? {
+                    ...r,
+                    status: ok ? "success" : "failed",
+                    statusCode: response.status,
+                    duration,
+                    response: responseBody,
+                  }
+                : r
+            )
+          )
+        }
+      } catch (_) {
+        setRequests((prev) =>
+          prev.map((r) =>
+            r.id === reqId
+              ? {
+                  ...r,
+                  status: ok ? "success" : "failed",
+                  statusCode: response.status,
+                  duration,
+                  response: "[Tidak dapat membaca response]",
+                }
+              : r
+          )
+        )
+      }
+
+      return response
     }
 
     // 5. Intercept XMLHttpRequest (XHR Lengkap dengan Payload & Response)

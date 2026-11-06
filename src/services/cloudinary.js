@@ -273,38 +273,75 @@ export async function uploadMeetFileDirectly(file) {
   const directEndpoint = `https://api.cloudinary.com/v1_1/${cloudName}/${uploadType}/upload`
   const proxyEndpoint = `/api/upload-meet-file`
 
+  // Helper XHR untuk upload berkas besar / FormData yang kebal terhadap pembatasan fetch browser
+  function sendViaXHR(url, formData) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open("POST", url)
+      xhr.timeout = 60000 // 60 detik timeout
+
+      xhr.onload = () => {
+        try {
+          const json = JSON.parse(xhr.responseText)
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(json)
+          } else {
+            reject(new Error(json?.error?.message || `HTTP ${xhr.status}: Gagal mengunggah berkas.`))
+          }
+        } catch (e) {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve({})
+          } else {
+            reject(new Error(`HTTP ${xhr.status}: Respons server tidak valid.`))
+          }
+        }
+      }
+
+      xhr.onerror = () => reject(new Error("Koneksi jaringan terputus atau diblokir (XHR Error)."))
+      xhr.ontimeout = () => reject(new Error("Waktu unggah habis (Request Timeout)."))
+
+      xhr.send(formData)
+    })
+  }
+
   let resData = null
 
-  // Coba unggah langsung ke Cloudinary terlebih dahulu
+  // 1. Coba upload langsung via REST API Cloudinary
   try {
-    const res = await fetch(directEndpoint, {
-      method: "POST",
-      body: fd,
-    })
-    resData = await res.json()
-    if (!res.ok) {
-      throw new Error(resData?.error?.message || `HTTP ${res.status}: Gagal upload Cloudinary`)
-    }
+    resData = await sendViaXHR(directEndpoint, fd)
   } catch (directErr) {
-    console.warn("Direct Cloudinary upload gagal / diblokir, mencoba via proxy Vercel:", directErr)
+    console.warn("Direct Cloudinary XHR gagal, beralih ke Serverless Proxy:", directErr)
 
-    // Fallback: Upload melalui serverless proxy backend (/api/upload-meet-file)
+    // Buat ulang FormData untuk proxy request
+    const proxyFd = new FormData()
+    proxyFd.append("file", file)
+    proxyFd.append("upload_preset", uploadPreset)
+    proxyFd.append("folder", "lsm_materi_meet")
+
+    // 2. Coba upload via internal serverless proxy (/api/upload-meet-file)
     try {
-      const proxyRes = await fetch(proxyEndpoint, {
-        method: "POST",
-        body: fd,
-      })
-      resData = await proxyRes.json()
-      if (!proxyRes.ok) {
-        throw new Error(resData?.error?.message || `HTTP ${proxyRes.status}: Gagal upload via proxy`)
-      }
+      resData = await sendViaXHR(proxyEndpoint, proxyFd)
     } catch (proxyErr) {
-      console.error("Gagal upload berkas baik langsung maupun via proxy:", proxyErr)
-      throw new Error(
-        proxyErr?.message?.includes("Failed to fetch")
-          ? "Gagal menghubungi server. Periksa koneksi internet atau nonaktifkan penghemat data/adblocker."
-          : (proxyErr.message || directErr.message || "Gagal mengunggah berkas materi.")
-      )
+      console.warn("Proxy XHR gagal, mencoba fetch bawaan:", proxyErr)
+
+      // 3. Fallback terakhir: fetch native ke proxy
+      try {
+        const fetchRes = await fetch(proxyEndpoint, {
+          method: "POST",
+          body: proxyFd,
+        })
+        resData = await fetchRes.json()
+        if (!fetchRes.ok) {
+          throw new Error(resData?.error?.message || `HTTP ${fetchRes.status}`)
+        }
+      } catch (finalErr) {
+        console.error("Semua metode unggah berkas materi gagal:", finalErr)
+        throw new Error(
+          finalErr?.message?.includes("Failed to fetch")
+            ? "Gagal menghubungi server. Periksa koneksi internet Anda."
+            : (finalErr.message || proxyErr.message || directErr.message || "Gagal mengunggah berkas materi.")
+        )
+      }
     }
   }
 
