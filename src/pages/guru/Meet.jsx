@@ -147,9 +147,12 @@ export function GuruMeet() {
 
     try {
       await updateStatusSesiMeet(sesi.id, "berlangsung")
-      setActiveMeetSession(sesi)
+      // Arahkan ke lobby preview perangkat terlebih dahulu agar guru siap dan audio/video terkonfigurasi
+      setLobbyMeetSession(sesi)
     } catch (err) {
       console.error("Gagal memulai sesi:", err)
+      // Fallback tetap buka lobby jika status update gagal
+      setLobbyMeetSession(sesi)
     }
   }
 

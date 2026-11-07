@@ -24,40 +24,50 @@ const AGORA_APP_ID = "5960c48ec498439798df7c0d1249ae4d"
  */
 export async function fetchAgoraToken(channelName, userAccount = "Peserta", role = "publisher") {
   // Jika sedang berjalan di dev server lokal (Vite) di mana serverless /api tidak berjalan,
-  // arahkan pemanggilan ke endpoint live Vercel / custom domain
+  // arahkan pemanggilan ke endpoint live domain utama
   const isLocalDev =
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
 
-  const endpoint = isLocalDev
-    ? "https://lms.ernawaty.my.id/api/agora-token"
-    : "/api/agora-token"
+  const candidateEndpoints = isLocalDev
+    ? [
+        "https://lms.ernawaty.my.id/api/agora-token",
+        "https://lms-ernawaty-cvchp9028-gentaaryas-projects.vercel.app/api/agora-token",
+      ]
+    : [
+        "/api/agora-token",
+        "https://lms.ernawaty.my.id/api/agora-token",
+        "https://lms-ernawaty-cvchp9028-gentaaryas-projects.vercel.app/api/agora-token",
+      ]
 
-  let res = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ channelName, userAccount, role }),
-  })
+  let lastError = null
 
-  // Fallback cadangan: jika pemanggilan relatif mengembalikan 404, coba fallback ke domain live
-  if (!res.ok && res.status === 404 && endpoint !== "https://lms.ernawaty.my.id/api/agora-token") {
-    console.warn("Endpoint lokal /api/agora-token 404, mencoba fallback ke server produksi...")
-    res = await fetch("https://lms.ernawaty.my.id/api/agora-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channelName, userAccount, role }),
-    })
+  for (const endpoint of candidateEndpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelName, userAccount, role }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.token) {
+          return data
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        lastError = new Error(errData.error || `Server token error (${res.status}) on ${endpoint}`)
+      }
+    } catch (e) {
+      lastError = e
+    }
   }
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}))
-    throw new Error(errData.error || `Server token error (${res.status})`)
-  }
-  const data = await res.json()
-  if (!data.token) {
-    throw new Error("Token Agora kosong atau gagal dibuat oleh server.")
-  }
-  return data
+  throw (
+    lastError ||
+    new Error("Gagal mengambil token Agora dari serverless. Pastikan koneksi internet terhubung.")
+  )
 }
 
 /**
